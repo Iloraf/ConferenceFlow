@@ -1,0 +1,47 @@
+<!-- templates/admin/reviewers.html -->
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Import des Relecteurs</h2>
+
+  <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin.import_reviewers') }}">
+    <div class="mb-3">
+      <label for="reviewer_file" class="form-label">Fichier CSV des affectations de relecteurs</label>
+      <input class="form-control" type="file" id="reviewer_file" name="file" accept=".csv" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Importer</button>
+  </form>
+
+  <hr class="my-4">
+
+  <h3>Affectations actuelles</h3>
+  <form method="POST" action="{{ url_for('admin.notify_reviewers') }}">
+    <button class="btn btn-warning mb-3">Notifier les relecteurs</button>
+  </form>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Communication</th>
+        <th>Auteur principal</th>
+        <th>Reviewer 1</th>
+        <th>Reviewer 2</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in assignments %}
+      <tr>
+        <td>{{ entry.communication.title }}</td>
+        <td>{{ entry.main_author.email }}</td>
+        <td>{{ entry.reviewer1.email if entry.reviewer1 else '—' }}</td>
+        <td>{{ entry.reviewer2.email if entry.reviewer2 else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+
+
+

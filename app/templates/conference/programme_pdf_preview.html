@@ -1,0 +1,321 @@
+<!-- templates/conference/programme_pdf_preview.html -->
+{% extends 'base.html' %}
+
+{% block title %}Prévisualisation PDF - Programme SFT 2026{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Simulation du format PDF */
+    .pdf-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        padding: 40px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .pdf-header {
+        text-align: center;
+        margin-bottom: 30px;
+        border-bottom: 3px solid #007bff;
+        padding-bottom: 20px;
+    }
+    
+    .pdf-header h1 {
+        color: #007bff;
+        font-size: 28px;
+        margin-bottom: 10px;
+    }
+    
+    .pdf-header .subtitle {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 5px;
+    }
+    
+    .day-section {
+        margin-bottom: 40px;
+        page-break-inside: avoid;
+    }
+    
+    .day-header {
+        background-color: #007bff;
+        color: white;
+        padding: 15px;
+        margin-bottom: 20px;
+        font-size: 18px;
+        font-weight: bold;
+    }
+    
+    .session {
+        margin-bottom: 15px;
+        border-left: 4px solid #e9ecef;
+        padding: 12px 15px;
+        background-color: #f8f9fa;
+    }
+    
+    .session-plenary {
+        border-left-color: #dc3545;
+        background-color: rgba(220,53,69,0.1);
+    }
+    
+    .session-parallel {
+        border-left-color: #28a745;
+        background-color: rgba(40,167,69,0.1);
+    }
+    
+    .session-workshop {
+        border-left-color: #ffc107;
+        background-color: rgba(255,193,7,0.1);
+    }
+    
+    .session-social {
+        border-left-color: #17a2b8;
+        background-color: rgba(23,162,184,0.1);
+    }
+    
+    .session-ceremony {
+        border-left-color: #6f42c1;
+        background-color: rgba(111,66,193,0.1);
+    }
+    
+    .session-break {
+        border-left-color: #6c757d;
+        background-color: #f8f9fa;
+    }
+    
+    .session-time {
+        font-weight: bold;
+        color: #007bff;
+        font-size: 14px;
+    }
+    
+    .session-title {
+        font-size: 15px;
+        font-weight: bold;
+        margin: 5px 0;
+    }
+    
+    .session-speaker {
+        color: #dc3545;
+        font-style: italic;
+        margin: 3px 0;
+    }
+    
+    .session-location {
+        color: #666;
+        font-size: 12px;
+        margin: 3px 0;
+    }
+    
+    .session-description {
+        color: #666;
+        font-size: 12px;
+        margin: 3px 0;
+    }
+    
+    .parallel-sessions, .workshop-sessions {
+        margin-top: 10px;
+        padding: 8px;
+        background-color: rgba(255,255,255,0.7);
+        border-radius: 4px;
+    }
+    
+    .parallel-sessions {
+        border: 1px solid rgba(40,167,69,0.3);
+    }
+    
+    .workshop-sessions {
+        border: 1px solid rgba(255,193,7,0.3);
+    }
+    
+    .parallel-title, .workshop-title {
+        font-weight: bold;
+        font-size: 12px;
+        margin-bottom: 5px;
+    }
+    
+    .parallel-title {
+        color: #28a745;
+    }
+    
+    .workshop-title {
+        color: #ffc107;
+    }
+    
+    .parallel-list, .workshop-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .parallel-list li, .workshop-list li {
+        padding: 2px 0;
+        font-size: 12px;
+    }
+    
+    .parallel-list li:before {
+        content: "▪ ";
+        color: #28a745;
+        font-weight: bold;
+    }
+    
+    .workshop-list li:before {
+        content: "🔧 ";
+    }
+    
+    .legend {
+        margin-top: 30px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+    }
+    
+    .legend h3 {
+        font-size: 14px;
+        margin-bottom: 10px;
+        color: #007bff;
+    }
+    
+    .legend-item {
+        display: inline-block;
+        margin: 3px 15px 3px 0;
+        font-size: 11px;
+    }
+    
+    .legend-color {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-right: 5px;
+        vertical-align: middle;
+    }
+    
+    .footer-info {
+        margin-top: 30px;
+        padding: 15px;
+        background-color: #e9ecef;
+        font-size: 12px;
+        text-align: center;
+        color: #666;
+    }
+    
+    .action-buttons {
+        text-align: center;
+        margin: 20px 0;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    @media print {
+        .action-buttons {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="action-buttons">
+    <a href="{{ url_for('conference.programme_pdf') }}" class="btn btn-primary btn-lg me-3" target="_blank">
+        <i class="fas fa-download me-2"></i>Télécharger en PDF
+    </a>
+    <a href="{{ url_for('conference.programme') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Retour au programme
+    </a>
+</div>
+
+<div class="pdf-container">
+    <div class="pdf-header">
+        <h1>Programme du Congrès</h1>
+        <div class="subtitle">34ème Congrès Français de Thermique</div>
+        <div class="subtitle">Villers-lès-Nancy, 2-5 juin 2026</div>
+        <div class="subtitle">« Thermique & Décarbonation de l'industrie »</div>
+    </div>
+    
+    {% for day_key, day_data in programme.items() %}
+    <div class="day-section">
+        <div class="day-header">
+            {{ day_data.date }}
+        </div>
+        
+        {% for session in day_data.sessions %}
+        <div class="session session-{{ session.type }}">
+            <div class="session-time">{{ session.time }}</div>
+            <div class="session-title">{{ session.title }}</div>
+            
+            {% if session.speaker %}
+            <div class="session-speaker">{{ session.speaker }}</div>
+            {% endif %}
+            
+            {% if session.location %}
+            <div class="session-location">📍 {{ session.location }}</div>
+            {% endif %}
+            
+            {% if session.description %}
+            <div class="session-description">{{ session.description }}</div>
+            {% endif %}
+            
+            {% if session.sessions %}
+            <div class="parallel-sessions">
+                <div class="parallel-title">Sessions parallèles :</div>
+                <ul class="parallel-list">
+                    {% for parallel_session in session.sessions %}
+                    <li>{{ parallel_session }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            {% if session.ateliers %}
+            <div class="workshop-sessions">
+                <div class="workshop-title">Ateliers en parallèle :</div>
+                <ul class="workshop-list">
+                    {% for atelier in session.ateliers %}
+                    <li>{{ atelier }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+    
+    <div class="legend">
+        <h3>Légende des types de sessions</h3>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #dc3545;"></span>
+            Conférence plénière
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #28a745;"></span>
+            Sessions parallèles
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #ffc107;"></span>
+            Ateliers / Posters
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #17a2b8;"></span>
+            Événements sociaux
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #6c757d;"></span>
+            Pauses et repas
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #6f42c1;"></span>
+            Cérémonies
+        </div>
+    </div>
+    
+    <div class="footer-info">
+        34ème Congrès Français de Thermique - SFT 2026<br>
+        Campus ARTEM, École des Mines de Nancy - Villers-lès-Nancy<br>
+        Contact : programme@congres-sft2026.fr
+    </div>
+</div>
+{% endblock %}

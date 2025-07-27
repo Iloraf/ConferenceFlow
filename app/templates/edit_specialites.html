@@ -1,0 +1,145 @@
+<!-- templates/edit_specialites.html -->
+
+{% extends 'base.html' %}
+
+{% block title %}Mes spécialités{% endblock %}
+
+{% block content %}
+
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="mb-0">
+                            <i class="fas fa-cogs me-2"></i>
+                            Mes spécialités de review
+                        </h4>
+                        <small class="text-muted">
+                            Sélectionnez les thématiques dans lesquelles vous souhaitez reviewer des communications
+                        </small>
+                    </div>
+                    
+                    <div class="card-body">
+                        <form method="POST">
+                            {{ form.hidden_tag() }}
+                            
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    Thématiques de spécialité
+                                    <span class="text-muted">(optionnel - vous pouvez en choisir 0, une ou plusieurs)</span>
+                                </label>
+                                
+                                <div class="row">
+                                    {% for subfield in form.specialites %}
+                                        <div class="col-md-6 mb-3">
+                                            <div class="form-check">
+                                                {{ subfield(class="form-check-input", id=subfield.id) }}
+                                                <label class="form-check-label w-100" for="{{ subfield.id }}">
+                                                    <div class="thematique-item">
+                                                        {% set thematique = get_thematique_by_code(subfield.data) %}
+                                                        {% if thematique %}
+                                                            <div class="d-flex align-items-start">
+                                                                <span class="thematique-badge" style="background-color: {{ thematique.couleur }}"></span>
+                                                                <div>
+<div class="fw-bold px-2 py-1 rounded" style="background-color: {{ thematique.couleur }}20; color: {{ thematique.couleur }}">
+    {{ thematique.nom }}
+</div>
+                                                                    <small class="text-muted">{{ thematique.description }}</small>
+                                                                </div>
+                                                            </div>
+                                                        {% else %}
+                                                            {{ subfield.label.text }}
+                                                        {% endif %}
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                {% if form.specialites.errors %}
+                                    <div class="alert alert-danger mt-2">
+                                        {% for error in form.specialites.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i>
+                                    Retour
+                                </a>
+                                
+                                <div>
+                                    <button type="button" class="btn btn-outline-secondary me-2" onclick="clearAll()">
+                                        Tout décocher
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-1"></i>
+                                        Enregistrer
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Aperçu des spécialités sélectionnées -->
+                <div class="card mt-3" id="preview-card" style="display: none;">
+                    <div class="card-body">
+                        <h6 class="card-title">Spécialités sélectionnées :</h6>
+                        <div id="selected-preview"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // JavaScript pour l'interactivité
+        function clearAll() {
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            updatePreview();
+        }
+        
+        function updatePreview() {
+            const checked = document.querySelectorAll('input[type="checkbox"]:checked');
+            const previewCard = document.getElementById('preview-card');
+            const previewDiv = document.getElementById('selected-preview');
+            
+            if (checked.length > 0) {
+                const labels = Array.from(checked).map(cb => {
+                    const label = document.querySelector(`label[for="${cb.id}"]`);
+                    const code = label.querySelector('.fw-bold').textContent;
+                    const nom = label.querySelector('.text-dark').textContent;
+                    return `<span class="badge bg-primary me-1">${code}: ${nom}</span>`;
+                });
+                previewDiv.innerHTML = labels.join(' ');
+                previewCard.style.display = 'block';
+            } else {
+                previewCard.style.display = 'none';
+            }
+        }
+        
+        // Écouter les changements sur les checkboxes
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', updatePreview);
+            });
+            updatePreview(); // Initial update
+        });
+    </script>
+
+{% endblock %}
+
+

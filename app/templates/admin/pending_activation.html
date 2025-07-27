@@ -1,0 +1,90 @@
+
+{% extends 'base.html' %}
+
+{% block title %}Reviewers en attente d'activation{% endblock %}
+
+{% block content %}
+
+
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Reviewers en attente d'activation</h2>
+            <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">Retour</a>
+        </div>
+
+        {% if reviewers %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                {{ reviewers|length }} reviewer(s) en attente d'activation de compte
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Nom</th>
+                                    <th>Spécialités</th>
+                                    <th>Affiliations</th>
+                                    <th>Créé le</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reviewer in reviewers %}
+                                <tr>
+                                    <td>{{ reviewer.email }}</td>
+                                    <td>{{ reviewer.full_name or '-' }}</td>
+                                    <td>
+                                        {% if reviewer.specialites_codes %}
+                                            {% for code in reviewer.specialites_codes.split(',') %}
+                                                <span class="badge bg-secondary me-1">{{ code }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">Aucune</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if reviewer.affiliations %}
+                                            {% for aff in reviewer.affiliations %}
+                                                <span class="badge bg-info me-1">{{ aff.sigle }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">Aucune</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ reviewer.created_at.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        {% if reviewer.activation_sent_at %}
+                                            <span class="badge bg-warning">
+                                                Email envoyé le {{ reviewer.activation_sent_at.strftime('%d/%m/%Y') }}
+                                            </span>
+                                            <br>
+                                        {% endif %}
+                                        <a href="{{ url_for('admin.send_activation_email', user_id=reviewer.id) }}" 
+                                           class="btn btn-sm btn-primary"
+                                           onclick="return confirm('Envoyer l\'email d\'activation à {{ reviewer.email }} ?')">
+                                            <i class="fas fa-envelope"></i> 
+                                            {% if reviewer.activation_sent_at %}Renvoyer{% else %}Envoyer{% endif %}
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                Tous les reviewers ont activé leur compte !
+            </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+{% endblock %}

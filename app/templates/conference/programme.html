@@ -1,0 +1,233 @@
+<!-- templates/conference/programme.html -->
+{% extends 'base.html' %}
+
+{% block title %}Programme - SFT 2026{% endblock %}
+
+
+{% block content %}
+<div class="container">
+
+    <div class="alert alert-info mb-4">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Note :</strong> Le programme est susceptible d'être modifié. Les salles seront communiquées ultérieurement.
+    </div>
+
+    <!-- Navigation par jour -->
+    <ul class="nav nav-pills justify-content-center mb-4" role="tablist">
+        {% for day_key, day_data in programme.items() %}
+        <li class="nav-item">
+            <a class="nav-link {% if loop.first %}active{% endif %}" data-bs-toggle="pill" href="#{{ day_key }}" role="tab">
+                <i class="fas fa-calendar-day me-1"></i>
+                {% if day_data.date %}
+                    {{ day_data.date.split()[0] }} {{ day_data.date.split()[1] }} {{ day_data.date.split()[2] }}
+                {% else %}
+                    Jour {{ loop.index }}
+                {% endif %}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <!-- Contenu des jours -->
+    <div class="tab-content">
+        {% for day_key, day_data in programme.items() %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="{{ day_key }}" role="tabpanel">
+            <div class="day-header">
+                <h2 class="mb-0">{{ day_data.date }}</h2>
+            </div>
+            
+            <div class="timeline">
+                {% for session in day_data.sessions %}
+                <div class="timeline-item">
+		  <div class="card session-card session-{{ session.type }}{% if session.is_past %} session-past{% endif %}">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-2">
+                                    <span class="time-badge">{{ session.time }}</span>
+                                </div>
+                                <div class="col-md-9">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="session-icon me-2">
+                                            {% if session.type == 'plenary' %}
+                                                <i class="fas fa-microphone text-danger"></i>
+                                            {% elif session.type == 'parallel' %}
+                                                <i class="fas fa-columns text-success"></i>
+                                            {% elif session.type == 'workshop' %}
+                                                <i class="fas fa-tools text-warning"></i>
+                                            {% elif session.type == 'break' %}
+                                                <i class="fas fa-coffee text-muted"></i>
+                                            {% elif session.type == 'social' %}
+                                                <i class="fas fa-glass-cheers text-info"></i>
+                                            {% elif session.type == 'ceremony' %}
+                                                <i class="fas fa-trophy text-purple"></i>
+                                            {% elif session.type == 'poster' %}
+                                                <i class="fas fa-images text-warning"></i>
+                                            {% elif session.type == 'roundtable' %}
+                                                <i class="fas fa-users text-teal"></i>
+                                            {% elif session.type == 'visit' %}
+                                                <i class="fas fa-map-marker-alt text-primary"></i>
+                                            {% else %}
+                                                <i class="fas fa-calendar text-primary"></i>
+                                            {% endif %}
+                                        </span>
+					<h4 class="mb-0{% if session.is_past %} text-muted{% endif %}">
+					  {% if session.is_past %}<s>{{ session.title }}</s>{% else %}{{ session.title }}{% endif %}
+					</h4>
+                                    </div>
+                                    
+                                    {% if session.speaker %}
+                                        <p class="mb-1 text-primary"><i class="fas fa-user me-2"></i><strong>{{ session.speaker }}</strong></p>
+                                    {% endif %}
+                                    
+                                    {% if session.description %}
+                                        <p class="mb-1 text-muted small">{{ session.description }}</p>
+                                    {% endif %}
+                                    
+                                    {% if session.location %}
+                                        <p class="mb-1 text-muted">
+                                            <i class="fas fa-map-marker-alt me-1"></i>{{ session.location }}
+                                        </p>
+                                    {% endif %}
+                                    
+                                    <!-- Sessions parallèles -->
+                                    {% if session.sessions %}
+                                    <div class="parallel-sessions">
+                                      <small class="text-success fw-bold"><i class="fas fa-columns me-1"></i>Ateliers :</small>
+                                        <div class="row mt-2">
+                                            {% for parallel_session in session.sessions %}
+                                            <div class="col-md-4 mb-1">
+                                                <span class="badge bg-success bg-opacity-25 text-success">
+                                                    {{ parallel_session }}
+                                                </span>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- Ateliers parallèles -->
+                                    {% if session.ateliers %}
+                                    <div class="workshop-sessions">
+                                        <small class="text-warning fw-bold"><i class="fas fa-wrench me-1"></i>Ateliers en parallèle :</small>
+                                        <div class="row mt-2">
+                                            {% for atelier in session.ateliers %}
+                                            <div class="col-md-6 mb-1">
+                                                <span class="badge bg-warning bg-opacity-25 text-warning">
+                                                    <i class="fas fa-wrench me-1"></i>{{ atelier }}
+                                                </span>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-1 text-end">
+                                    {% if session.type == 'plenary' %}
+                                        <span class="badge bg-danger">Plénière</span>
+                                    {% elif session.type == 'parallel' %}
+                                        <span class="badge bg-success">Atelier</span>
+                                    {% elif session.type == 'workshop' %}
+                                        <span class="badge bg-warning text-dark">Atelier</span>
+                                    {% elif session.type == 'social' %}
+                                        <span class="badge bg-info">Social</span>
+                                    {% elif session.type == 'ceremony' %}
+                                        <span class="badge bg-dark">Cérémonie</span>
+                                    {% elif session.type == 'poster' %}
+                                        <span class="badge bg-warning">Posters</span>
+                                    {% elif session.type == 'roundtable' %}
+                                        <span class="badge bg-teal">Table ronde</span>
+                                    {% elif session.type == 'visit' %}
+                                        <span class="badge bg-primary">Visite</span>
+                                    {% elif session.type == 'break' %}
+                                        <span class="badge bg-secondary">Pause</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Légende -->
+    <div class="content-section mt-5">
+        <div class="section-header">
+            <h2 class="h5 mb-0"><i class="fas fa-info-circle me-2"></i>Légende des types de sessions</h2>
+        </div>
+        <div class="row text-center">
+            <div class="col-md-2 col-6 mb-2">
+                <span class="badge bg-danger me-2">●</span> Conférence plénière
+            </div>
+            <div class="col-md-2 col-6 mb-2">
+                <span class="badge bg-success me-2">●</span> Ateliers
+            </div>
+            <div class="col-md-2 col-6 mb-2">
+                <span class="badge bg-warning me-2">●</span> Posters
+            </div>
+            <div class="col-md-2 col-6 mb-2">
+                <span class="badge bg-info me-2">●</span> Événements sociaux
+            </div>
+            <div class="col-md-2 col-6 mb-2">
+                <span class="badge bg-secondary me-2">●</span> Pauses et repas
+            </div>
+            <div class="col-md-2 col-6 mb-2">
+                <span class="badge bg-dark me-2">●</span> Cérémonies
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="content-section">
+        <div class="section-header">
+            <h2 class="h5 mb-0"><i class="fas fa-download me-2"></i>Téléchargements et infos pratiques</h2>
+        </div>
+
+        <div class="row">
+          <div class="text-center">
+	    <div class="action-buttons">
+	      <a href="{{ url_for('conference.programme_pdf') }}" class="btn btn-primary btn-lg me-3" target="_blank">
+		<i class="fas fa-download me-2"></i>Télécharger le programme complet (PDF)
+	      </a>
+	    </div>
+          </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+    
+{% block extra_css %}
+<style>
+    /* Sessions passées */
+    .session-past {
+        opacity: 0.6;
+        background-color: #f8f9fa !important;
+        position: relative;
+    }
+    
+    .session-past::before {
+        content: "✓ Terminé";
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #28a745;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        z-index: 10;
+    }
+    
+    .session-past .card-body {
+        color: #6c757d !important;
+    }
+    
+    .session-past .time-badge {
+        background-color: #e9ecef !important;
+        color: #6c757d !important;
+    }
+</style>
+{% endblock %}

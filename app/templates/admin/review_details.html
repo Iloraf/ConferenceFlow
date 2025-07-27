@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Détails Review - {{ communication.title }} - Admin SFT 2026{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}">Administration</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.completed_reviews') }}">Reviews terminées</a></li>
+                    <li class="breadcrumb-item active">Communication #{{ communication.id }}</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-file-alt"></i> {{ communication.title }}</h2>
+            <p class="text-muted">{{ stats.total_reviews }} review(s) terminée(s) • Score moyen: {{ "%.1f"|format(stats.avg_score) }}/10</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.completed_reviews') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour à la liste
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informations de la communication -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle"></i> Informations</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>ID:</strong> {{ communication.id }}</p>
+                    <p><strong>Type:</strong> {{ communication.type|title }}</p>
+                    <p><strong>Statut:</strong> {{ communication.status.value|title }}</p>
+                    <p><strong>Créé le:</strong> {{ communication.created_at.strftime('%d/%m/%Y') }}</p>
+                    
+                    <h6 class="mt-3">Auteurs:</h6>
+                    {% for author in communication.authors %}
+                        <span class="badge bg-primary me-1">{{ author.full_name }}</span>
+                    {% endfor %}
+                    
+                    {% if communication.thematiques %}
+                    <h6 class="mt-3">Thématiques:</h6>
+                    {% for thematique in communication.thematiques %}
+                        <span class="badge bg-info me-1">{{ thematique.code }}</span>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Statistiques des reviews -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar"></i> Résumé des reviews</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <h3 class="text-primary">{{ "%.1f"|format(stats.avg_score) }}/10</h3>
+                        <small class="text-muted">Score moyen</small>
+                    </div>
+                    
+                    <h6>Recommendations:</h6>
+                    <div class="mb-2">
+                        <span class="badge bg-success">{{ stats.recommendations.accepter }} Accepter</span>
+                        <span class="badge bg-warning">{{ stats.recommendations.réviser }} Réviser</span>
+                        <span class="badge bg-danger">{{ stats.recommendations.rejeter }} Rejeter</span>
+                    </div>
+                    
+                    {% if stats.biot_fourier_count > 0 %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-trophy"></i>
+                        <strong>{{ stats.biot_fourier_count }}</strong> nomination(s) pour le prix Biot-Fourier
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Reviews détaillées -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-comments"></i> Reviews détaillées</h5>
+                </div>
+                <div class="card-body">
+                    {% for review in reviews %}
+                    <div class="card mb-3 border-{% if review.recommendation.value == 'accepter' %}success{% elif review.recommendation.value == 'rejeter' %}danger{% else %}warning{% endif %}">
+                        <div class="card-header">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <h6 class="mb-0">Review {{ loop.index }}</h6>
+                                    <small class="text-muted">Soumise le {{ review.submitted_at.strftime('%d/%m/%Y à %H:%M') if review.submitted_at else 'N/A' }}</small>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <span class="badge bg-primary">Score: {{ review.score or 'N/A' }}/10</span>
+                                    {% if review.recommendation %}
+                                        <span class="badge bg-{% if review.recommendation.value == 'accepter' %}success{% elif review.recommendation.value == 'rejeter' %}danger{% else %}warning{% endif %}">
+                                            {{ review.recommendation.value|title }}
+                                        </span>
+                                    {% endif %}
+                                    {% if review.recommend_for_biot_fourier %}
+                                        <span class="badge bg-warning"><i class="fas fa-trophy"></i> Biot-Fourier</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            {% if review.comments_for_authors %}
+                            <h6><i class="fas fa-users"></i> Commentaires pour les auteurs:</h6>
+                            <div class="bg-light p-3 rounded mb-3">
+                                {{ review.comments_for_authors|nl2br }}
+                            </div>
+                            {% endif %}
+                            
+                            {% if review.comments_for_committee %}
+                            <h6><i class="fas fa-user-shield"></i> Commentaires pour le comité:</h6>
+                            <div class="bg-warning bg-opacity-10 p-3 rounded">
+                                {{ review.comments_for_committee|nl2br }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions en bas -->
+
+
+
+<!-- Étape 4 : Remplacez la section "Actions en bas" dans review_details.html -->
+
+<!-- Actions en bas -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-tools"></i> Actions administratives</h5>
+            </div>
+            <div class="card-body">
+                {% if communication.can_make_decision() %}
+                    <!-- Formulaire pour les décisions -->
+                    <form id="decisionForm" method="POST" action="{{ url_for('admin.make_communication_decision', comm_id=communication.id) }}">
+                        
+                        <!-- Zone de commentaires -->
+                        <div class="mb-3">
+                            <label for="comments" class="form-label">Commentaires pour la décision (optionnel) :</label>
+                            <textarea class="form-control" id="comments" name="comments" rows="3" 
+                                    placeholder="Commentaires sur la décision ou instructions pour les auteurs..."></textarea>
+                        </div>
+                        
+                        <!-- Boutons de décision -->
+                        <div class="row">
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-success w-100" onclick="submitDecision('accepter')">
+                                    <i class="fas fa-check"></i> Accepter la communication
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-warning w-100" onclick="submitDecision('reviser')">
+                                    <i class="fas fa-edit"></i> Demander des révisions
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-danger w-100" onclick="submitDecision('rejeter')">
+                                    <i class="fas fa-times"></i> Rejeter la communication
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Champ caché pour la décision -->
+                        <input type="hidden" id="decision" name="decision" value="">
+                    </form>
+                    
+                    <!-- Alertes de confirmation -->
+                    <div id="confirmationAlert" class="alert alert-info mt-3" style="display: none;">
+                        <div id="confirmationText"></div>
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-secondary btn-sm me-2" onclick="cancelDecision()">Annuler</button>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="confirmDecision()">Confirmer</button>
+                        </div>
+                    </div>
+                
+                {% else %}
+                    <!-- Communication déjà décidée -->
+<!-- Communication déjà décidée -->
+<!-- Communication déjà décidée -->
+{% set decision_status = communication.get_decision_status_display() %}
+<div class="alert alert-{{ decision_status.class }}">
+    <div class="row">
+        <div class="col-md-8">
+            <h6 class="mb-1">
+                <i class="fas fa-gavel"></i> Décision prise : {{ decision_status.text }}
+            </h6>
+            {% if communication.decision_date %}
+                <small class="text-muted">
+                    Le {{ communication.decision_date.strftime('%d/%m/%Y à %H:%M') }}
+                    {% if communication.decision_by %}
+                        par {{ communication.decision_by.full_name }}
+                    {% endif %}
+                </small>
+            {% endif %}
+            
+            {% if communication.decision_comments %}
+                <div class="mt-2">
+                    <strong>Commentaires de l'admin :</strong><br>
+                    {{ communication.decision_comments|nl2br }}
+                </div>
+            {% endif %}
+            
+            <!-- Afficher les commentaires des reviewers pour les révisions -->
+            {% if communication.final_decision == 'reviser' and reviews %}
+                <div class="mt-3">
+                    <h6><i class="fas fa-comments"></i> Retours des reviewers (à transmettre aux auteurs) :</h6>
+                    {% for review in reviews %}
+                        {% if review.comments_for_authors %}
+                            <div class="border-start border-3 border-info ps-3 mb-2 bg-light p-2">
+                                <small class="text-muted"><strong>Reviewer {{ loop.index }} :</strong></small><br>
+                                {{ review.comments_for_authors|nl2br }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-4">
+            <!-- État de la notification -->
+            <div class="mb-2">
+                {% if communication.decision_notification_sent %}
+                    <span class="badge bg-success"><i class="fas fa-check"></i> Notification envoyée</span><br>
+                    <small class="text-muted">
+                        Le {{ communication.decision_notification_sent_at.strftime('%d/%m/%Y à %H:%M') if communication.decision_notification_sent_at }}
+                    </small>
+                {% elif communication.decision_notification_error %}
+                    <span class="badge bg-danger"><i class="fas fa-exclamation-triangle"></i> Erreur d'envoi</span><br>
+                    <small class="text-danger">{{ communication.decision_notification_error }}</small>
+                {% else %}
+                    <span class="badge bg-warning"><i class="fas fa-envelope"></i> Notification pas encore envoyée</span>
+                {% endif %}
+            </div>
+            
+            <!-- Actions -->
+            <div class="d-grid gap-1">
+                <!-- Bouton pour envoyer la notification -->
+                {% if not communication.decision_notification_sent %}
+                    <form method="POST" action="{{ url_for('admin.send_decision_notification', comm_id=communication.id) }}" 
+                          onsubmit="return confirm('Envoyer la notification à tous les auteurs ?')" 
+                          style="display: inline;">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-envelope"></i> Envoyer notification
+                        </button>
+                    </form>
+                {% else %}
+                    <button class="btn btn-outline-primary btn-sm w-100" disabled>
+                        <i class="fas fa-check"></i> Notification envoyée
+                    </button>
+                {% endif %}
+                
+                <!-- Bouton pour modifier la décision -->
+                <form method="POST" action="{{ url_for('admin.reset_communication_decision', comm_id=communication.id) }}" 
+                      onsubmit="return confirm('Êtes-vous sûr de vouloir annuler cette décision ?')" 
+                      style="display: inline;">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="fas fa-undo"></i> Modifier la décision
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+                
+                <!-- Actions secondaires -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <button class="btn btn-outline-primary w-100">
+                            <i class="fas fa-envelope"></i> Envoyer feedback aux auteurs
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button class="btn btn-outline-info w-100">
+                            <i class="fas fa-download"></i> Exporter le rapport complet
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript pour la confirmation -->
+<script>
+let pendingDecision = null;
+
+function submitDecision(decision) {
+    const decisionTexts = {
+        'accepter': 'Accepter cette communication',
+        'rejeter': 'Rejeter cette communication', 
+        'reviser': 'Demander des révisions pour cette communication'
+    };
+    
+    pendingDecision = decision;
+    document.getElementById('decision').value = decision;
+    
+    const alertElement = document.getElementById('confirmationAlert');
+    const textElement = document.getElementById('confirmationText');
+    
+    textElement.innerHTML = `
+        <strong>Confirmation :</strong> Êtes-vous sûr de vouloir <strong>${decisionTexts[decision]}</strong> ?
+        <br><small class="text-muted">Cette action modifiera le statut de la communication.</small>
+    `;
+    
+    alertElement.style.display = 'block';
+    alertElement.scrollIntoView({behavior: 'smooth'});
+}
+
+function cancelDecision() {
+    pendingDecision = null;
+    document.getElementById('decision').value = '';
+    document.getElementById('confirmationAlert').style.display = 'none';
+}
+
+function confirmDecision() {
+    if (pendingDecision) {
+        document.getElementById('decisionForm').submit();
+    }
+}
+</script>
+
+
+</div>
+{% endblock %}

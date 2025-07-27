@@ -1,0 +1,160 @@
+<!-- templates/conference/localisation.html -->
+{% extends 'base.html' %}
+
+{% block title %}Localisation - SFT 2026{% endblock %}
+
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-map-marker-alt me-2"></i>Localisation</h1>
+        
+        <!-- Lieu principal -->
+        <div class="card mb-4 shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0"><i class="fas fa-building me-2"></i>Lieu de la conférence</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4>{{ venues.main.name }}</h4>
+                        <p><i class="fas fa-map-pin me-2"></i>{{ venues.main.address }}</p>
+                        <p class="text-muted">{{ venues.main.description }}</p>
+
+                        <img src="{{ url_for('static', filename=venues.main.image) }}" alt="{{ venues.main.name }}" class="img-fluid mt-3 mb-3">
+
+<div class="alert alert-info mt-3">
+    <h6>Accès :</h6>
+    <ul class="mb-0">
+        <li>Bus ligne 15 - Arrêt "Laxou Les Provines"</li>
+        <li>Bus ligne 13 - Arrêt "Domaine de l'Asnée"</li>
+        <li>Parking disponible sur place</li>
+    </ul>
+</div>
+
+			
+                    </div>
+                    <div class="col-md-6">
+                        <div id="map"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Hébergements -->
+        <h2 class="mb-4"><i class="fas fa-bed me-2"></i>Hébergements partenaires</h2>
+        <div class="row mb-5">
+            {% for hotel in venues.hotels %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100 venue-card hotel-card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ hotel.name }}</h5>
+                        <p class="star-rating mb-2">
+                            {% for i in range(hotel.stars) %}
+                                <i class="fas fa-star"></i>
+                            {% endfor %}
+                        </p>
+                        <p class="mb-1"><i class="fas fa-map-marker-alt me-2 text-muted"></i>{{ hotel.address }}</p>
+                        <p class="mb-1"><i class="fas fa-walking me-2 text-muted"></i>{{ hotel.distance }}</p>
+                        <p class="mb-0"><strong>{{ hotel.price }}</strong></p>
+                        <div class="mt-3">
+                            <button class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-external-link-alt me-1"></i>Réserver
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Transports -->
+        <h2 class="mb-4"><i class="fas fa-route me-2"></i>Comment venir</h2>
+        <div class="row">
+            {% for key, transport in venues.transport.items() %}
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card h-100 text-center venue-card">
+                    <div class="card-body">
+                        <div class="transport-icon">
+                            {% if key == 'train' %}
+                                <i class="fas fa-train text-primary"></i>
+                            {% elif key == 'car' %}
+                                <i class="fas fa-car text-success"></i>
+                            {% elif key == 'plane' %}
+                                <i class="fas fa-plane text-info"></i>
+                            {% elif key == 'local' %}
+                                <i class="fas fa-bus text-warning"></i>
+                            {% endif %}
+                        </div>
+                        <h5>{{ transport.title }}</h5>
+                        <p class="text-muted">{{ transport.info | replace('\n', '<br>') | safe}}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Informations pratiques -->
+        <div class="card mt-5">
+            <div class="card-header bg-info text-white">
+                <h3 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations pratiques</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Nancy, ville d'Art et d'Histoire</h5>
+                        <p>Profitez de votre séjour pour découvrir :</p>
+                        <ul>
+                            <li><strong>Place Stanislas</strong> - Patrimoine mondial UNESCO</li>
+                            <li><strong>Musée des Beaux-Arts</strong> - Collections remarquables</li>
+                            <li><strong>Villa Majorelle</strong> - Joyau de l'Art Nouveau</li>
+                            <li><strong>Parc de la Pépinière</strong> - 21 hectares de verdure</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Services à proximité</h5>
+                        <ul>
+                            <li><i class="fas fa-utensils me-2"></i>Nombreux restaurants dans un rayon de 500m</li>
+                            <li><i class="fas fa-coffee me-2"></i>Cafés et brasseries sur la Place Stanislas</li>
+                            <li><i class="fas fa-shopping-bag me-2"></i>Centre commercial Saint-Sébastien</li>
+                            <li><i class="fas fa-pills me-2"></i>Pharmacies et services médicaux</li>
+                        </ul>
+                        <!--<div class="alert alert-success mt-3">
+                            <i class="fas fa-gift me-2"></i>
+                            <strong>Pass Nancy City Card offert</strong> aux participants pour accès gratuit aux musées et transports.
+                        </div> -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Météo -->
+        <div class="card mt-4">
+            <div class="card-body text-center">
+                <h5><i class="fas fa-cloud-sun me-2"></i>Météo en juin à Nancy</h5>
+                <p class="mb-0">Températures moyennes : 15-23°C • Prévoir des vêtements de mi-saison</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script pour la carte (utilise OpenStreetMap/Leaflet au lieu de Google Maps) -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialiser la carte
+    var map = L.map('map').setView([{{ venues.main.lat }}, {{ venues.main.lng }}], 15);
+    
+    // Ajouter les tuiles OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Ajouter un marqueur pour le centre de congrès
+    var marker = L.marker([{{ venues.main.lat }}, {{ venues.main.lng }}]).addTo(map);
+    marker.bindPopup('<strong>{{ venues.main.name }}</strong><br>{{ venues.main.address }}').openPopup();
+});
+</script>
+{% endblock %}

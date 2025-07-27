@@ -1,0 +1,280 @@
+<!-- Créer le fichier : templates/admin/test_zone.html -->
+{% extends "base.html" %}
+
+{% block title %}Zone de Test - Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-flask text-warning"></i> Zone de Test</h1>
+                    <p class="text-muted">Outils de développement et de test pour SFT 2026</p>
+                </div>
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Retour Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques actuelles -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> État actuel de la base de données</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="text-center">
+                                <h3 class="text-primary">{{ stats.affiliations }}</h3>
+                                <small>Affiliations</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center">
+                                <h3 class="text-success">{{ stats.users_total }}</h3>
+                                <small>Utilisateurs</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center">
+                                <h3 class="text-warning">{{ stats.users_reviewers }}</h3>
+                                <small>Reviewers</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center">
+                                <h3 class="text-info">{{ stats.communications }}</h3>
+                                <small>Communications</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center">
+                                <h3 class="text-secondary">{{ stats.files_uploaded }}</h3>
+                                <small>Fichiers</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center">
+                                <h3 class="text-danger">{{ stats.users_test }}</h3>
+                                <small>Comptes test</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 1: Configuration initiale -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-database"></i> 1. Configuration initiale</h5>
+                </div>
+                <div class="card-body">
+                    <p>Préparer la base de données avec les données de base.</p>
+                    
+                    <div class="mb-3">
+                        <strong>Fichier labos.csv :</strong>
+                        {% if file_status.labos_csv_exists %}
+                            <span class="badge bg-success ms-2">✓ Trouvé</span>
+                        {% else %}
+                            <span class="badge bg-danger ms-2">✗ Manquant</span>
+                        {% endif %}
+                        <br><small class="text-muted">{{ file_status.csv_path }}</small>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin.import_affiliations_csv') }}" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Importer les affiliations
+                        </a>
+                        <a href="{{ url_for('admin.setup_status') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-info-circle"></i> Vérifier le statut
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-users"></i> 2. Données de test</h5>
+                </div>
+                <div class="card-body">
+                    <p>Créer des utilisateurs et reviewers factices pour les tests.</p>
+                    
+                    <div class="mb-3">
+                        <strong>Comptes de test actuels :</strong>
+                        <span class="badge bg-info ms-2">{{ stats.users_test }} comptes</span>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin.generate_test_data') }}" class="btn btn-success">
+                            <i class="fas fa-user-plus"></i> Générer utilisateurs test
+                        </a>
+                        <a href="{{ url_for('admin.cleanup_test_data') }}" class="btn btn-outline-danger">
+                            <i class="fas fa-trash"></i> Nettoyer les données test
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Fichiers de test -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-file-pdf"></i> 3. Documents de test</h5>
+                </div>
+                <div class="card-body">
+                    <p>Générer des PDF de test pour tous les types de documents.</p>
+                    
+                    <div class="mb-3">
+                        <strong>PDFs de test :</strong>
+                        {% if file_status.test_pdfs_exist %}
+                            <span class="badge bg-success ms-2">✓ Générés</span>
+                        {% else %}
+                            <span class="badge bg-secondary ms-2">? Non générés</span>
+                        {% endif %}
+                        <br><small class="text-muted">{{ file_status.pdfs_dir }}</small>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin.generate_test_pdfs') }}" class="btn btn-warning">
+                            <i class="fas fa-file-pdf"></i> Générer PDFs de test
+                        </a>
+                        {% if file_status.test_pdfs_exist %}
+                        <button class="btn btn-outline-info" onclick="listTestFiles()">
+                            <i class="fas fa-list"></i> Voir les fichiers générés
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-vials"></i> 4. Tests fonctionnels</h5>
+                </div>
+                <div class="card-body">
+                    <p>Tester les fonctionnalités clés de l'application.</p>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('main.mes_communications') }}" class="btn btn-outline-info" target="_blank">
+                            <i class="fas fa-eye"></i> Voir mes communications
+                        </a>
+                        <a href="{{ url_for('main.choose_type') }}" class="btn btn-outline-success" target="_blank">
+                            <i class="fas fa-plus"></i> Tester soumission
+                        </a>
+                        <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-warning" target="_blank">
+                            <i class="fas fa-users-cog"></i> Gestion utilisateurs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Tests HAL -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-archive text-info"></i> 5. Tests du système HAL</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6>Workflow de test HAL recommandé :</h6>
+                            <ol class="mb-3">
+                                <li>Vérifier que vous avez un <strong>IDHAL</strong> renseigné dans votre profil</li>
+                                <li>Créer une communication avec les <strong>PDFs de test</strong></li>
+                                <li>Vérifier que la <strong>case HAL est cochée</strong> par défaut</li>
+                                <li>Tester les <strong>validations JavaScript</strong> (IDHAL manquant)</li>
+                                <li>Voir le <strong>statut HAL</strong> dans "Mes Communications"</li>
+                            </ol>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('main.profile') }}" class="btn btn-outline-primary" target="_blank">
+                                    <i class="fas fa-user-edit"></i> Vérifier mon profil
+                                </a>
+                                <a href="{{ url_for('main.choose_type') }}" class="btn btn-info" target="_blank">
+                                    <i class="fas fa-plus-circle"></i> Tester soumission HAL
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-lightbulb"></i> 
+                        <strong>Astuce :</strong> Utilisez les comptes de test générés (mot de passe: <code>password123</code>) 
+                        pour tester différents scénarios (avec/sans IDHAL, différentes affiliations, etc.)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section d'urgence -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Zone d'urgence</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-danger mb-3">
+                        <strong>Attention :</strong> Ces actions peuvent affecter les données de production !
+                    </p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <a href="{{ url_for('admin.cleanup_test_data') }}" class="btn btn-outline-danger w-100" 
+                               onclick="return confirm('Êtes-vous sûr de vouloir supprimer tous les comptes de test ?')">
+                                <i class="fas fa-trash-alt"></i> Supprimer tous les comptes test
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-secondary w-100" onclick="showDatabaseInfo()">
+                                <i class="fas fa-database"></i> Info base de données
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function listTestFiles() {
+    alert('Fichiers générés dans static/uploads/test_pdfs/:\n\n• abstract_test.pdf\n• article_test.pdf\n• wip_test.pdf\n• poster1_test.pdf\n• poster2_test.pdf');
+}
+
+function showDatabaseInfo() {
+    const info = `État de la base de données :
+
+📊 Affiliations : {{ stats.affiliations }}
+👥 Utilisateurs : {{ stats.users_total }}
+🔍 Reviewers : {{ stats.users_reviewers }}
+📝 Communications : {{ stats.communications }}
+📁 Fichiers : {{ stats.files_uploaded }}
+🧪 Comptes test : {{ stats.users_test }}
+
+Prêt pour les tests HAL : {{ 'Oui' if stats.affiliations > 0 and stats.users_total > 0 else 'Non' }}`;
+    
+    alert(info);
+}
+</script>
+{% endblock %}

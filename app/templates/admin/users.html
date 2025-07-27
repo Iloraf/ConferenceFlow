@@ -1,0 +1,35 @@
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>Nom</th>
+      <th>Email</th>
+      <th>Affiliations</th>
+      <th>Admin</th>
+      <th>Relecteur</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for user in users %}
+    <tr>
+      <td>{{ user.last_name }} {{ user.first_name }}</td>
+      <td>{{ user.email }}</td>
+      <td>
+        {% for aff in user.affiliations %}
+          <div>{{ aff.name }}</div>
+        {% endfor %}
+      </td>
+      <td>{{ '✔' if user.is_admin else '' }}</td>
+      <td>{{ '✔' if user.is_reviewer else '' }}</td>
+      <td>
+        <form method="post" action="{{ url_for('admin.promote_admin', user_id=user.id) }}">
+          <button class="btn btn-sm btn-outline-primary">Promouvoir Admin</button>
+        </form>
+        <form method="post" action="{{ url_for('admin.promote_reviewer', user_id=user.id) }}">
+          <button class="btn btn-sm btn-outline-secondary">Promouvoir Relecteur</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

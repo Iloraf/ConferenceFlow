@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion des Livres - Admin SFT 2026{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-book"></i> Gestion des Livres de Conférence</h2>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour Admin
+        </a>
+    </div>
+
+    {% if not weasyprint_available %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>WeasyPrint non disponible</strong><br>
+        Pour générer les PDFs, installez WeasyPrint : <code>pip install weasyprint</code>
+    </div>
+    {% endif %}
+
+
+    <!-- Génération des livres -->
+    <div class="row">
+        <!-- Tome 1 -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-book"></i> Articles - Tome 1</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <strong class="d-block h4 text-success">{{ stats.tome1_articles }}</strong>
+                            <small class="text-muted">Articles</small>
+                        </div>
+                        <div class="col-6">
+                            <strong class="d-block h4 text-info">{{ stats.thematiques_tome1 }}</strong>
+                            <small class="text-muted">Thématiques</small>
+                        </div>
+                    </div>
+                    
+                    <p class="text-muted">
+                        Le tome 1 contient les articles acceptés répartis équitablement 
+                        par thématiques avec table des matières interactive et index des auteurs.
+                    </p>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('books.preview_book', book_type='tome1') }}" 
+                           class="btn btn-outline-success" target="_blank">
+                            <i class="fas fa-eye"></i> Prévisualiser
+                        </a>
+                        <a href="{{ url_for('books.generate_tome1') }}" 
+                           class="btn btn-success"
+                           {% if not weasyprint_available %}disabled{% endif %}>
+                            <i class="fas fa-download"></i> Générer PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tome 2 -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-book"></i> Articles - Tome 2</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <strong class="d-block h4 text-success">{{ stats.tome2_articles }}</strong>
+                            <small class="text-muted">Articles</small>
+                        </div>
+                        <div class="col-6">
+                            <strong class="d-block h4 text-info">{{ stats.thematiques_tome2 }}</strong>
+                            <small class="text-muted">Thématiques</small>
+                        </div>
+                    </div>
+                    
+                    <p class="text-muted">
+                        Le tome 2 contient la seconde partie des articles acceptés 
+                        avec la même structure que le tome 1.
+                    </p>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('books.preview_book', book_type='tome2') }}" 
+                           class="btn btn-outline-success" target="_blank">
+                            <i class="fas fa-eye"></i> Prévisualiser
+                        </a>
+                        <a href="{{ url_for('books.generate_tome2') }}" 
+                           class="btn btn-success"
+                           {% if not weasyprint_available %}disabled{% endif %}>
+                            <i class="fas fa-download"></i> Générer PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Résumés + WIP -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-text"></i> Résumés & WIP</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <strong class="d-block h5 text-primary">{{ stats.resumes }}</strong>
+                            <small class="text-muted">Résumés</small>
+                        </div>
+                        <div class="col-4">
+                            <strong class="d-block h5 text-warning">{{ stats.wips }}</strong>
+                            <small class="text-muted">WIP</small>
+                        </div>
+                        <div class="col-4">
+                            <strong class="d-block h5 text-info">{{ stats.thematiques_resumes }}</strong>
+                            <small class="text-muted">Thématiques</small>
+                        </div>
+                    </div>
+                    
+                    <p class="text-muted">
+                        Livre combinant résumés et work in progress. 
+                        Les WIP ont un filigrane "WORK IN PROGRESS" en diagonale.
+                    </p>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('books.preview_book', book_type='resumes-wip') }}" 
+                           class="btn btn-outline-primary" target="_blank">
+                            <i class="fas fa-eye"></i> Prévisualiser
+                        </a>
+                        <a href="{{ url_for('books.generate_resumes_wip') }}" 
+                           class="btn btn-primary"
+                           {% if not weasyprint_available %}disabled{% endif %}>
+                            <i class="fas fa-download"></i> Générer PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations techniques -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Informations techniques</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-cogs"></i> Fonctionnalités incluses</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> Table des matières interactive avec liens hypertextes</li>
+                                <li><i class="fas fa-check text-success"></i> Index des auteurs alphabétique en 2 colonnes</li>
+                                <li><i class="fas fa-check text-success"></i> Répartition automatique par thématiques</li>
+                                <li><i class="fas fa-check text-success"></i> Filigrane "WORK IN PROGRESS" pour les WIP</li>
+                                <li><i class="fas fa-check text-success"></i> Numérotation des pages et en-têtes/pieds de page</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-file-pdf"></i> Format des PDFs</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-file-pdf text-danger"></i> Format A4, marges 2.5cm/2cm</li>
+                                <li><i class="fas fa-font text-primary"></i> Police Times New Roman 11pt</li>
+                                <li><i class="fas fa-palette text-info"></i> Charte graphique SFT 2026</li>
+                                <li><i class="fas fa-link text-success"></i> Navigation interne via liens hypertextes</li>
+                                <li><i class="fas fa-list-ol text-warning"></i> Pagination automatique</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    {% if not weasyprint_available %}
+                    <div class="alert alert-warning mt-3">
+                        <strong>Note :</strong> Les prévisualisations HTML sont disponibles même sans WeasyPrint. 
+                        Seule la génération PDF nécessite WeasyPrint.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

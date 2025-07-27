@@ -1,0 +1,441 @@
+<!-- templates/conference/communication_info.html -->
+{% extends 'base.html' %}
+
+{% block title %}Communications - SFT 2026{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #667eea;
+        transform: translateX(-50%);
+    }
+    
+    .timeline-item {
+        margin-bottom: 30px;
+        position: relative;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        background: #667eea;
+        border-radius: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+    }
+    
+    .timeline-content {
+        width: 45%;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .timeline-item:nth-child(even) .timeline-content {
+        margin-left: auto;
+    }
+    
+    .theme-card {
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    
+    .theme-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        background-color: #e3f2fd;
+    }
+    
+    .type-card {
+        border-top: 5px solid;
+    }
+    
+    .type-article {
+        border-color: #dc3545;
+    }
+    
+    .type-wip {
+        border-color: #ffc107;
+    }
+    
+    .type-poster {
+        border-color: #17a2b8;
+    }
+    
+    @media (max-width: 768px) {
+        .timeline::before {
+            left: 30px;
+        }
+        
+        .timeline-item::before {
+            left: 30px;
+        }
+        
+        .timeline-content {
+            width: calc(100% - 60px);
+            margin-left: 60px !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-file-text me-2"></i>Informations Communications</h1>
+        
+        <!-- Introduction -->
+        <div class="alert alert-primary mb-4">
+            <h5><i class="fas fa-info-circle me-2"></i>Appel à communications</h5>
+            <p class="mb-0">Le congrès SFT 2026 accueille des contributions originales dans tous les domaines de la thermique. 
+            Les soumissions peuvent prendre la forme d'articles complets ou de work in progress, 
+            toutes donnant lieu à une présentation poster avec QR code pour accès mobile.</p>
+        </div>
+        
+        <!-- Types de soumission -->
+        <h2 class="mb-4">Types de soumission</h2>
+        <div class="row mb-5">
+            {% for type in guidelines.types %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100 type-card type-{{ type.name.lower().replace(' ', '-') }}">
+                    <div class="card-body">
+                        <h4 class="card-title">
+                            {% if 'article' in type.name.lower() %}
+                                <i class="fas fa-file-pdf text-danger me-2"></i>
+                            {% elif 'work' in type.name.lower() %}
+                                <i class="fas fa-flask text-warning me-2"></i>
+                            {% else %}
+                                <i class="fas fa-image text-info me-2"></i>
+                            {% endif %}
+                            {{ type.name }}
+                        </h4>
+                        <p class="mb-2"><strong>Format :</strong> {{ type.pages if type.pages else type.format }}</p>
+                        <p class="mb-2"><strong>Date limite :</strong> {{ type.deadline }}</p>
+                        <p class="text-muted">{{ type.description }}</p>
+                        {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('main.choose_type') }}" class="btn btn-primary btn-sm mt-2">
+                            <i class="fas fa-plus me-1"></i>Soumettre
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+
+
+
+	
+        <!-- Thématiques -->
+
+<!-- Thématiques de recherche -->
+<div class="content-section">
+    <div class="section-header">
+        <h2 class="h4 mb-4 text-center"><i class="fas fa-atom"></i> THÉMATIQUES DE RECHERCHE</h2>
+    </div>
+    
+    <div class="row g-3">
+        <!-- COND - Conduction, convection, rayonnement -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                <i class="fas fa-fire"></i>
+                <h6>Conduction, convection, rayonnement</h6>
+            </div>
+        </div>
+        
+        <!-- MULTI - Changement de phase -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #20c997, #1aa179);">
+                <i class="fas fa-exchange-alt"></i>
+                <h6>Changement de phase et transferts multiphasiques</h6>
+            </div>
+        </div>
+        
+        <!-- POREUX - Milieux poreux -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #0dcaf0, #0aa2c0);">
+                <i class="fas fa-layer-group"></i>
+                <h6>Transferts en milieux poreux</h6>
+            </div>
+        </div>
+        
+        <!-- MICRO - Micro et nanothermique -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #198754, #145c41);">
+                <i class="fas fa-microscope"></i>
+                <h6>Micro et nanothermique</h6>
+            </div>
+        </div>
+        
+        <!-- BIO - Thermique du vivant -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #fd7e14, #dc6502);">
+                <i class="fas fa-leaf"></i>
+                <h6>Thermique du vivant</h6>
+            </div>
+        </div>
+        
+        <!-- SYST - Énergétique des systèmes -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #d63384, #b02a5b);">
+                <i class="fas fa-cogs"></i>
+                <h6>Énergétique des systèmes</h6>
+            </div>
+        </div>
+        
+        <!-- COMBUST - Combustion -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #ff6b35, #e55a2b);">
+                <i class="fas fa-burn"></i>
+                <h6>Combustion et flammes</h6>
+            </div>
+        </div>
+        
+        <!-- MACHINE - Machines thermiques -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #007bff, #0056b3);">
+                <i class="fas fa-industry"></i>
+                <h6>Machines thermiques et frigorifiques</h6>
+            </div>
+        </div>
+        
+        <!-- ECHANG - Échangeurs -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #6f42c1, #5a32a3);">
+                <i class="fas fa-arrows-alt-h"></i>
+                <h6>Échangeurs de chaleur</h6>
+            </div>
+        </div>
+        
+        <!-- STOCK - Stockage -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #6610f2, #520dc2);">
+                <i class="fas fa-battery-half"></i>
+                <h6>Stockage thermique</h6>
+            </div>
+        </div>
+        
+        <!-- RENOUV - Énergies renouvelables -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #28a745, #1e7e34);">
+                <i class="fas fa-solar-panel"></i>
+                <h6>Énergies renouvelables</h6>
+            </div>
+        </div>
+        
+        <!-- BATIM - Thermique du bâtiment -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #ffc107, #d39e00);">
+                <i class="fas fa-building"></i>
+                <h6>Thermique du bâtiment</h6>
+            </div>
+        </div>
+        
+        <!-- INDUS - Thermique industrielle -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #17a2b8, #117a8b);">
+                <i class="fas fa-factory"></i>
+                <h6>Thermique industrielle</h6>
+            </div>
+        </div>
+        
+        <!-- METRO - Métrologie -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #6c757d, #545b62);">
+                <i class="fas fa-ruler-combined"></i>
+                <h6>Métrologie et techniques inverses</h6>
+            </div>
+        </div>
+        
+        <!-- SIMUL - Simulation -->
+        <div class="col-lg-3 col-md-4 col-sm-6">
+            <div class="thematic-card" style="background: linear-gradient(135deg, #343a40, #23272b);">
+                <i class="fas fa-laptop-code"></i>
+                <h6>Modélisation et simulation numérique</h6>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.thematic-card {
+    border-radius: 15px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: white;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.thematic-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+}
+
+.thematic-card i {
+    font-size: 2.2rem;
+    margin-bottom: 0.8rem;
+    opacity: 0.9;
+}
+
+.thematic-card h6 {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+    font-size: 0.85rem;
+    line-height: 1.3;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.thematic-card small {
+    font-size: 0.7rem;
+    opacity: 0.8;
+    font-weight: 500;
+    background: rgba(255,255,255,0.2);
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-top: 0.3rem;
+}
+
+@media (max-width: 768px) {
+    .thematic-card {
+        min-height: 120px;
+        padding: 1rem 0.5rem;
+    }
+    
+    .thematic-card i {
+        font-size: 1.8rem;
+        margin-bottom: 0.6rem;
+    }
+    
+    .thematic-card h6 {
+        font-size: 0.8rem;
+    }
+}
+</style>
+
+
+
+	
+        
+        <!-- Calendrier -->
+        <h2 class="mb-4">Calendrier</h2>
+        <div class="timeline">
+            {% for event in guidelines.calendar %}
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <h5 class="mb-1">{{ event.date }}</h5>
+                    <p class="mb-0">{{ event.event }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Instructions de soumission -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h3 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Instructions de soumission</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Format des soumissions</h5>
+                        <ul>
+                            <li>Format PDF recommandé</li>
+                            <li>Police Times New Roman 11pt</li>
+                            <li>Interligne simple</li>
+                            <li>Marges 2.5cm</li>
+                            <li>Numérotation des pages</li>
+                            <li>Références bibliographiques obligatoires</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Processus de soumission</h5>
+                        <ol>
+                            <li>Créer un compte sur la plateforme</li>
+                            <li>Soumettre titre et résumé (500 mots max)</li>
+                            <li>Attendre la notification d'acceptation</li>
+                            <li>Soumettre l'article complet ou WiP</li>
+                            <li>Préparer le poster avec QR code</li>
+                            <li>Présentation lors du congrès</li>
+                        </ol>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Nouveau !</strong> Chaque poster doit inclure un QR code généré par la plateforme 
+                    permettant aux participants d'accéder à votre communication sur leur mobile.
+                </div>
+                
+                <div class="text-center mt-4">
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('main.choose_type') }}" class="btn btn-success btn-lg">
+                        <i class="fas fa-plus me-2"></i>Commencer une soumission
+                    </a>
+                    {% else %}
+                    <p>Vous devez être connecté pour soumettre une communication.</p>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg me-2">
+                        <i class="fas fa-sign-in-alt me-2"></i>Se connecter
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Créer un compte
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Templates -->
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-download me-2"></i>Modèles à télécharger</h4>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-file-word fa-2x mb-2 d-block"></i>
+                            Template Article (DOCX)
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-file-alt fa-2x mb-2 d-block"></i>
+                            Template LaTeX
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-file-powerpoint fa-2x mb-2 d-block"></i>
+                            Template Poster (PPTX)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

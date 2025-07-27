@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+
+{% block title %}Créer une affiliation - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="mb-0">Créer une nouvelle affiliation</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            {{ form.hidden_tag() }}
+                            
+                            <div class="mb-3">
+                                {{ form.sigle.label(class="form-label") }}
+                                {{ form.sigle(class="form-control") }}
+                                {% if form.sigle.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.sigle.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.nom_complet.label(class="form-label") }}
+                                {{ form.nom_complet(class="form-control") }}
+                                {% if form.nom_complet.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.nom_complet.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.adresse.label(class="form-label") }}
+                                {{ form.adresse(class="form-control", rows="3") }}
+                                {% if form.adresse.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.adresse.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Annuler</a>
+                                {{ form.submit(class="btn btn-primary") }}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

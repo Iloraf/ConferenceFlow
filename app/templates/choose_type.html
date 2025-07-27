@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Nouvelle soumission - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white text-center">
+                <h4><i class="fas fa-file-plus me-2"></i>Nouvelle soumission</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead text-center mb-4">Choisissez le type de votre communication :</p>
+                
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 border-2">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-pdf fa-4x text-danger mb-3"></i>
+                                    <h5>Article complet</h5>
+                                    <p class="text-muted">Communication avec article complet (6-8 pages)</p>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="type" id="article" value="article" required>
+                                        <label class="form-check-label" for="article">
+                                            Sélectionner
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 border-2">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-flask fa-4x text-warning mb-3"></i>
+                                    <h5>Work in Progress</h5>
+                                    <p class="text-muted">Travaux en cours (2-4 pages)</p>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="type" id="wip" value="wip" required>
+                                        <label class="form-check-label" for="wip">
+                                            Sélectionner
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note :</strong> Les deux types de soumission incluent une présentation poster lors de la conférence.
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        <a href="{{ url_for('main.mes_communications') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-arrow-right me-2"></i>Continuer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

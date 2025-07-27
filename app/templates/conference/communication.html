@@ -1,0 +1,216 @@
+<!-- templates/conference/communication_info.html -->
+{% extends 'base.html' %}
+
+{% block title %}Communications - SFT 2026{% endblock %}
+
+
+<style>
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #667eea;
+        transform: translateX(-50%);
+    }
+    
+    .timeline-item {
+        margin-bottom: 30px;
+        position: relative;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        background: #667eea;
+        border-radius: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+    }
+    
+    .timeline-content {
+        width: 45%;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .timeline-item:nth-child(even) .timeline-content {
+        margin-left: auto;
+    }
+</style>
+
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-file-text me-2"></i>Informations Communications</h1>
+        
+        <!-- Introduction -->
+        <div class="alert alert-primary mb-4">
+            <h5><i class="fas fa-info-circle me-2"></i>Appel à communications</h5>
+            <p class="mb-0">Le congrès SFT 2026 accueille des contributions originales dans tous les domaines de la thermique. 
+            Les soumissions peuvent prendre la forme d'articles complets ou de work in progress, 
+            toutes donnant lieu à une présentation poster avec QR code pour accès mobile.</p>
+        </div>
+        
+        <!-- Types de soumission -->
+        <h2 class="mb-4">Types de soumission</h2>
+        <div class="row mb-5">
+            {% for type in guidelines.types %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100 type-card type-{{ type.name.lower().replace(' ', '-') }}">
+                    <div class="card-body">
+                        <h4 class="card-title">
+                            {% if 'article' in type.name.lower() %}
+                                <i class="fas fa-file-pdf text-danger me-2"></i>
+                            {% elif 'work' in type.name.lower() %}
+                                <i class="fas fa-flask text-warning me-2"></i>
+                            {% else %}
+                                <i class="fas fa-image text-info me-2"></i>
+                            {% endif %}
+                            {{ type.name }}
+                        </h4>
+                        <p class="mb-2"><strong>Format :</strong> {{ type.pages if type.pages else type.format }}</p>
+                        <p class="mb-2"><strong>Date limite :</strong> {{ type.deadline }}</p>
+                        <p class="text-muted">{{ type.description }}</p>
+                        {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('main.choose_type') }}" class="btn btn-primary btn-sm mt-2">
+                            <i class="fas fa-plus me-1"></i>Soumettre
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Thématiques -->
+
+
+
+	<h2 class="mb-4">Thématiques du congrès</h2>
+        <div class="row mb-5">
+            {% for theme in guidelines.themes %}
+            <div class="col-md-4 col-lg-3 mb-3">
+                <div class="card theme-card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-thermometer-half fa-2x mb-2 text-primary"></i>
+                        <p class="mb-0">{{ theme }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Calendrier -->
+        <h2 class="mb-4">Calendrier</h2>
+        <div class="timeline">
+            {% for event in guidelines.calendar %}
+            <div class="timeline-item">
+                <div class="timeline-content">
+                    <h5 class="mb-1">{{ event.date }}</h5>
+                    <p class="mb-0">{{ event.event }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Instructions de soumission -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h3 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Instructions de soumission</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Format des soumissions</h5>
+                        <ul>
+                            <li>Format PDF recommandé</li>
+                            <li>Police Times New Roman 11pt</li>
+                            <li>Interligne simple</li>
+                            <li>Marges 2.5cm</li>
+                            <li>Numérotation des pages</li>
+                            <li>Références bibliographiques obligatoires</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Processus de soumission</h5>
+                        <ol>
+                            <li>Créer un compte sur la plateforme</li>
+                            <li>Soumettre titre et résumé (500 mots max)</li>
+                            <li>Attendre la notification d'acceptation</li>
+                            <li>Soumettre l'article complet ou WiP</li>
+                            <li>Préparer le poster avec QR code</li>
+                            <li>Présentation lors du congrès</li>
+                        </ol>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Nouveau !</strong> Chaque poster doit inclure un QR code généré par la plateforme 
+                    permettant aux participants d'accéder à votre communication sur leur mobile.
+                </div>
+                
+                <div class="text-center mt-4">
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('main.choose_type') }}" class="btn btn-success btn-lg">
+                        <i class="fas fa-plus me-2"></i>Commencer une soumission
+                    </a>
+                    {% else %}
+                    <p>Vous devez être connecté pour soumettre une communication.</p>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg me-2">
+                        <i class="fas fa-sign-in-alt me-2"></i>Se connecter
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Créer un compte
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Templates -->
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-download me-2"></i>Modèles à télécharger</h4>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-file-word fa-2x mb-2 d-block"></i>
+                            Template Article (DOCX)
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-file-alt fa-2x mb-2 d-block"></i>
+                            Template LaTeX
+                        </button>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-outline-primary">
+                            <i class="fas fa-file-powerpoint fa-2x mb-2 d-block"></i>
+                            Template Poster (PPTX)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

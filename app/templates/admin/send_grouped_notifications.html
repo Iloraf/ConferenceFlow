@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications groupées - Admin SFT 2026{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-envelope-bulk me-2"></i>Notifications groupées aux reviewers</h2>
+    <a href="{{ url_for('admin.manage_reviews') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Retour gestion reviews
+    </a>
+</div>
+
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-2x mb-2"></i>
+                <h3>{{ stats.total_reviewers }}</h3>
+                <p class="mb-0">Reviewers à notifier</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-clipboard-list fa-2x mb-2"></i>
+                <h3>{{ stats.total_assignments }}</h3>
+                <p class="mb-0">Reviews à assigner</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-2x mb-2"></i>
+                <h3>{{ "%.1f"|format(stats.avg_per_reviewer) }}</h3>
+                <p class="mb-0">Moyenne par reviewer</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if reviewers_preview %}
+<!-- Bouton d'envoi global -->
+<div class="card mb-4">
+    <div class="card-header bg-warning">
+        <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Envoi groupé</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Action importante :</strong> Cette action enverra un email récapitulatif à chaque reviewer avec toutes ses assignations. 
+            Chaque reviewer recevra UN SEUL email avec toutes ses reviews à effectuer.
+        </div>
+        
+        <form method="POST" class="text-center">
+            <button type="submit" class="btn btn-warning btn-lg" 
+                    onclick="return confirm('Êtes-vous sûr de vouloir envoyer {{ stats.total_reviewers }} email(s) pour {{ stats.total_assignments }} assignation(s) ?')">
+                <i class="fas fa-paper-plane me-2"></i>
+                Envoyer toutes les notifications ({{ stats.total_reviewers }} emails)
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Aperçu des reviewers et leurs assignations -->
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-preview me-2"></i>Aperçu des notifications à envoyer</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Reviewer</th>
+                        <th>Email</th>
+                        <th>Spécialités</th>
+                        <th>Nb Reviews</th>
+                        <th>Détails des Reviews</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reviewer_id, data in reviewers_preview.items() %}
+                    {% set reviewer = data.reviewer %}
+                    {% set assignments = data.assignments %}
+                    
+                    <tr>
+                        <td>
+                            <strong>{{ reviewer.full_name or reviewer.email }}</strong>
+                            {% if reviewer.affiliations %}
+                                <br><small class="text-muted">{{ reviewer.affiliations[0].sigle if reviewer.affiliations else '' }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ reviewer.email }}</td>
+                        <td>
+                            {% if reviewer.specialites_codes %}
+                                {% for code in reviewer.specialites_codes.split(',')[:3] %}
+                                    <span class="badge bg-secondary me-1">{{ code.strip() }}</span>
+                                {% endfor %}
+                                {% if reviewer.specialites_codes.split(',')|length > 3 %}
+                                    <span class="badge bg-light text-dark">+{{ reviewer.specialites_codes.split(',')|length - 3 }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Aucune</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-primary fs-6">{{ assignments|length }}</span>
+                        </td>
+                        <td>
+                            <!-- Collapsible pour les détails -->
+                            <button class="btn btn-sm btn-outline-info" type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#details{{ reviewer_id }}" 
+                                    aria-expanded="false">
+                                <i class="fas fa-eye"></i> Voir détails
+                            </button>
+                            
+                            <div class="collapse mt-2" id="details{{ reviewer_id }}">
+                                <div class="card card-body bg-light">
+                                    {% for assignment in assignments %}
+                                    <div class="border-bottom pb-2 mb-2">
+                                        <strong>{{ assignment.communication.title[:40] }}...</strong>
+                                        <br><small class="text-muted">
+                                            Auteurs: {{ assignment.communication.authors[:2]|map(attribute='full_name')|join(', ') }}
+                                            {% if assignment.communication.authors|length > 2 %}...{% endif %}
+                                        </small>
+                                        <br><small class="text-info">
+                                            Échéance: {{ assignment.due_date.strftime('%d/%m/%Y') if assignment.due_date else 'Non définie' }}
+                                        </small>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('admin.preview_grouped_email', reviewer_id=reviewer.id) }}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               target="_blank" 
+                               title="Prévisualiser l'email">
+                                <i class="fas fa-eye"></i> Aperçu email
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- Aucune notification en attente -->
+<div class="text-center py-5">
+    <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+    <h4 class="text-success">Toutes les notifications ont été envoyées</h4>
+    <p class="text-muted">Aucune assignation de review en attente de notification.</p>
+    
+    <div class="mt-4">
+        <a href="{{ url_for('admin.manage_reviews') }}" class="btn btn-primary">
+            <i class="fas fa-clipboard-check me-2"></i>Retour à la gestion des reviews
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Aide -->
+<div class="card mt-4">
+    <div class="card-body">
+        <h6><i class="fas fa-question-circle me-2"></i>Comment ça fonctionne</h6>
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Envoi groupé :</strong></p>
+                <ul>
+                    <li>Chaque reviewer reçoit UN email avec toutes ses reviews</li>
+                    <li>L'email contient les détails de chaque communication</li>
+                    <li>Boutons directs pour faire ou refuser chaque review</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Avantages :</strong></p>
+                <ul>
+                    <li>Évite le spam d'emails multiples</li>
+                    <li>Vision globale pour le reviewer</li>
+                    <li>Actions rapides via les boutons directs</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+
+{% block title %}Communications prêtes pour review - Admin SFT 2026{% endblock %}
+
+{% block content %}
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-clipboard-list me-2"></i>Communications prêtes pour review</h2>
+            <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour admin
+            </a>
+        </div>
+
+	<div class="row mb-4">
+
+<!-- Zone de statistiques complètes -->
+<div class="row mb-4">
+  <!-- Stats Articles -->
+  <div class="col-md-3">
+    <div class="card border-warning">
+      <div class="card-header bg-warning text-dark">
+        <h6 class="mb-0"><i class="fas fa-file-alt"></i> Articles</h6>
+      </div>
+      <div class="card-body">
+        <div class="row text-center small">
+          <div class="col-6">
+            <strong class="d-block text-warning">{{ stats.articles.soumis_non_assignes }}</strong>
+            <small class="text-muted">Non assignés</small>
+          </div>
+          <div class="col-6">
+            <strong class="d-block text-info">{{ stats.articles.en_review }}</strong>
+            <small class="text-muted">En review</small>
+          </div>
+        </div>
+        <hr class="my-2">
+        <div class="row text-center small">
+          <div class="col-6">
+            <strong class="d-block text-success">{{ stats.articles.acceptes }}</strong>
+            <small class="text-muted">Acceptés</small>
+          </div>
+          <div class="col-6">
+            <strong class="d-block text-danger">{{ stats.articles.rejetes }}</strong>
+            <small class="text-muted">Rejetés</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Reviewers -->
+  <div class="col-md-3">
+    <div class="card border-primary">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0"><i class="fas fa-users"></i> Reviewers</h6>
+      </div>
+      <div class="card-body">
+        <div class="text-center mb-2">
+          <strong class="d-block h4 text-primary">{{ stats.reviewers.total_reviewers }}</strong>
+          <small class="text-muted">Total actifs</small>
+        </div>
+        <div class="row text-center small">
+          <div class="col-6">
+            <strong class="d-block text-success">{{ stats.reviewers.avec_specialites }}</strong>
+            <small class="text-muted">Avec spécialités</small>
+          </div>
+          <div class="col-6">
+            <strong class="d-block text-warning">{{ stats.reviewers.sans_specialites }}</strong>
+            <small class="text-muted">Sans spécialités</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Assignations -->
+  <div class="col-md-3">
+    <div class="card border-info">
+      <div class="card-header bg-info text-white">
+        <h6 class="mb-0"><i class="fas fa-tasks"></i> Reviews</h6>
+      </div>
+      <div class="card-body">
+        <div class="row text-center small">
+          <div class="col-4">
+            <strong class="d-block text-info">{{ stats.assignments.en_attente }}</strong>
+            <small class="text-muted">En attente</small>
+          </div>
+          <div class="col-4">
+            <strong class="d-block text-success">{{ stats.assignments.terminees }}</strong>
+            <small class="text-muted">Terminées</small>
+          </div>
+          <div class="col-4">
+            <strong class="d-block text-danger">{{ stats.assignments.en_retard }}</strong>
+            <small class="text-muted">En retard</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Thématiques -->
+  <div class="col-md-3">
+    <div class="card border-secondary">
+      <div class="card-header bg-secondary text-white">
+        <h6 class="mb-0"><i class="fas fa-tags"></i> Top Thématiques</h6>
+      </div>
+      <div class="card-body">
+        {% if stats.top_thematiques %}
+          {% for thematique, count in stats.top_thematiques %}
+          <div class="d-flex justify-content-between mb-1">
+            <small class="text-truncate" title="{{ thematique }}">{{ thematique.split(' - ')[0] }}</small>
+            <span class="badge bg-secondary">{{ count }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <small class="text-muted">Aucune donnée</small>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+	
+        {% if communications %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ communications|length }} communication(s) avec article soumis, prête(s) pour l'assignation de reviewers
+            </div>
+
+            <div class="row">
+                {% for comm in communications %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">{{ comm.title[:60] }}{% if comm.title|length > 60 %}...{% endif %}</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <span class="badge bg-danger">Article complet</span>
+                                <span class="badge bg-warning">{{ comm.status.value.replace('_', ' ').title() }}</span>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h6><i class="fas fa-users me-2"></i>Auteurs :</h6>
+                                {% for author in comm.authors %}
+                                    <span class="badge bg-light text-dark me-1">{{ author.full_name or author.email }}</span>
+                                {% endfor %}
+                            </div>
+
+                            <div class="mb-3">
+                                <h6><i class="fas fa-tags me-2"></i>Thématiques :</h6>
+                                {% if comm.thematiques_codes %}
+                                    {% for code in comm.thematiques_codes.split(',') %}
+                                        <span class="badge bg-secondary me-1">{{ code.strip() }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">Aucune</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <h6><i class="fas fa-file-pdf me-2"></i>Fichiers :</h6>
+                                {% set resume_file = comm.get_latest_file('résumé') %}
+                                {% set article_file = comm.get_latest_file('article') %}
+                                <div>
+                                    {% if resume_file %}
+                                        <span class="badge bg-success me-1">Résumé</span>
+                                    {% endif %}
+                                    {% if article_file %}
+                                        <span class="badge bg-danger me-1">Article</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>Article soumis le {{ comm.article_submitted_at.strftime('%d/%m/%Y %H:%M') if comm.article_submitted_at else 'N/A' }}
+                                </small>
+                            </div>
+
+                            <!-- Assignations actuelles -->
+                            {% set current_assignments = comm.review_assignments %}
+                            {% if current_assignments %}
+                                <div class="alert alert-warning">
+                                    <h6><i class="fas fa-users-cog me-2"></i>Reviewers déjà assignés :</h6>
+                                    {% for assignment in current_assignments %}
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span>{{ assignment.reviewer.full_name or assignment.reviewer.email }}</span>
+                                            <span class="badge bg-{{ 'success' if assignment.notification_sent_at else 'warning' }}">
+                                                {% if assignment.notification_sent_at %}
+                                                    Notifié
+                                                {% else %}
+                                                    Non notifié
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="card-footer">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('admin.suggest_reviewers', comm_id=comm.id) }}" 
+                                   class="btn btn-primary">
+                                    <i class="fas fa-user-plus me-2"></i>
+                                    {% if current_assignments %}
+                                        Gérer les reviewers
+                                    {% else %}
+                                        Assigner des reviewers
+                                    {% endif %}
+                                </a>
+ {% if current_assignments %}
+    {% set has_unnotified = false %}
+    {% for assignment in current_assignments %}
+        {% if not assignment.notification_sent_at %}
+            {% set has_unnotified = true %}
+        {% endif %}
+    {% endfor %}
+    
+    {% if has_unnotified %}
+        <form method="POST" action="{{ url_for('admin.send_review_notifications', comm_id=comm.id) }}">
+            <button type="submit" class="btn btn-success w-100"
+                    onclick="return confirm('Envoyer les notifications aux reviewers non notifiés ?')">
+                <i class="fas fa-envelope me-2"></i>Notifier les reviewers
+            </button>
+        </form>
+    {% endif %}
+{% endif %}                               
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-success text-center">
+                <i class="fas fa-check-circle fa-3x mb-3"></i>
+                <h4>Aucune communication en attente</h4>
+                <p class="text-muted">Toutes les communications sont soit en cours de review, soit pas encore au stade article complet.</p>
+            </div>
+        {% endif %}
+{% endblock %}

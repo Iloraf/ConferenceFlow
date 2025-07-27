@@ -1,0 +1,219 @@
+<!-- templates/admin/list_affiliations.html -->
+{% extends 'base.html' %}
+
+{% block title %}Liste des affiliations{% endblock %}
+
+{% block content %}
+<div class="container">
+    <header class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 text-primary">Affiliations</h1>
+            <p class="text-muted">{{ affiliations.total }} affiliation(s) au total</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.import_affiliations') }}" class="btn btn-primary">
+                <i class="fas fa-upload me-2"></i>Importer des affiliations
+            </a>
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Retour Dashboard
+                </a>
+	</div>
+    </header>
+
+    <!-- Barre de recherche -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <form method="GET" class="d-flex">
+                <input type="text" class="form-control me-2" name="search" 
+                       value="{{ search }}" placeholder="Rechercher par sigle, nom ou adresse...">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-search"></i>
+                </button>
+                {% if search %}
+                <a href="{{ url_for('admin.list_affiliations') }}" class="btn btn-outline-secondary ms-2">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Résultats de recherche -->
+    {% if search %}
+    <div class="alert alert-info">
+        <i class="fas fa-search me-2"></i>
+        {{ affiliations.total }} résultat(s) pour "<strong>{{ search }}</strong>"
+    </div>
+    {% endif %}
+
+    <!-- Liste des affiliations -->
+    {% if affiliations.items %}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Sigle</th>
+                        <th>Nom complet</th>
+                        <th>Adresse</th>
+                        <th>ID HAL</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for affiliation in affiliations.items %}
+                    <tr>
+                        <td>
+                            <strong class="text-primary">{{ affiliation.sigle }}</strong>
+                            {% if not affiliation.is_active %}
+                            <span class="badge bg-secondary ms-2">Inactif</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="text-truncate" style="max-width: 300px;" title="{{ affiliation.nom_complet }}">
+                                {{ affiliation.nom_complet }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if affiliation.adresse %}
+                            <small class="text-muted text-truncate d-block" style="max-width: 200px;" title="{{ affiliation.adresse }}">
+                                {{ affiliation.adresse }}
+                            </small>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if affiliation.identifiant_hal %}
+                            <code class="small">{{ affiliation.identifiant_hal }}</code>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('admin.view_affiliation', affiliation_id=affiliation.id) }}" 
+                                   class="btn btn-outline-primary" title="Voir les détails">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <button class="btn btn-outline-secondary" 
+                                        onclick="copyToClipboard('{{ affiliation.sigle }}')" 
+                                        title="Copier le sigle">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if affiliations.pages > 1 %}
+    <nav aria-label="Pagination des affiliations" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if affiliations.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin.list_affiliations', page=affiliations.prev_num, search=search) }}">
+                    <i class="fas fa-chevron-left"></i> Précédent
+                </a>
+            </li>
+            {% endif %}
+
+            {% for page_num in affiliations.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num != affiliations.page %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.list_affiliations', page=page_num, search=search) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_num }}</span>
+                    </li>
+                    {% endif %}
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">…</span>
+                </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if affiliations.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin.list_affiliations', page=affiliations.next_num, search=search) }}">
+                    Suivant <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- Aucun résultat -->
+    <div class="text-center py-5">
+        <i class="fas fa-university fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">
+            {% if search %}
+            Aucune affiliation trouvée pour "{{ search }}"
+            {% else %}
+            Aucune affiliation enregistrée
+            {% endif %}
+        </h5>
+        <p class="text-muted">
+            {% if search %}
+            Essayez avec d'autres mots-clés ou 
+            <a href="{{ url_for('admin.list_affiliations') }}">voir toutes les affiliations</a>
+            {% else %}
+            Commencez par importer des affiliations depuis un fichier CSV
+            {% endif %}
+        </p>
+        {% if not search %}
+        <a href="{{ url_for('admin.import_affiliations') }}" class="btn btn-primary">
+            <i class="fas fa-upload me-2"></i>Importer des affiliations
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Fonction pour copier le sigle dans le presse-papier
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Affichage d'un toast ou notification
+        showToast('Sigle copié : ' + text);
+    }).catch(function(err) {
+        console.error('Erreur lors de la copie: ', err);
+    });
+}
+
+// Fonction simple d'affichage de toast (nécessite Bootstrap 5)
+function showToast(message) {
+    // Créer un toast simple
+    const toastContainer = document.createElement('div');
+    toastContainer.className = 'position-fixed bottom-0 end-0 p-3';
+    toastContainer.style.zIndex = '9999';
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast show';
+    toast.innerHTML = `
+        <div class="toast-body">
+            <i class="fas fa-check-circle text-success me-2"></i>${message}
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    document.body.appendChild(toastContainer);
+    
+    // Supprimer après 3 secondes
+    setTimeout(() => {
+        toastContainer.remove();
+    }, 3000);
+}
+</script>
+{% endblock %}

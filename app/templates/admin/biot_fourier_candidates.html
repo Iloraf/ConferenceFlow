@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Candidats Prix Biot-Fourier - Admin SFT 2026{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-trophy text-warning"></i> Candidats au Prix Biot-Fourier</h2>
+            <p class="text-muted">Communications nominées par les reviewers</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.completed_reviews') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour aux reviews
+            </a>
+        </div>
+    </div>
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <h3 class="text-warning">{{ stats.total_candidates }}</h3>
+                <small class="text-muted">Candidats au total</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <h3 class="text-success">{{ stats.unanimous_nominations }}</h3>
+                <small class="text-muted">Nominations unanimes</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <h3 class="text-primary">{{ stats.majority_nominations }}</h3>
+                <small class="text-muted">Majorité nominations</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <h3 class="text-info">{{ candidates_data|selectattr('communication.biot_fourier_audition_selected')|list|length }}</h3>
+                <small class="text-muted">Sélectionnés audition</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-secondary">
+            <div class="card-body">
+                <h3 class="text-secondary">{{ candidates_data|selectattr('communication.biot_fourier_audition_notification_sent')|list|length }}</h3>
+                <small class="text-muted">Notifiés</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-dark">
+            <div class="card-body">
+                <h3 class="text-dark">{{ stats.total_nominations }}</h3>
+                <small class="text-muted">Nominations totales</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+    {% if candidates_data %}
+        <!-- Liste des candidats -->
+        {% for data in candidates_data %}
+        <div class="card mb-4 {% if data.nomination_percentage == 100 %}border-warning{% elif data.nomination_percentage >= 50 %}border-primary{% endif %}">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-1">
+                            {% if data.nomination_percentage == 100 %}
+                                <i class="fas fa-crown text-warning"></i>
+                            {% elif data.nomination_percentage >= 50 %}
+                                <i class="fas fa-medal text-primary"></i>
+                            {% else %}
+                                <i class="fas fa-star text-secondary"></i>
+                            {% endif %}
+                            {{ data.communication.title }}
+                        </h5>
+                        <small class="text-muted">
+                            ID: {{ data.communication.id }} • 
+                            Type: {{ data.communication.type|title }} • 
+                            Auteur principal: {{ data.communication.authors[0].full_name if data.communication.authors else 'N/A' }}
+                        </small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <span class="badge bg-warning fs-6">
+                            {{ data.nominations_count }}/{{ data.total_reviews }} nominations
+                        </span>
+                        <br>
+                        <span class="badge bg-primary fs-6">Score: {{ data.avg_score }}/10</span>
+                        {% if data.nomination_percentage == 100 %}
+                            <br><span class="badge bg-success">UNANIME</span>
+                        {% elif data.nomination_percentage >= 50 %}
+                            <br><span class="badge bg-info">MAJORITÉ</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-users"></i> Reviewers ayant nominé :</h6>
+                        {% for reviewer_name in data.nominating_reviewers %}
+                            <span class="badge bg-warning me-1">{{ reviewer_name }}</span>
+                        {% endfor %}
+                        
+                        <div class="mt-3">
+                            <h6><i class="fas fa-comments"></i> Justifications :</h6>
+                            {% for review in data.reviews %}
+                                {% if review.recommend_for_biot_fourier and review.comments_for_committee %}
+                                    <div class="border-start border-3 border-warning ps-3 mb-2 bg-light p-2">
+                                        <small class="text-muted"><strong>{{ review.reviewer.full_name }} :</strong></small><br>
+                                        {{ review.comments_for_committee|nl2br }}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-chart-bar"></i> Détails des reviews :</h6>
+                        
+                        <!-- Graphique simple des scores -->
+                        <div class="mb-3">
+                            {% for review in data.reviews %}
+                                <div class="d-flex align-items-center mb-1">
+                                    <span class="me-2" style="width: 100px;">Reviewer {{ loop.index }}:</span>
+                                    <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                        <div class="progress-bar {% if review.recommend_for_biot_fourier %}bg-warning{% else %}bg-secondary{% endif %}" 
+                                             style="width: {{ (review.score or 0) * 10 }}%">
+                                            {{ review.score or 'N/A' }}/10
+                                        </div>
+                                    </div>
+                                    {% if review.recommend_for_biot_fourier %}
+                                        <i class="fas fa-trophy text-warning"></i>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Thématiques -->
+                        {% if data.communication.thematiques %}
+                            <h6><i class="fas fa-tags"></i> Thématiques :</h6>
+                            {% for thematique in data.communication.thematiques %}
+                                <span class="badge bg-info me-1">{{ thematique.code }}</span>
+                            {% endfor %}
+                        {% endif %}
+
+
+
+<!-- État de sélection pour l'audition -->
+<div class="mt-3">
+    {% if data.communication.biot_fourier_audition_selected %}
+        <div class="alert alert-success py-2 mb-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong><i class="fas fa-microphone"></i> SÉLECTIONNÉ POUR L'AUDITION</strong><br>
+                    <small>
+                        Le {{ data.communication.biot_fourier_audition_selected_at.strftime('%d/%m/%Y à %H:%M') if data.communication.biot_fourier_audition_selected_at }}
+                        {% if data.communication.biot_fourier_selected_by %}
+                            par {{ data.communication.biot_fourier_selected_by.full_name }}
+                        {% endif %}
+                    </small>
+                </div>
+                <div>
+                    {% if data.communication.biot_fourier_audition_notification_sent %}
+                        <span class="badge bg-success"><i class="fas fa-check"></i> Notifié</span>
+                    {% else %}
+                        <span class="badge bg-warning"><i class="fas fa-envelope"></i> Non notifié</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    
+    <!-- Actions -->
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('admin.review_communication_details', comm_id=data.communication.id) }}" 
+           class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-eye"></i> Voir détails
+        </a>
+        
+        {% if data.communication.biot_fourier_audition_selected %}
+            <!-- Déjà sélectionné : boutons de gestion -->
+            {% if not data.communication.biot_fourier_audition_notification_sent %}
+                <form method="POST" action="{{ url_for('admin.notify_biot_fourier_audition', comm_id=data.communication.id) }}" 
+                      style="display: inline;" onsubmit="return confirm('Envoyer la notification d\'audition à l\'auteur principal ?')">
+                    <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="fas fa-envelope"></i> Notifier l'auteur
+                    </button>
+                </form>
+            {% else %}
+                <button class="btn btn-outline-success btn-sm" disabled>
+                    <i class="fas fa-check"></i> Auteur notifié
+                </button>
+            {% endif %}
+            
+            <form method="POST" action="{{ url_for('admin.unselect_biot_fourier_audition', comm_id=data.communication.id) }}" 
+                  style="display: inline;" onsubmit="return confirm('Annuler la sélection pour l\'audition ?')">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-times"></i> Annuler sélection
+                </button>
+            </form>
+        {% else %}
+            <!-- Pas encore sélectionné : bouton de sélection -->
+            <form method="POST" action="{{ url_for('admin.select_for_biot_fourier_audition', comm_id=data.communication.id) }}" 
+                  style="display: inline;" onsubmit="return confirm('Sélectionner cette communication pour l\'audition Prix Biot-Fourier ?')">
+                <button type="submit" class="btn btn-warning btn-sm">
+                    <i class="fas fa-microphone"></i> Retenir pour l'audition
+                </button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Actions en lot -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6><i class="fas fa-tools"></i> Actions en lot</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-warning w-100">
+                                    <i class="fas fa-file-export"></i> Exporter liste PDF
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-envelope"></i> Notifier les candidats
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-success w-100">
+                                    <i class="fas fa-trophy"></i> Gérer les lauréats
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-info w-100">
+                                    <i class="fas fa-chart-pie"></i> Rapport statistiques
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    {% else %}
+        <!-- Aucun candidat -->
+        <div class="text-center py-5">
+            <i class="fas fa-trophy fa-3x text-muted"></i>
+            <h4 class="text-muted mt-3">Aucun candidat au prix Biot-Fourier</h4>
+            <p class="text-muted">Les communications nominées par les reviewers apparaîtront ici.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

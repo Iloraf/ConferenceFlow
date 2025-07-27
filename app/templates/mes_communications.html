@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Communications - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-folder-open me-2"></i>Mes Communications</h2>
+    <a href="{{ url_for('main.choose_type') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>Nouvelle soumission
+    </a>
+</div>
+
+{% if communications %}
+    <div class="row">
+    {% for comm, files in communications %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="mb-1">{{ comm.title[:50] }}{% if comm.title|length > 50 %}...{% endif %}</h5>
+                            <div>
+                                <span class="badge bg-{{ 'danger' if comm.type == 'article' else 'warning' }}">
+                                    {{ comm.type.upper() }}
+                                </span>
+
+				<span class="badge bg-{{ 'success' if comm.status.value == 'accepté' else 'danger' if comm.status.value == 'rejeté' else 'warning' if 'review' in comm.status.value else 'primary' }}">
+    {{ comm.status.value.replace('_', ' ').title() }}
+</span>
+
+				
+                            </div>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('main.update_submission', comm_id=comm.id) }}">
+                                    <i class="fas fa-edit me-2"></i>Modifier
+                                </a></li>
+                                    <i class="fas fa-eye me-2"></i>Aperçu
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteModal{{ comm.id }}">
+                                    <i class="fas fa-trash me-2"></i>Supprimer
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    
+                    <!-- Fichiers -->
+<div class="mb-3">
+    <h6 class="text-muted">Fichiers :</h6>
+    <div class="d-flex gap-2 flex-wrap">
+        {% if comm.type == 'article' %}
+            {% for file_type, icon, color in [('résumé', 'fa-file-text', 'success'), ('article', 'fa-file-pdf', 'danger'), ('poster', 'fa-image', 'info')] %}
+                {% if files.get(file_type) %}
+                    <span class="badge bg-{{ color }}">
+                        <i class="fas {{ icon }} me-1"></i>{{ file_type.title() }} v{{ files[file_type].version }}
+                    </span>
+                {% endif %}
+            {% endfor %}
+        {% elif comm.type == 'wip' %}
+            {% for file_type, icon, color in [('wip', 'fa-flask', 'warning'), ('poster', 'fa-image', 'info')] %}
+                {% if files.get(file_type) %}
+                    <span class="badge bg-{{ color }}">
+                        <i class="fas {{ icon }} me-1"></i>{{ file_type.title() }} v{{ files[file_type].version }}
+                    </span>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+
+                    <!-- Actions -->
+
+<div class="d-grid gap-2">
+    <a href="{{ url_for('public_comm.generate_qr_code', comm_id=comm.id) }}" class="btn btn-success btn-sm">
+        <i class="fas fa-qrcode me-2"></i>Télécharger QR Code
+    </a>
+    <div class="small text-muted mt-1 mb-2">
+        <i class="fas fa-info-circle me-1"></i>
+        <strong>Conseil :</strong> Ajoutez ce QR code sur votre poster ! 
+        Les participants pourront scanner le code pour accéder directement à votre résumé, 
+        article et fichiers depuis leur smartphone.
+    </div>
+    <a href="{{ url_for('main.update_submission', comm_id=comm.id) }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-upload me-2"></i>Gérer les fichiers
+    </a>
+</div>
+
+
+
+                </div>
+
+
+<div class="row mt-2">
+    <div class="col-12">
+        <strong>Statut HAL :</strong>
+        {% if comm.hal_url %}
+            <span class="badge bg-success">
+                <i class="fas fa-check-circle"></i> Déposé sur HAL
+            </span>
+            <a href="{{ comm.hal_url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">
+                <i class="fas fa-external-link-alt"></i> Voir sur HAL
+            </a>
+        {% elif comm.hal_authorization %}
+            {% if comm.status.value == 'accepté' and comm.type == 'article' %}
+                <span class="badge bg-warning">
+                    <i class="fas fa-clock"></i> En attente de dépôt
+                </span>
+            {% elif comm.type == 'wip' %}
+                <span class="badge bg-info">
+                    <i class="fas fa-info-circle"></i> WIP - Dépôt après validation
+                </span>
+            {% else %}
+                <span class="badge bg-secondary">
+                    <i class="fas fa-hourglass-half"></i> Dépôt après acceptation
+                </span>
+            {% endif %}
+        {% else %}
+            <span class="badge bg-danger">
+                <i class="fas fa-times-circle"></i> Dépôt HAL non autorisé
+            </span>
+        {% endif %}
+        
+        {% if comm.hal_authorization and not comm.hal_url %}
+            <!-- Vérifier si des auteurs n'ont pas d'IDHAL -->
+            {% set ns = namespace(has_missing_idhal=false, missing_authors=[]) %}
+            {% for author in comm.authors %}
+                {% if not author.idhal %}
+                    {% set ns.has_missing_idhal = true %}
+                    {% set ns.missing_authors = ns.missing_authors + [author.full_name] %}
+                {% endif %}
+            {% endfor %}
+            
+            {% if ns.has_missing_idhal %}
+                <div class="alert alert-warning mt-2" style="font-size: 0.9em;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>IDHAL manquant pour :</strong>
+                    {{ ns.missing_authors | join(', ') }}
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+
+		
+                <div class="card-footer text-muted small">
+                    <i class="fas fa-calendar me-1"></i>Créé le {{ comm.created_at.strftime('%d/%m/%Y') }}
+                    {% if comm.reviews %}
+                        <br><i class="fas fa-check-circle me-1"></i>{{ comm.reviews|length }} review(s)
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+
+
+
+
+	
+
+
+	
+        <!-- Modal suppression -->
+        <div class="modal fade" id="deleteModal{{ comm.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirmer la suppression</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Êtes-vous sûr de vouloir supprimer cette communication ?</p>
+                        <p class="fw-bold">"{{ comm.title }}"</p>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Cette action est irréversible. Tous les fichiers associés seront supprimés.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <form method="POST" action="{{ url_for('main.delete_communication', comm_id=comm.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>Supprimer
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+        <h4 class="text-muted">Aucune communication</h4>
+        <p class="text-muted">Vous n'avez pas encore soumis de communication.</p>
+        <a href="{{ url_for('main.choose_type') }}" class="btn btn-primary btn-lg mt-3">
+            <i class="fas fa-plus me-2"></i>Créer ma première soumission
+        </a>
+    </div>
+{% endif %}
+{% endblock %}

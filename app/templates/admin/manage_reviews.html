@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des reviews{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}">Administration</a></li>
+                    <li class="breadcrumb-item active">Gestion des reviews</li>
+                </ol>
+            </nav>
+            <h1 class="h2 text-primary mb-0">
+                <i class="fas fa-clipboard-check me-2"></i>Gestion des reviews
+            </h1>
+            <p class="text-muted">Vue d'ensemble du processus de relecture</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.notify_reviewers') }}" class="btn btn-outline-primary">
+                <i class="fas fa-bell me-2"></i>Notifier les reviewers
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiques des reviews -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-primary mb-2">
+                        <i class="fas fa-user-check fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ reviewers|length }}</h4>
+                    <small class="text-muted">Reviewers actifs</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-warning mb-2">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ pending_reviews|default(0) }}</h4>
+                    <small class="text-muted">Reviews en attente</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ completed_reviews|default(0) }}</h4>
+                    <small class="text-muted">Reviews terminées</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-info mb-2">
+                        <i class="fas fa-file-alt fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ total_communications|default(0) }}</h4>
+                    <small class="text-muted">Communications total</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des reviewers -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>Reviewers actifs
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if reviewers %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Reviewer</th>
+                                    <th>Email</th>
+                                    <th class="text-center">Reviews assignées</th>
+                                    <th class="text-center">Reviews terminées</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reviewer in reviewers %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center me-3" 
+                                                 style="width: 40px; height: 40px;">
+                                                {{ (reviewer.first_name or reviewer.email)[0].upper() }}
+                                            </div>
+                                            <div>
+                                                <strong>{{ reviewer.first_name or '' }} {{ reviewer.last_name or '' }}</strong>
+                                                {% if not reviewer.first_name and not reviewer.last_name %}
+                                                <small class="text-muted d-block">Nom non renseigné</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <code class="small">{{ reviewer.email }}</code>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning">{{ reviewer.assigned_reviews|default(0) }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success">{{ reviewer.completed_reviews|default(0) }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" title="Voir les détails">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-secondary" title="Envoyer un message">
+                                                <i class="fas fa-envelope"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">Aucun reviewer configuré</h6>
+                        <p class="text-muted">Commencez par promouvoir des utilisateurs en tant que reviewers</p>
+                        <a href="{{ url_for('admin.manage_users') }}" class="btn btn-primary">
+                            <i class="fas fa-users me-2"></i>Gérer les utilisateurs
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Actions rapides -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Actions rapides</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin.notify_reviewers') }}" class="btn btn-primary">
+                            <i class="fas fa-bell me-2"></i>Notifier les reviewers
+                        </a>
+                        <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-user-plus me-2"></i>Ajouter des reviewers
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary">
+                            <i class="fas fa-chart-bar me-2"></i>Statistiques détaillées
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Conseils -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Conseils
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li class="mb-2">Vérifiez régulièrement l'avancement des reviews</li>
+                        <li class="mb-2">Contactez les reviewers en cas de retard</li>
+                        <li class="mb-2">Équilibrez la charge de travail entre reviewers</li>
+                        <li>Remerciez les reviewers pour leur travail</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section communications en attente de review (si applicable) -->
+    {% if pending_communications %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-list me-2"></i>Communications en attente de review
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Titre</th>
+                                    <th>Auteur</th>
+                                    <th>Date de soumission</th>
+                                    <th>Reviewer assigné</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for communication in pending_communications %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ communication.title }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ communication.author_email or 'Non renseigné' }}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ communication.created_at.strftime('%d/%m/%Y') if communication.created_at else 'N/A' }}</small>
+                                    </td>
+                                    <td>
+                                        {% if communication.reviewer %}
+                                        <span class="badge bg-info">{{ communication.reviewer.email }}</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Non assigné</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" title="Voir la communication">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-secondary" title="Assigner un reviewer">
+                                                <i class="fas fa-user-tag"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

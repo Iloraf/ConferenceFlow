@@ -1,0 +1,80 @@
+<!-- templates/admin/notify_reviewers.html -->
+{% extends 'base.html' %}
+
+{% block title %}Notifier les reviewers{% endblock %}
+
+{% block content %}
+<div class="container">
+    <header class="mb-4">
+        <h1 class="h2 text-primary">Notification des reviewers</h1>
+        <p class="text-muted">Envoyer des notifications aux reviewers du congrès</p>
+    </header>
+
+    <div class="row">
+        <div class="col-md-8">
+            <form method="POST">
+                {{ csrf_token() if csrf_token }}
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Composer la notification</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">Sujet</label>
+                            <input type="text" class="form-control" id="subject" name="subject" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Message</label>
+                            <textarea class="form-control" id="message" name="message" rows="6" required></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="send_email" name="send_email" checked>
+                                <label class="form-check-label" for="send_email">
+                                    Envoyer par email
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-2"></i>Envoyer la notification
+                    </button>
+                    <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">Annuler</a>
+                </div>
+            </form>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6>Reviewers destinataires</h6>
+                </div>
+                <div class="card-body">
+                    {% if reviewers %}
+                        <p class="text-muted">{{ reviewers|length }} reviewer(s) recevront cette notification :</p>
+                        <ul class="list-unstyled">
+                            {% for reviewer in reviewers[:5] %}
+                            <li class="small">{{ reviewer.prenom }} {{ reviewer.nom }}</li>
+                            {% endfor %}
+                            {% if reviewers|length > 5 %}
+                            <li class="small text-muted">... et {{ reviewers|length - 5 }} autres</li>
+                            {% endif %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">Aucun reviewer trouvé.</p>
+                        <a href="{{ url_for('admin.import_reviewers') }}" class="btn btn-sm btn-outline-primary">
+                            Importer des reviewers
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

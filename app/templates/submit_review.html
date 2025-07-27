@@ -1,0 +1,348 @@
+{% extends 'base.html' %}
+
+{% block title %}Review - {{ communication.title }} - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-clipboard-check me-2"></i>Review de communication</h2>
+    <a href="{{ url_for('main.reviewer_dashboard') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Retour au tableau de bord
+    </a>
+</div>
+
+<!-- Informations de la communication -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">{{ communication.title }}</h4>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <h6><i class="fas fa-users me-2"></i>Auteurs :</h6>
+                    <ul class="list-unstyled ms-3">
+                        {% for author in communication.authors %}
+                            <li><i class="fas fa-user me-2"></i>{{ author.full_name or author.email }}
+                                {% if author.affiliations %}
+                                    <small class="text-muted">({{ author.affiliations[0].sigle }})</small>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-tags me-2"></i>Thématiques :</h6>
+                    {% if communication.thematiques_codes %}
+                        {% for code in communication.thematiques_codes.split(',') %}
+                            <span class="badge bg-secondary me-1">{{ code.strip() }}</span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <h6><i class="fas fa-calendar me-2"></i>Informations :</h6>
+                    <p class="mb-1"><strong>Type :</strong> <span class="badge bg-danger">Article complet</span></p>
+                    <p class="mb-1"><strong>Soumis le :</strong> {{ communication.article_submitted_at.strftime('%d/%m/%Y %H:%M') if communication.article_submitted_at else 'N/A' }}</p>
+                    <p class="mb-0"><strong>Échéance review :</strong> 
+                        <span class="{% if assignment.is_overdue %}text-danger fw-bold{% endif %}">
+                            {{ assignment.due_date.strftime('%d/%m/%Y') if assignment.due_date else 'Non définie' }}
+                        </span>
+                        {% if assignment.is_overdue %}
+                            <span class="badge bg-danger ms-2">En retard</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h6><i class="fas fa-download me-2"></i>Fichiers à reviewer :</h6>
+                <div class="list-group">
+                    {% set resume_file = communication.get_latest_file('résumé') %}
+                    {% if resume_file %}
+                        <a href="{{ url_for('main.download_file', file_id=resume_file.id) }}" 
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-file-text text-success me-2"></i>
+                                <strong>Résumé</strong>
+                                <br><small class="text-muted">{{ resume_file.filename }}</small>
+                            </div>
+                            <span class="badge bg-success">PDF</span>
+                        </a>
+                    {% endif %}
+                    
+                    {% set article_file = communication.get_latest_file('article') %}
+                    {% if article_file %}
+                        <a href="{{ url_for('main.download_file', file_id=article_file.id) }}" 
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-file-pdf text-danger me-2"></i>
+                                <strong>Article complet</strong>
+                                <br><small class="text-muted">{{ article_file.filename }}</small>
+                            </div>
+                            <span class="badge bg-danger">PDF</span>
+                        </a>
+                    {% endif %}
+                </div>
+                
+                {% if not resume_file and not article_file %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Aucun fichier disponible pour cette communication.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Formulaire de review -->
+<div class="card">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0">
+            <i class="fas fa-edit me-2"></i>
+            {% if review.completed %}
+                Modifier ma review
+            {% else %}
+                Soumettre ma review
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if review.completed %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Review déjà soumise le {{ review.submitted_at.strftime('%d/%m/%Y à %H:%M') }}</strong>
+                <br>Vous pouvez modifier votre évaluation ci-dessous.
+            </div>
+        {% endif %}
+        
+        <form method="POST" enctype="multipart/form-data" id="reviewForm">
+            <div class="row">
+                <!-- Note sur 10 -->
+                <div class="col-md-6 mb-4">
+                    <label for="score" class="form-label fw-bold">
+                        <i class="fas fa-star me-2"></i>Note sur 10 *
+                    </label>
+                    <input type="number" class="form-control form-control-lg text-center" 
+                           id="score" name="score" min="0" max="10" step="0.5" required
+                           value="{{ review.score if review.score else '' }}"
+                           placeholder="Ex: 7.5">
+                    <div class="form-text">Note de 0 à 10 (demi-points autorisés)</div>
+                    <div id="score-feedback" class="mt-2"></div>
+                </div>
+                
+                <!-- Recommandation -->
+                <div class="col-md-6 mb-4">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-thumbs-up me-2"></i>Recommandation *
+                    </label>
+                    <div class="mt-2">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="recommendation" 
+                                   id="accept" value="accepter" required
+                                   {% if review.recommendation and review.recommendation.value == 'accepter' %}checked{% endif %}>
+                            <label class="form-check-label text-success fw-bold" for="accept">
+                                <i class="fas fa-check-circle me-2"></i>Accepter
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="recommendation" 
+                                   id="revise" value="réviser" required
+                                   {% if review.recommendation and review.recommendation.value == 'réviser' %}checked{% endif %}>
+                            <label class="form-check-label text-warning fw-bold" for="revise">
+                                <i class="fas fa-edit me-2"></i>Réviser (modifications mineures)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="recommendation" 
+                                   id="reject" value="rejeter" required
+                                   {% if review.recommendation and review.recommendation.value == 'rejeter' %}checked{% endif %}>
+                            <label class="form-check-label text-danger fw-bold" for="reject">
+                                <i class="fas fa-times-circle me-2"></i>Rejeter
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Commentaires pour les auteurs -->
+            <div class="mb-4">
+                <label for="comments_for_authors" class="form-label fw-bold">
+                    <i class="fas fa-comment me-2"></i>Commentaires pour les auteurs
+                </label>
+                <textarea class="form-control" id="comments_for_authors" name="comments_for_authors" 
+                          rows="6" placeholder="Commentaires constructifs à destination des auteurs...">{{ review.comments_for_authors if review.comments_for_authors else '' }}</textarea>
+                <div class="form-text">
+                    Ces commentaires seront transmis aux auteurs. Soyez constructif et précis.
+                </div>
+            </div>
+            
+            <!-- Commentaires pour le conseil scientifique -->
+            <div class="mb-4">
+                <label for="comments_for_committee" class="form-label fw-bold">
+                    <i class="fas fa-user-shield me-2"></i>Commentaires confidentiels pour le conseil scientifique
+                </label>
+                <textarea class="form-control" id="comments_for_committee" name="comments_for_committee" 
+                          rows="4" placeholder="Commentaires confidentiels pour le conseil scientifique...">{{ review.comments_for_committee if review.comments_for_committee else '' }}</textarea>
+                <div class="form-text text-muted">
+                    <i class="fas fa-lock me-1"></i>Ces commentaires ne seront PAS transmis aux auteurs.
+                </div>
+            </div>
+            
+            <!-- Fichier de review -->
+            <div class="mb-4">
+                <label for="review_file" class="form-label fw-bold">
+                    <i class="fas fa-paperclip me-2"></i>Fichier de review (optionnel)
+                </label>
+                <input type="file" class="form-control" id="review_file" name="review_file" accept=".pdf,.doc,.docx">
+                <div class="form-text">
+                    Vous pouvez joindre un fichier PDF avec des commentaires détaillés (optionnel).
+                </div>
+                {% if review.review_file_path %}
+                    <div class="mt-2">
+                        <i class="fas fa-file me-2"></i>
+                        <span class="text-success">Fichier déjà joint : {{ review.review_file_path.split('/')[-1] }}</span>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Prix Biot-Fourier -->
+            <div class="mb-4">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0"><i class="fas fa-award me-2"></i>Prix Biot-Fourier</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="recommend_for_biot_fourier" 
+                                   name="recommend_for_biot_fourier"
+                                   {% if review.recommend_for_biot_fourier %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="recommend_for_biot_fourier">
+                                Je recommande cette communication pour le prix Biot-Fourier
+                            </label>
+                        </div>
+                        <small class="text-muted">
+                            Le prix Biot-Fourier récompense les meilleures communications de la conférence.
+                            Cochez cette case si vous estimez que cette communication mérite d'être considérée.
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Boutons -->
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    {% if review.completed %}
+                        <span class="text-muted">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Review soumise le {{ review.submitted_at.strftime('%d/%m/%Y à %H:%M') }}
+                        </span>
+                    {% endif %}
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        {% if review.completed %}
+                            Mettre à jour ma review
+                        {% else %}
+                            Soumettre ma review
+                        {% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Guide d'évaluation -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-question-circle me-2"></i>Guide d'évaluation</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Critères d'évaluation :</h6>
+                <ul>
+                    <li>Originalité et innovation</li>
+                    <li>Qualité scientifique et méthodologique</li>
+                    <li>Clarté de la présentation</li>
+                    <li>Pertinence par rapport aux thématiques SFT</li>
+                    <li>Qualité des résultats et discussions</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Barème suggéré :</h6>
+                <ul>
+                    <li><strong>9-10 :</strong> Excellent, contribution majeure</li>
+                    <li><strong>7-8 :</strong> Très bon, quelques améliorations mineures</li>
+                    <li><strong>5-6 :</strong> Acceptable, révisions nécessaires</li>
+                    <li><strong>3-4 :</strong> Insuffisant, révisions majeures</li>
+                    <li><strong>0-2 :</strong> Inadéquat, rejet recommandé</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scoreInput = document.getElementById('score');
+    const scoreFeedback = document.getElementById('score-feedback');
+    const submitBtn = document.getElementById('submitBtn');
+    const form = document.getElementById('reviewForm');
+    
+    // Feedback visuel pour la note
+    scoreInput.addEventListener('input', function() {
+        const score = parseFloat(this.value);
+        let feedback = '';
+        let badgeClass = '';
+        
+        if (score >= 9) {
+            feedback = 'Excellent';
+            badgeClass = 'bg-success';
+        } else if (score >= 7) {
+            feedback = 'Très bon';
+            badgeClass = 'bg-info';
+        } else if (score >= 5) {
+            feedback = 'Acceptable';
+            badgeClass = 'bg-warning';
+        } else if (score >= 3) {
+            feedback = 'Insuffisant';
+            badgeClass = 'bg-orange';
+        } else if (score >= 0) {
+            feedback = 'Inadéquat';
+            badgeClass = 'bg-danger';
+        }
+        
+        if (feedback) {
+            scoreFeedback.innerHTML = `<span class="badge ${badgeClass}">${feedback}</span>`;
+        } else {
+            scoreFeedback.innerHTML = '';
+        }
+    });
+    
+    // Confirmation avant soumission
+    form.addEventListener('submit', function(e) {
+        const score = parseFloat(scoreInput.value);
+        const recommendation = document.querySelector('input[name="recommendation"]:checked');
+        
+        if (!score || !recommendation) {
+            e.preventDefault();
+            alert('Veuillez remplir la note et la recommandation.');
+            return;
+        }
+        
+        if (!confirm('Êtes-vous sûr de vouloir soumettre cette review ? Elle sera transmise aux organisateurs.')) {
+            e.preventDefault();
+        }
+    });
+    
+    // Déclencheur initial pour la note existante
+    if (scoreInput.value) {
+        scoreInput.dispatchEvent(new Event('input'));
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,394 @@
+{% extends 'base.html' %}
+
+{% block title %}Affectations des reviewers{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}">Administration</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.manage_reviews') }}">Reviews</a></li>
+                    <li class="breadcrumb-item active">Affectations</li>
+                </ol>
+            </nav>
+            <h1 class="h2 text-primary mb-0">
+                <i class="fas fa-clipboard-list me-2"></i>Affectations des reviewers
+            </h1>
+            <p class="text-muted">Vue d'ensemble de toutes les affectations de reviews</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.auto_assign_reviews') }}" class="btn btn-outline-success">
+                <i class="fas fa-magic me-2"></i>Affectation auto
+            </a>
+            <a href="{{ url_for('admin.export_assignments') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-download me-2"></i>Export CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-primary mb-2">
+                        <i class="fas fa-tasks fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.total_assignments }}</h4>
+                    <small class="text-muted">Affectations totales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.assignments_completed }}</h4>
+                    <small class="text-muted">Reviews terminées</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-danger mb-2">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.assignments_overdue }}</h4>
+                    <small class="text-muted">En retard</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-info mb-2">
+                        <i class="fas fa-file-alt fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.communications_fully_assigned }}</h4>
+                    <small class="text-muted">Communications complètes</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3" id="filterForm">
+                <div class="col-md-3">
+                    <label for="status_filter" class="form-label">Statut</label>
+                    <select class="form-select" id="status_filter" name="status">
+                        <option value="">Tous les statuts</option>
+                        <option value="assigned" {% if request.args.get('status') == 'assigned' %}selected{% endif %}>Assigné</option>
+                        <option value="in_progress" {% if request.args.get('status') == 'in_progress' %}selected{% endif %}>En cours</option>
+                        <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>Terminé</option>
+                        <option value="overdue" {% if request.args.get('status') == 'overdue' %}selected{% endif %}>En retard</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="reviewer_filter" class="form-label">Reviewer</label>
+                    <input type="text" class="form-control" id="reviewer_filter" name="reviewer" 
+                           value="{{ request.args.get('reviewer', '') }}" placeholder="Email du reviewer...">
+                </div>
+                <div class="col-md-3">
+                    <label for="communication_filter" class="form-label">Communication</label>
+                    <input type="text" class="form-control" id="communication_filter" name="communication" 
+                           value="{{ request.args.get('communication', '') }}" placeholder="Titre ou ID...">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="btn-group w-100">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Filtrer
+                        </button>
+                        <a href="{{ url_for('admin.view_assignments') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Liste des affectations -->
+    {% if communications_with_reviews %}
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>Affectations par communication
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="accordion" id="assignmentsAccordion">
+                {% for comm_id, comm_data in communications_with_reviews.items() %}
+                {% set communication = comm_data.communication %}
+                {% set assignments = comm_data.assignments %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ comm_id }}">
+                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" 
+                                type="button" 
+                                data-bs-toggle="collapse" 
+                                data-bs-target="#collapse{{ comm_id }}"
+                                aria-expanded="{% if loop.first %}true{% else %}false{% endif %}" 
+                                aria-controls="collapse{{ comm_id }}">
+                            <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                <div>
+                                    <strong>{{ communication.title }}</strong>
+                                    <small class="text-muted d-block">ID: {{ communication.id }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="mb-1">
+                                        {% for thematique in communication.thematiques %}
+                                        <span class="badge text-white me-1" style="background-color: {{ thematique.couleur }};">
+                                            {{ thematique.code }}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+                                    <small class="text-muted">{{ assignments|length }} reviewer(s) assigné(s)</small>
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ comm_id }}" 
+                         class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
+                         aria-labelledby="heading{{ comm_id }}" 
+                         data-bs-parent="#assignmentsAccordion">
+                        <div class="accordion-body">
+                            <!-- Détails de la communication -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <h6>Auteurs :</h6>
+                                    {% if communication.authors %}
+                                        {% for author in communication.authors %}
+                                        <div class="small">
+                                            {{ author.email }}
+                                            {% if author.affiliation %}
+                                            <span class="text-muted">({{ author.affiliation.sigle }})</span>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                    <span class="text-muted">Non renseigné</span>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Thématiques :</h6>
+                                    {% for thematique in communication.thematiques %}
+                                    <span class="badge text-white me-1 mb-1" style="background-color: {{ thematique.couleur }};">
+                                        {{ thematique.code }} - {{ thematique.nom }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Affectations de reviewers -->
+                            <h6>Reviewers assignés :</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Reviewer</th>
+                                            <th>Spécialités</th>
+                                            <th>Affectation</th>
+                                            <th>Échéance</th>
+                                            <th>Statut</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for assignment in assignments %}
+                                        <tr class="{% if assignment.is_overdue %}table-danger{% endif %}">
+                                            <td>
+                                                <div>
+                                                    <strong>{{ assignment.reviewer.first_name or '' }} {{ assignment.reviewer.last_name or '' }}</strong>
+                                                    <small class="text-muted d-block">{{ assignment.reviewer.email }}</small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% for specialite in assignment.reviewer.specialites %}
+                                                <span class="badge text-white me-1" style="background-color: {{ specialite.couleur }};">
+                                                    {{ specialite.code }}
+                                                </span>
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">
+                                                    {{ assignment.assigned_at.strftime('%d/%m/%Y %H:%M') if assignment.assigned_at else 'N/A' }}
+                                                    {% if assignment.assigned_by %}
+                                                    <br>par {{ assignment.assigned_by.email }}
+                                                    {% endif %}
+                                                </small>
+                                            </td>
+                                            <td>
+                                                {% if assignment.due_date %}
+                                                <small class="{% if assignment.is_overdue %}text-danger{% else %}text-muted{% endif %}">
+                                                    {{ assignment.due_date.strftime('%d/%m/%Y') }}
+                                                    {% if assignment.is_overdue %}
+                                                    <br><strong>EN RETARD</strong>
+                                                    {% endif %}
+                                                </small>
+                                                {% else %}
+                                                <span class="text-muted">Non définie</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if assignment.status == 'completed' %}
+                                                <span class="badge bg-success">Terminé</span>
+                                                {% if assignment.completed_at %}
+                                                <small class="text-muted d-block">{{ assignment.completed_at.strftime('%d/%m/%Y') }}</small>
+                                                {% endif %}
+                                                {% elif assignment.status == 'in_progress' %}
+                                                <span class="badge bg-info">En cours</span>
+                                                {% elif assignment.is_overdue %}
+                                                <span class="badge bg-danger">En retard</span>
+                                                {% else %}
+                                                <span class="badge bg-warning">Assigné</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary btn-sm" 
+                                                            onclick="editAssignment({{ assignment.id }})"
+                                                            title="Modifier">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary btn-sm" 
+                                                            onclick="contactReviewer('{{ assignment.reviewer.email }}')"
+                                                            title="Contacter">
+                                                        <i class="fas fa-envelope"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {% if assignments|length < 2 %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Cette communication n'a que {{ assignments|length }} reviewer(s) assigné(s). 
+                                <a href="{{ url_for('admin.auto_assign_reviews') }}" class="alert-link">Affecter des reviewers supplémentaires</a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Aucune affectation -->
+    <div class="text-center py-5">
+        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">Aucune affectation trouvée</h5>
+        <p class="text-muted">Commencez par affecter des reviewers aux communications</p>
+        <a href="{{ url_for('admin.auto_assign_reviews') }}" class="btn btn-primary">
+            <i class="fas fa-magic me-2"></i>Lancer l'affectation automatique
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal pour éditer une affectation -->
+<div class="modal fade" id="editAssignmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifier l'affectation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editAssignmentForm" method="POST">
+                    <div class="mb-3">
+                        <label for="assignment_status" class="form-label">Statut</label>
+                        <select class="form-select" id="assignment_status" name="status">
+                            <option value="assigned">Assigné</option>
+                            <option value="in_progress">En cours</option>
+                            <option value="completed">Terminé</option>
+                            <option value="declined">Refusé</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="assignment_due_date" class="form-label">Date d'échéance</label>
+                        <input type="date" class="form-control" id="assignment_due_date" name="due_date">
+                    </div>
+                    <div class="mb-3">
+                        <label for="assignment_comments" class="form-label">Commentaires</label>
+                        <textarea class="form-control" id="assignment_comments" name="comments" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="submit" form="editAssignmentForm" class="btn btn-primary">Sauvegarder</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function editAssignment(assignmentId) {
+    const modal = new bootstrap.Modal(document.getElementById('editAssignmentModal'));
+    const form = document.getElementById('editAssignmentForm');
+    
+    // Configurer l'action du formulaire
+    form.action = `/admin/reviews/assignment/${assignmentId}/update`;
+    
+    // Réinitialiser le formulaire
+    form.reset();
+    
+    // Afficher le modal
+    modal.show();
+}
+
+function contactReviewer(email) {
+    // Ouvrir le client de messagerie par défaut
+    window.location.href = `mailto:${email}?subject=Review Request&body=Bonjour,\n\nVous avez été assigné comme reviewer pour une communication...\n\nCordialement`;
+}
+
+// Auto-submit du formulaire de filtres lors du changement de sélection
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('filterForm');
+    const selectElements = filterForm.querySelectorAll('select');
+    
+    selectElements.forEach(select => {
+        select.addEventListener('change', function() {
+            filterForm.submit();
+        });
+    });
+});
+</script>
+
+<style>
+.accordion-button:not(.collapsed) {
+    background-color: #f8f9fa;
+    color: #0d6efd;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.table-sm td {
+    vertical-align: middle;
+    font-size: 0.875em;
+}
+
+.accordion-body {
+    background-color: #fafafa;
+}
+
+.table-danger {
+    --bs-table-bg: rgba(220, 53, 69, 0.1);
+}
+</style>
+{% endblock %}

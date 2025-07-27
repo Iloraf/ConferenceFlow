@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des utilisateurs{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}">Administration</a></li>
+                    <li class="breadcrumb-item active">Gestion des utilisateurs</li>
+                </ol>
+            </nav>
+            <h1 class="h2 text-primary mb-0">
+                <i class="fas fa-users me-2"></i>Gestion des utilisateurs
+            </h1>
+            <p class="text-muted">{{ users.total }} utilisateur(s) au total</p>
+        </div>
+        <div>
+
+          <a href="{{ url_for('admin.import_reviewers') }}" class="btn btn-outline-primary">
+                <i class="fas fa-upload me-2"></i>Import reviewers
+            </a>
+            <a href="{{ url_for('admin.export_users_csv') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-download me-2"></i>Export CSV
+            </a>
+
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Retour Dashboard
+                </a>
+	    
+        </div>
+    </div>
+
+    <!-- Filtres et recherche -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-6">
+                    <label for="search" class="form-label">Recherche</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search }}" placeholder="Email, prénom, nom...">
+                </div>
+                <div class="col-md-4">
+                    <label for="role" class="form-label">Filtrer par rôle</label>
+                    <select class="form-select" id="role" name="role">
+                        <option value="">Tous les rôles</option>
+                        <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Administrateurs</option>
+                        <option value="reviewer" {% if role_filter == 'reviewer' %}selected{% endif %}>Reviewers</option>
+                        <option value="user" {% if role_filter == 'user' %}selected{% endif %}>Utilisateurs simples</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <div class="btn-group w-100">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        {% if search or role_filter %}
+                        <a href="{{ url_for('admin.manage_users') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Résultats de recherche -->
+    {% if search or role_filter %}
+    <div class="alert alert-info">
+        <i class="fas fa-filter me-2"></i>
+        {{ users.total }} résultat(s) avec les filtres appliqués
+        {% if search %}- Recherche: "<strong>{{ search }}</strong>"{% endif %}
+        {% if role_filter %}- Rôle: <strong>{{ role_filter }}</strong>{% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Liste des utilisateurs -->
+    {% if users.items %}
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Utilisateur</th>
+                        <th>Email</th>
+                        <th>Rôles</th>
+                        <th>Date d'inscription</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users.items %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 40px; height: 40px;">
+                                    {{ (user.first_name or user.email)[0].upper() }}
+                                </div>
+                                <div>
+                                    <strong>{{ user.first_name or '' }} {{ user.last_name or '' }}</strong>
+                                    {% if not user.first_name and not user.last_name %}
+                                    <small class="text-muted">Nom non renseigné</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <code class="small">{{ user.email }}</code>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                {% if user.is_admin %}
+                                <span class="badge bg-danger">Admin</span>
+                                {% endif %}
+                                {% if user.is_reviewer %}
+                                <span class="badge bg-success">Reviewer</span>
+                                {% endif %}
+                                {% if not user.is_admin and not user.is_reviewer %}
+                                <span class="badge bg-secondary">Utilisateur</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if user.created_at %}
+                            <small class="text-muted">{{ user.created_at.strftime('%d/%m/%Y') }}</small>
+                            {% else %}
+                            <small class="text-muted">Non renseigné</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-primary dropdown-toggle" 
+                                        type="button" data-bs-toggle="dropdown">
+                                    Actions
+                                </button>
+                                <ul class="dropdown-menu">
+                                    {% if not user.is_reviewer %}
+                                    <li>
+                                        <form method="POST" action="{{ url_for('admin.promote_reviewer', user_id=user.id) }}" 
+                                              style="display: inline;">
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="fas fa-user-plus text-success me-2"></i>Promouvoir Reviewer
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% else %}
+                                    <li>
+                                        <form method="POST" action="{{ url_for('admin.revoke_reviewer', user_id=user.id) }}" 
+                                              style="display: inline;">
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="fas fa-user-minus text-warning me-2"></i>Révoquer Reviewer
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                    
+                                    {% if not user.is_admin %}
+                                    <li>
+                                        <form method="POST" action="{{ url_for('admin.promote_admin', user_id=user.id) }}" 
+                                              style="display: inline;" onsubmit="return confirm('Êtes-vous sûr de vouloir promouvoir cet utilisateur administrateur ?')">
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="fas fa-crown text-danger me-2"></i>Promouvoir Admin
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% elif user.id != current_user.id %}
+                                    <li>
+                                        <form method="POST" action="{{ url_for('admin.revoke_admin', user_id=user.id) }}" 
+                                              style="display: inline;" onsubmit="return confirm('Êtes-vous sûr de vouloir révoquer les droits d\'administrateur ?')">
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="fas fa-user-times text-danger me-2"></i>Révoquer Admin
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if users.pages > 1 %}
+    <nav aria-label="Pagination des utilisateurs" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if users.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin.manage_users', page=users.prev_num, search=search, role=role_filter) }}">
+                    <i class="fas fa-chevron-left"></i> Précédent
+                </a>
+            </li>
+            {% endif %}
+
+            {% for page_num in users.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num != users.page %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.manage_users', page=page_num, search=search, role=role_filter) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_num }}</span>
+                    </li>
+                    {% endif %}
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">…</span>
+                </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if users.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin.manage_users', page=users.next_num, search=search, role=role_filter) }}">
+                    Suivant <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- Aucun résultat -->
+    <div class="text-center py-5">
+        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">
+            {% if search or role_filter %}
+            Aucun utilisateur trouvé avec ces critères
+            {% else %}
+            Aucun utilisateur enregistré
+            {% endif %}
+        </h5>
+        <p class="text-muted">
+            {% if search or role_filter %}
+            Essayez avec d'autres critères ou 
+            <a href="{{ url_for('admin.manage_users') }}">voir tous les utilisateurs</a>
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

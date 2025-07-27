@@ -1,0 +1,283 @@
+# app/config_loader.py
+"""
+Chargeur de configuration pour ConferenceFlow
+Gère le chargement des fichiers YAML et CSV de configuration
+"""
+
+import yaml
+import csv
+import os
+from pathlib import Path
+from flask import current_app
+
+class ConfigLoader:
+    """Classe pour charger les configurations depuis les fichiers YAML et CSV."""
+    
+    def __init__(self, config_dir="config"):
+        """
+        Initialise le chargeur de configuration.
+        
+        Args:
+            config_dir (str): Dossier contenant les fichiers de configuration
+        """
+        # Chemin relatif depuis la racine du projet
+        import os
+        # Obtenir le chemin du module app
+        app_path = os.path.dirname(os.path.abspath(__file__))
+        # Remonter d'un niveau pour avoir la racine du projet
+        project_root = os.path.dirname(app_path)
+        self.config_dir = Path(project_root) / config_dir
+        
+        self._conference_config = None
+        self._themes = None
+        self._email_config = None
+
+    
+    def load_conference_config(self):
+        """Charge la configuration générale de la conférence depuis conference.yml"""
+        config_file = self.config_dir / "conference.yml"
+        
+        if not config_file.exists():
+            current_app.logger.warning(f"Fichier conference.yml non trouvé : {config_file}")
+            return self._get_default_conference_config()
+        
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                self._conference_config = yaml.safe_load(f)
+                return self._conference_config
+        except Exception as e:
+            current_app.logger.error(f"Erreur lors du chargement de conference.yml : {e}")
+            return self._get_default_conference_config()
+    
+    def load_themes(self):
+        """Charge les thématiques depuis themes.yml"""
+        themes_file = self.config_dir / "themes.yml"
+        
+        if not themes_file.exists():
+            current_app.logger.warning(f"Fichier themes.yml non trouvé : {themes_file}")
+            return self._get_default_themes()
+        
+        try:
+            with open(themes_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+                self._themes = config.get('themes', [])
+                return self._themes
+        except Exception as e:
+            current_app.logger.error(f"Erreur lors du chargement de themes.yml : {e}")
+            return self._get_default_themes()
+    
+    def load_email_config(self):
+        """Charge la configuration des emails depuis emails.yml"""
+        email_file = self.config_dir / "emails.yml"
+        
+        if not email_file.exists():
+            current_app.logger.warning(f"Fichier emails.yml non trouvé : {email_file}")
+            return self._get_default_email_config()
+        
+        try:
+            with open(email_file, 'r', encoding='utf-8') as f:
+                self._email_config = yaml.safe_load(f)
+                return self._email_config
+        except Exception as e:
+            current_app.logger.error(f"Erreur lors du chargement de emails.yml : {e}")
+            return self._get_default_email_config()
+    
+    def load_csv_data(self, filename):
+        """
+        Charge des données depuis un fichier CSV.
+        
+        Args:
+            filename (str): Nom du fichier CSV dans config/data/
+            
+        Returns:
+            list: Liste de dictionnaires représentant les lignes du CSV
+        """
+        csv_file = self.config_dir / "data" / filename
+        
+        if not csv_file.exists():
+            current_app.logger.warning(f"Fichier CSV non trouvé : {csv_file}")
+            return []
+        
+        try:
+            with open(csv_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                return [row for row in reader]
+        except Exception as e:
+            current_app.logger.error(f"Erreur lors du chargement de {filename} : {e}")
+            return []
+    
+    def _get_default_conference_config(self):
+        """Configuration par défaut si le fichier YAML n'existe pas"""
+        return {
+            'conference': {
+                'name': 'ConferenceFlow Demo',
+                'short_name': 'CF Demo',
+                'theme': 'Configuration par défaut',
+                'year': 2024
+            },
+            'dates': {
+                'start': '2024-06-01',
+                'end': '2024-06-04'
+            },
+            'location': {
+                'venue': 'Centre de congrès',
+                'city': 'Ville',
+                'country': 'France'
+            },
+            'contact': {
+                'general': 'contact@conference.fr'
+            }
+        }
+    
+    def _get_default_themes(self):
+        """Thématiques par défaut (celles actuellement dans models.py)"""
+        return [
+            {
+                'code': 'COND', 
+                'nom': 'Conduction, convection, rayonnement',
+                'description': 'Transferts de chaleur par conduction, convection et rayonnement',
+                'couleur': '#dc3545',
+                'actif': True
+            },
+            {
+                'code': 'MULTI', 
+                'nom': 'Changement de phase et transferts multiphasiques',
+                'description': 'Phénomènes de changement de phase et écoulements multiphasiques',
+                'couleur': '#20c997',
+                'actif': True
+            },
+            {
+                'code': 'POREUX', 
+                'nom': 'Transferts en milieux poreux',
+                'description': 'Transferts de masse et de chaleur en milieux poreux',
+                'couleur': '#0dcaf0',
+                'actif': True
+            },
+            {
+                'code': 'MICRO', 
+                'nom': 'Micro et nanothermique',
+                'description': 'Transferts thermiques à l\'échelle micro et nanométrique',
+                'couleur': '#198754',
+                'actif': True
+            },
+            {
+                'code': 'BIO', 
+                'nom': 'Thermique du vivant',
+                'description': 'Applications thermiques dans le domaine du vivant',
+                'couleur': '#fd7e14',
+                'actif': True
+            },
+            {
+                'code': 'SYST', 
+                'nom': 'Énergétique des systèmes',
+                'description': 'Énergétique et optimisation des systèmes',
+                'couleur': '#d63384',
+                'actif': True
+            },
+            {
+                'code': 'COMBUST', 
+                'nom': 'Combustion et flammes',
+                'description': 'Phénomènes de combustion et étude des flammes',
+                'couleur': '#ff6b35',
+                'actif': True
+            },
+            {
+                'code': 'MACHINE', 
+                'nom': 'Machines thermiques et frigorifiques',
+                'description': 'Machines thermiques, pompes à chaleur, systèmes frigorifiques',
+                'couleur': '#007bff',
+                'actif': True
+            },
+            {
+                'code': 'ECHANG', 
+                'nom': 'Échangeurs de chaleur',
+                'description': 'Conception et optimisation des échangeurs de chaleur',
+                'couleur': '#6f42c1',
+                'actif': True
+            },
+            {
+                'code': 'STOCK', 
+                'nom': 'Stockage thermique',
+                'description': 'Technologies de stockage de l\'énergie thermique',
+                'couleur': '#6610f2',
+                'actif': True
+            },
+            {
+                'code': 'RENOUV', 
+                'nom': 'Énergies renouvelables',
+                'description': 'Applications thermiques des énergies renouvelables',
+                'couleur': '#28a745',
+                'actif': True
+            },
+            {
+                'code': 'BATIM', 
+                'nom': 'Thermique du bâtiment',
+                'description': 'Efficacité énergétique et confort thermique des bâtiments',
+                'couleur': '#ffc107',
+                'actif': True
+            },
+            {
+                'code': 'INDUS', 
+                'nom': 'Thermique industrielle',
+                'description': 'Applications thermiques dans l\'industrie',
+                'couleur': '#17a2b8',
+                'actif': True
+            },
+            {
+                'code': 'METRO', 
+                'nom': 'Métrologie et techniques inverses',
+                'description': 'Mesures thermiques et méthodes inverses',
+                'couleur': '#6c757d',
+                'actif': True
+            },
+            {
+                'code': 'SIMUL', 
+                'nom': 'Modélisation et simulation numérique',
+                'description': 'Méthodes numériques et modélisation en thermique',
+                'couleur': '#343a40',
+                'actif': True
+            }
+        ]
+    
+    def _get_default_email_config(self):
+        """Configuration email par défaut"""
+        return {
+            'templates': {
+                'subjects': {
+                    'welcome': 'Bienvenue',
+                    'submission_received': 'Communication reçue'
+                },
+                'signatures': {
+                    'default': 'Cordialement,\nL\'équipe d\'organisation'
+                }
+            }
+        }
+
+
+class ThematiqueLoader:
+    """Classe utilitaire pour charger les thématiques depuis la configuration."""
+    
+    @staticmethod
+    def load_themes():
+        """Charge toutes les thématiques depuis themes.yml"""
+        loader = ConfigLoader()
+        return loader.load_themes()
+    
+    @staticmethod 
+    def get_active_themes():
+        """Retourne seulement les thématiques actives"""
+        themes = ThematiqueLoader.load_themes()
+        return [t for t in themes if t.get('actif', True)]
+    
+    @staticmethod
+    def get_theme_by_code(code):
+        """Récupère une thématique par son code"""
+        themes = ThematiqueLoader.load_themes()
+        return next((t for t in themes if t['code'] == code.upper()), None)
+    
+    @staticmethod
+    def is_valid_code(code):
+        """Vérifie si un code de thématique est valide"""
+        theme = ThematiqueLoader.get_theme_by_code(code)
+        return theme is not None and theme.get('actif', True)
+

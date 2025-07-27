@@ -1,0 +1,175 @@
+<!-- templates/admin/import_affiliations.html -->
+
+{% extends 'base.html' %}
+{% block content %}
+<div class="container">
+    <header class="mb-4">
+        <h1 class="h2 text-primary">Import des affiliations</h1>
+        <p class="text-muted">Importez les laboratoires et institutions depuis un fichier CSV</p>
+    </header>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Formulaire d'upload -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-upload me-2"></i>Téléverser un fichier CSV
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm" action="{{ url_for('admin.import_affiliations') }}">
+                        <!-- CSRF Token si nécessaire -->
+                        {% if csrf_token %}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="csv_file" class="form-label">Fichier CSV des affiliations</label>
+                            <input type="file" class="form-control" id="csv_file" name="csv_file" 
+                                   accept=".csv" required>
+                            <div class="form-text">
+                                Format accepté : CSV avec séparateur point-virgule (;)
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-info-circle me-2"></i>Informations importantes
+                            </h6>
+                            <ul class="mb-0">
+                                <li>Les affiliations existantes (même sigle) seront <strong>mises à jour</strong></li>
+                                <li>L'encodage du fichier doit être <strong>UTF-8</strong></li>
+                                <li>Les champs <strong>sigle</strong> et <strong>nom_complet</strong> sont obligatoires</li>
+                                <li>Le sigle sera automatiquement converti en <strong>MAJUSCULES</strong></li>
+                            </ul>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="fas fa-upload me-2"></i>Importer les affiliations
+                        </button>
+                        <a href="{{ url_for('admin.list_affiliations') }}" class="btn btn-secondary">
+                            <i class="fas fa-list me-2"></i>Voir les affiliations
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Informations sur les affiliations existantes -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Statistiques</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <span>Affiliations actuelles :</span>
+                        <strong class="text-primary">{{ total_affiliations }}</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Format CSV attendu -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Format CSV requis</h6>
+                </div>
+                <div class="card-body">
+                    <h6 class="text-success">Colonnes obligatoires :</h6>
+                    <ul class="small mb-3">
+                        <li><code>sigle</code> - Sigle du laboratoire</li>
+                        <li><code>nom_complet</code> - Nom complet</li>
+                    </ul>
+                    
+                    <h6 class="text-info">Colonnes optionnelles :</h6>
+                    <ul class="small mb-3">
+                        <li><code>adresse</code> - Adresse complète</li>
+                        <li><code>citation</code> - Format de citation</li>
+                        <li><code>identifiant_hal</code> - ID HAL</li>
+                    </ul>
+                    
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-primary" onclick="downloadTemplate()">
+                            <i class="fas fa-download me-1"></i>Télécharger un modèle
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Exemple de format -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>Exemple de format CSV
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 small rounded"><code>sigle;nom_complet;adresse;citation;identifiant_hal
+LEMTA;Laboratoire Énergies & Mécanique Théorique et Appliquée;2 avenue de la Forêt de Haye, 54518 Vandœuvre-lès-Nancy;LEMTA - Laboratoire Énergies & Mécanique Théorique et Appliquée, UMR CNRS 7563;lemta-00000001
+LRGP;Laboratoire Réactions et Génie des Procédés;1 rue Grandville, 54001 Nancy;LRGP - Laboratoire Réactions et Génie des Procédés, UMR CNRS 7274;lrgp-00000001
+CRAN;Centre de Recherche en Automatique de Nancy;Campus Sciences, 54506 Vandœuvre-lès-Nancy;CRAN - Centre de Recherche en Automatique de Nancy, UMR CNRS 7039;cran-00000001</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Gestion du formulaire d'upload
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const submitBtn = document.getElementById('submitBtn');
+    const fileInput = document.getElementById('csv_file');
+    
+    if (!fileInput.files.length) {
+        e.preventDefault();
+        alert('Veuillez sélectionner un fichier CSV.');
+        return;
+    }
+    
+    // Affichage du loading
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Import en cours...';
+    submitBtn.disabled = true;
+});
+
+// Téléchargement du modèle CSV
+function downloadTemplate() {
+    const csvContent = "sigle;nom_complet;adresse;citation;identifiant_hal\n" +
+                      "EXEMPLE1;Laboratoire d'Exemple 1;1 rue de l'Exemple, 00000 Ville;Citation exemple;exemple1-hal\n" +
+                      "EXEMPLE2;Laboratoire d'Exemple 2;2 avenue de l'Exemple, 00000 Ville;Citation exemple 2;exemple2-hal";
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'modele_affiliations.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Validation du fichier
+document.getElementById('csv_file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            alert('Veuillez sélectionner un fichier CSV.');
+            this.value = '';
+            return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) { // 5MB
+            alert('Le fichier est trop volumineux (max 5MB).');
+            this.value = '';
+            return;
+        }
+    }
+});
+</script>
+{% endblock %}
+

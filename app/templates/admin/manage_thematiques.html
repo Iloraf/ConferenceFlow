@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des thématiques{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}">Administration</a></li>
+                    <li class="breadcrumb-item active">Thématiques</li>
+                </ol>
+            </nav>
+            <h1 class="h2 text-primary mb-0">
+                <i class="fas fa-tags me-2"></i>Gestion des thématiques
+            </h1>
+            <p class="text-muted">{{ stats.total_thematiques }} thématiques configurées</p>
+        </div>
+        <div>
+            {% if stats.total_thematiques == 0 %}
+            <form method="POST" action="{{ url_for('admin.init_thematiques') }}" style="display: inline;">
+                <button type="submit" class="btn btn-success" onclick="return confirm('Initialiser les thématiques par défaut ?')">
+                    <i class="fas fa-magic me-2"></i>Initialiser les thématiques
+                </button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('admin.manage_reviewer_specialites') }}" class="btn btn-outline-primary">
+                <i class="fas fa-user-tag me-2"></i>Gérer les spécialités
+            </a>
+            <a href="{{ url_for('admin.export_thematiques_reviewers') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-download me-2"></i>Export CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-primary mb-2">
+                        <i class="fas fa-tags fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.total_thematiques }}</h4>
+                    <small class="text-muted">Thématiques totales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-user-check fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.total_specialistes }}</h4>
+                    <small class="text-muted">Spécialistes total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-warning mb-2">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.thematiques_sans_specialiste }}</h4>
+                    <small class="text-muted">Sans spécialiste</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des thématiques -->
+    {% if thematiques %}
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>Thématiques du congrès
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 80px;">Code</th>
+                            <th>Thématique</th>
+                            <th>Description</th>
+                            <th class="text-center" style="width: 120px;">Spécialistes</th>
+                            <th class="text-center" style="width: 120px;">Communications</th>
+                            <th class="text-center" style="width: 100px;">Statut</th>
+                            <th class="text-center" style="width: 100px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for thematique in thematiques %}
+                        <tr class="{% if not thematique.is_active %}table-secondary{% endif %}">
+                            <td>
+                                <span class="badge fs-6 text-white" style="background-color: {{ thematique.couleur }};">
+                                    {{ thematique.code }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>{{ thematique.nom }}</strong>
+                                {% if not thematique.is_active %}
+                                <small class="text-muted d-block">(Désactivée)</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ thematique.description or 'Aucune description' }}</small>
+                            </td>
+                            <td class="text-center">
+                                {% if thematique.nb_specialistes > 0 %}
+                                <span class="badge bg-success">{{ thematique.nb_specialistes }}</span>
+                                {% else %}
+                                <span class="badge bg-warning">0</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-info">{{ thematique.nb_communications }}</span>
+                            </td>
+                            <td class="text-center">
+                                {% if thematique.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-info" 
+                                            onclick="showThematiqueDetails({{ thematique.id }})"
+                                            title="Voir les détails">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <form method="POST" action="{{ url_for('admin.toggle_thematique', thematique_id=thematique.id) }}" 
+                                          style="display: inline;">
+                                        <button type="submit" 
+                                                class="btn btn-outline-{% if thematique.is_active %}warning{% else %}success{% endif %}"
+                                                title="{% if thematique.is_active %}Désactiver{% else %}Activer{% endif %}">
+                                            <i class="fas fa-{% if thematique.is_active %}pause{% else %}play{% endif %}"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Aucune thématique -->
+    <div class="text-center py-5">
+        <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">Aucune thématique configurée</h5>
+        <p class="text-muted">Initialisez les thématiques par défaut pour commencer</p>
+        <form method="POST" action="{{ url_for('admin.init_thematiques') }}" style="display: inline;">
+            <button type="submit" class="btn btn-primary" onclick="return confirm('Initialiser les thématiques par défaut ?')">
+                <i class="fas fa-magic me-2"></i>Initialiser les thématiques
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Actions rapides -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Actions rapides
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <a href="{{ url_for('admin.manage_reviewer_specialites') }}" class="btn btn-outline-primary w-100 mb-2">
+                                <i class="fas fa-user-tag me-2"></i>Gérer les spécialités
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('admin.auto_assign_reviews') }}" class="btn btn-outline-success w-100 mb-2">
+                                <i class="fas fa-magic me-2"></i>Affectation automatique
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('admin.view_assignments') }}" class="btn btn-outline-info w-100 mb-2">
+                                <i class="fas fa-clipboard-list me-2"></i>Voir les affectations
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('admin.export_thematiques_reviewers') }}" class="btn btn-outline-secondary w-100 mb-2">
+                                <i class="fas fa-download me-2"></i>Export matrice
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour les détails d'une thématique -->
+<div class="modal fade" id="thematiqueModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détails de la thématique</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="thematiqueModalContent">
+                <!-- Contenu chargé dynamiquement -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showThematiqueDetails(thematiqueId) {
+    // Ici vous pourriez faire un appel AJAX pour récupérer les détails
+    // Pour l'instant, affichage simple
+    const modal = new bootstrap.Modal(document.getElementById('thematiqueModal'));
+    document.getElementById('thematiqueModalContent').innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p class="mt-2">Chargement des détails...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // Simulation du chargement
+    setTimeout(() => {
+        document.getElementById('thematiqueModalContent').innerHTML = `
+            <p>Détails de la thématique ${thematiqueId}</p>
+            <p>Fonctionnalité à implémenter : liste des spécialistes, communications associées, etc.</p>
+        `;
+    }, 1000);
+}
+
+// Confirmation pour la désactivation
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleForms = document.querySelectorAll('form[action*="toggle"]');
+    toggleForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const isActive = this.querySelector('button').classList.contains('btn-outline-warning');
+            const action = isActive ? 'désactiver' : 'activer';
+            if (!confirm(`Êtes-vous sûr de vouloir ${action} cette thématique ?`)) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

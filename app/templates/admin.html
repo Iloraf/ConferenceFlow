@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+
+{% block title %}Administration{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- En-tête du dashboard -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h1 class="h2 text-primary mb-2">
+            <i class="fas fa-cog me-2"></i>Zone d'administration
+          </h1>
+          <p class="text-muted mb-0">Gestion centralisée de la plateforme</p>
+        </div>
+        <div class="text-end">
+          <small class="text-muted">Connecté en tant que</small><br>
+          <strong class="text-primary">{{ current_user.email }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-info border-primary" role="alert">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="alert-heading">
+                        <i class="fas fa-flask text-warning"></i> Mode Développement
+                    </h5>
+                    <p class="mb-0">
+                        Accédez aux outils de test pour configurer la base de données, 
+                        générer des données factices et tester les fonctionnalités.
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ url_for('admin.test_zone') }}" class="btn btn-warning btn-lg">
+                        <i class="fas fa-tools"></i> Zone de Test
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+  
+  <!-- Statistiques rapides -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="text-primary mb-2">
+            <i class="fas fa-users fa-2x"></i>
+          </div>
+          <h4 class="mb-1">{{ users|length }}</h4>
+          <small class="text-muted">Utilisateurs total</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="text-success mb-2">
+            <i class="fas fa-user-check fa-2x"></i>
+          </div>
+          <h4 class="mb-1">{{ users|selectattr('is_reviewer', 'equalto', true)|list|length }}</h4>
+          <small class="text-muted">Reviewers actifs</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="text-info mb-2">
+            <i class="fas fa-university fa-2x"></i>
+          </div>
+          <h4 class="mb-1">{{ affiliations_count|default(0) }}</h4>
+          <small class="text-muted">Affiliations</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="text-warning mb-2">
+            <i class="fas fa-user-shield fa-2x"></i>
+          </div>
+          <h4 class="mb-1">{{ users|selectattr('is_admin', 'equalto', true)|list|length }}</h4>
+          <small class="text-muted">Administrateurs</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu principal -->
+  <div class="row">
+    <!-- Gestion des utilisateurs -->
+    <div class="col-lg-4 mb-4">
+      <div class="card border-0 shadow-sm h-100 hover-lift">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-3">
+            <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+              <i class="fas fa-users text-primary fa-2x"></i>
+            </div>
+            <div>
+              <h5 class="card-title mb-1">Gestion des utilisateurs</h5>
+              <p class="text-muted small mb-0">Promouvoir, gérer les rôles</p>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="row text-center">
+              <div class="col-4">
+                <div class="border-end">
+                  <strong class="d-block">{{ users|length }}</strong>
+                  <small class="text-muted">Total</small>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="border-end">
+                  <strong class="d-block text-success">{{ users|selectattr('is_reviewer', 'equalto', true)|list|length }}</strong>
+                  <small class="text-muted">Reviewers</small>
+                </div>
+              </div>
+              <div class="col-4">
+                <strong class="d-block text-warning">{{ users|selectattr('is_admin', 'equalto', true)|list|length }}</strong>
+                <small class="text-muted">Admins</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('admin.manage_users') }}" class="btn btn-primary">
+              <i class="fas fa-users me-2"></i>Gérer les utilisateurs
+            </a>
+            <a href="{{ url_for('admin.import_reviewers') }}" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-upload me-2"></i>Import reviewers CSV
+            </a>
+
+	  </div>
+
+
+	  
+<li class="nav-item">
+    <a class="nav-link" href="{{ url_for('admin.pending_activation_reviewers') }}">
+        <i class="fas fa-user-clock"></i>
+        Activation reviewers
+        {% set pending_count = get_pending_reviewers_count() %}
+        {% if pending_count > 0 %}
+            <span class="badge bg-danger">{{ pending_count }}</span>
+        {% endif %}
+    </a>
+</li>
+	  
+        </div>
+      </div>
+    </div>
+
+    <!-- Gestion des affiliations -->
+    <div class="col-lg-4 mb-4">
+      <div class="card border-0 shadow-sm h-100 hover-lift">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-3">
+            <div class="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+              <i class="fas fa-university text-info fa-2x"></i>
+            </div>
+            <div>
+              <h5 class="card-title mb-1">Gestion des affiliations</h5>
+              <p class="text-muted small mb-0">Laboratoires et institutions</p>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-muted">Affiliations enregistrées</span>
+              <strong class="text-info fs-4">{{ affiliations_count|default(0) }}</strong>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('admin.list_affiliations') }}" class="btn btn-info">
+              <i class="fas fa-list me-2"></i>Voir les affiliations
+            </a>
+            <a href="{{ url_for('admin.import_affiliations') }}" class="btn btn-outline-info btn-sm">
+              <i class="fas fa-upload me-2"></i>Import affiliations CSV
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gestion des reviews -->
+    <div class="col-lg-4 mb-4">
+      <div class="card border-0 shadow-sm h-100 hover-lift">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-3">
+            <div class="bg-success bg-opacity-10 rounded-circle p-3 me-3">
+              <i class="fas fa-clipboard-check text-success fa-2x"></i>
+            </div>
+            <div>
+              <h5 class="card-title mb-1">Gestion des reviews</h5>
+              <p class="text-muted small mb-0">Processus de relecture</p>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="row text-center">
+              <div class="col-6">
+                <div class="border-end">
+                  <strong class="d-block text-success">{{ users|selectattr('is_reviewer', 'equalto', true)|list|length }}</strong>
+                  <small class="text-muted">Reviewers</small>
+                </div>
+              </div>
+              <div class="col-6">
+                <strong class="d-block text-primary">{{ pending_reviews|default(0) }}</strong>
+                <small class="text-muted">En attente</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('admin.communications_ready_for_review') }}" class="btn btn-success">
+              <i class="fas fa-clipboard-check me-2"></i>Gérer les reviews
+            </a>
+            <a href="{{ url_for('admin.notify_reviewers') }}" class="btn btn-success btn-sm">
+              <i class="fas fa-bell me-2"></i>Contacter tous les reviewers
+            </a>
+
+            <a href="{{ url_for('admin.completed_reviews') }}" class="btn btn-success">
+                <i class="fas fa-eye"></i> Voir les reviews terminées
+            </a>
+<a href="{{ url_for('admin.biot_fourier_candidates') }}" class="btn btn-success">
+                <i class="fas fa-crown"></i> Prix Biot-Fourier
+            </a>
+
+	  </div>
+
+        </div>
+      </div>
+
+
+    </div>
+</div>
+
+
+
+
+    </div>
+
+
+<!-- NOUVELLE SECTION MAILINGS - AJOUTEZ ICI -->
+  <div class="row">
+    <!-- Gestion des mailings -->
+    <div class="col-lg-4 mb-4">
+      <div class="card border-0 shadow-sm h-100 hover-lift">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-3">
+            <div class="bg-warning bg-opacity-10 rounded-circle p-3 me-3">
+              <i class="fas fa-envelope text-warning fa-2x"></i>
+            </div>
+            <div>
+              <h5 class="card-title mb-1">Gestion des mailings</h5>
+              <p class="text-muted small mb-0">Emails groupés aux participants</p>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="row text-center">
+              <div class="col-6">
+                <div class="border-end">
+                  <strong class="d-block text-primary">{{ users|length }}</strong>
+                  <small class="text-muted">Utilisateurs</small>
+                </div>
+              </div>
+              <div class="col-6">
+                <strong class="d-block text-warning">{{ users|selectattr('is_reviewer', 'equalto', true)|list|length }}</strong>
+                <small class="text-muted">Reviewers</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <form method="POST" action="{{ url_for('admin.send_qr_reminders') }}" 
+                  onsubmit="return confirm('Envoyer un rappel QR code à tous les auteurs principaux ?')">
+              <button type="submit" class="btn btn-warning w-100">
+                <i class="fas fa-qrcode me-2"></i>Rappel QR Code
+              </button>
+            </form>
+            
+            <form method="POST" action="{{ url_for('admin.send_review_reminders') }}">
+              <button type="submit" class="btn btn-warning w-100" 
+                      onclick="return confirm('Envoyer un rappel à tous les reviewers en attente ?')">
+                <i class="fas fa-bell me-2"></i>Rappel relecture
+              </button>
+            </form>
+<a href="{{ url_for('admin.send_grouped_notifications') }}" class="btn btn-warning w-100">
+              <i class="fas fa-rocket me-2"></i>Notification groupée des reviewers
+            </a>
+
+	  </div>
+
+	  
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+
+
+
+
+  
+  <!-- Actions rapides -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent">
+          <h6 class="mb-0">
+            <i class="fas fa-bolt me-2"></i>Actions rapides
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3">
+              <a href="{{ url_for('admin.export_communications_csv') }}" class="btn btn-outline-primary w-100 mb-2">
+                <i class="fas fa-download me-2"></i>Export communications
+              </a>
+            </div>
+            <div class="col-md-3">
+              <a href="{{ url_for('admin.export_users_csv') }}" class="btn btn-outline-secondary w-100 mb-2">
+                <i class="fas fa-download me-2"></i>Export utilisateurs
+              </a>
+            </div>
+            <div class="col-md-3">
+              <a href="{{ url_for('admin.export_affiliations_csv') }}" class="btn btn-outline-info w-100 mb-2">
+                <i class="fas fa-download me-2"></i>Export affiliations
+              </a>
+            </div>
+            <div class="col-md-3">
+              <a href="{{ url_for('admin.system_settings') }}" class="btn btn-outline-warning w-100 mb-2">
+                <i class="fas fa-cogs me-2"></i>Paramètres système
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+
+

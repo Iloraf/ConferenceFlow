@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ comm.title }} - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h4><i class="fas fa-file-text me-2"></i>{{ comm.title }}</h4>
+            </div>
+            <div class="card-body">
+                <!-- Informations -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p><strong>Type :</strong> 
+                            <span class="badge bg-{{ 'danger' if comm.type == 'article' else 'warning' }}">
+                                {{ 'Article complet' if comm.type == 'article' else 'Work in Progress' }}
+                            </span>
+                        </p>
+                        <p><strong>Statut :</strong> 
+                            <span class="badge bg-{{ 'success' if comm.status.value == 'accepté' else 'danger' if comm.status.value == 'rejeté' else 'warning' if 'review' in comm.status.value else 'primary' }}">
+                                {{ comm.status.value.replace('_', ' ').title() }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Créé le :</strong> {{ comm.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                        <p><strong>Modifié le :</strong> {{ comm.updated_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                    </div>
+                </div>
+                
+
+<!-- Workflow et prochaines étapes -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-route me-2"></i>Workflow et prochaines étapes</h5>
+    </div>
+    <div class="card-body">
+        {% if comm.type == 'article' %}
+            <!-- Workflow Article -->
+            <div class="row text-center mb-3">
+                <div class="col">
+                    <div class="badge bg-{{ 'success' if comm.status.value in ['résumé_soumis', 'article_soumis', 'en_review', 'accepté', 'poster_soumis'] else 'secondary' }} p-2 w-100">
+                        1. Résumé
+                    </div>
+                </div>
+                <div class="col">
+                    <i class="fas fa-arrow-right text-muted"></i>
+                </div>
+                <div class="col">
+                    <div class="badge bg-{{ 'success' if comm.status.value in ['article_soumis', 'en_review', 'accepté', 'poster_soumis'] else 'warning' if comm.status.value == 'résumé_soumis' else 'secondary' }} p-2 w-100">
+                        2. Article
+                    </div>
+                </div>
+                <div class="col">
+                    <i class="fas fa-arrow-right text-muted"></i>
+                </div>
+                <div class="col">
+                    <div class="badge bg-{{ 'success' if comm.status.value in ['en_review', 'accepté', 'poster_soumis'] else 'secondary' }} p-2 w-100">
+                        3. Review
+                    </div>
+                </div>
+                <div class="col">
+                    <i class="fas fa-arrow-right text-muted"></i>
+                </div>
+                <div class="col">
+                    <div class="badge bg-{{ 'success' if comm.status.value == 'poster_soumis' else 'warning' if comm.status.value == 'accepté' else 'secondary' }} p-2 w-100">
+                        4. Poster
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action requise -->
+            <div class="alert alert-{{ 'success' if comm.status.value == 'poster_soumis' else 'warning' if comm.status.value == 'accepté' else 'info' }}">
+                <i class="fas fa-{{ 'check-circle' if comm.status.value == 'poster_soumis' else 'clock' }} me-2"></i>
+                <strong>
+                    {% if comm.status.value == 'résumé_soumis' %}
+                        Prochaine étape : Soumettre l'article complet
+                    {% elif comm.status.value == 'article_soumis' %}
+                        En attente : Attribution des reviewers
+                    {% elif comm.status.value == 'en_review' %}
+                        En cours : Review par les relecteurs
+                    {% elif comm.status.value == 'accepté' %}
+                        Prochaine étape : Soumettre le poster de présentation
+                    {% elif comm.status.value == 'poster_soumis' %}
+                        Communication complète - Prêt pour la conférence !
+                    {% elif comm.status.value == 'rejeté' %}
+                        Communication rejetée après review
+                    {% endif %}
+                </strong>
+                
+                {% if comm.status.value == 'résumé_soumis' %}
+                    <br>Vous pouvez maintenant uploader votre article complet (format PDF).
+                {% elif comm.status.value == 'accepté' %}
+                    <br>Votre article a été accepté ! Préparez maintenant votre poster pour la présentation.
+                {% endif %}
+            </div>
+            
+        {% elif comm.type == 'wip' %}
+            <!-- Workflow WIP -->
+            <div class="row text-center mb-3">
+                <div class="col">
+                    <div class="badge bg-{{ 'success' if comm.status.value in ['wip_soumis', 'poster_soumis'] else 'secondary' }} p-2 w-100">
+                        1. Work in Progress
+                    </div>
+                </div>
+                <div class="col">
+                    <i class="fas fa-arrow-right text-muted"></i>
+                </div>
+                <div class="col">
+                    <div class="badge bg-{{ 'success' if comm.status.value == 'poster_soumis' else 'warning' if comm.status.value == 'wip_soumis' else 'secondary' }} p-2 w-100">
+                        2. Poster
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action requise -->
+            <div class="alert alert-{{ 'success' if comm.status.value == 'poster_soumis' else 'info' }}">
+                <i class="fas fa-{{ 'check-circle' if comm.status.value == 'poster_soumis' else 'clock' }} me-2"></i>
+                <strong>
+                    {% if comm.status.value == 'wip_soumis' %}
+                        Prochaine étape : Soumettre le poster de présentation
+                    {% elif comm.status.value == 'poster_soumis' %}
+                        Communication complète - Prêt pour la conférence !
+                    {% endif %}
+                </strong>
+                
+                {% if comm.status.value == 'wip_soumis' %}
+                    <br>Votre WIP est validé. Préparez maintenant votre poster pour la présentation.
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+
+
+
+		
+                <!-- Upload nouveau fichier -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Ajouter un fichier</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" enctype="multipart/form-data">
+                            <div class="row align-items-end">
+                                <div class="col-md-4">
+                                    <label class="form-label">Type de fichier</label>
+                                    <select class="form-select" name="file_type" required>
+                                        <option value="">Choisir...</option>
+                                        
+                                        {% if comm.type == 'article' %}
+                                            <option value="résumé" {% if not allowed_uploads.get('résumé') %}disabled{% endif %}>
+                                                Résumé {% if not allowed_uploads.get('résumé') %}(non autorisé){% endif %}
+                                            </option>
+                                            <option value="article" {% if not allowed_uploads.get('article') %}disabled{% endif %}>
+                                                Article complet {% if not allowed_uploads.get('article') %}(non autorisé){% endif %}
+                                            </option>
+                                            <option value="poster" {% if not allowed_uploads.get('poster') %}disabled{% endif %}>
+                                                Poster {% if not allowed_uploads.get('poster') %}(non autorisé){% endif %}
+                                            </option>
+                                        {% elif comm.type == 'wip' %}
+                                            <option value="wip" {% if not allowed_uploads.get('wip') %}disabled{% endif %}>
+                                                Work in Progress {% if not allowed_uploads.get('wip') %}(non autorisé){% endif %}
+                                            </option>
+                                            <option value="poster" {% if not allowed_uploads.get('poster') %}disabled{% endif %}>
+                                                Poster {% if not allowed_uploads.get('poster') %}(non autorisé){% endif %}
+                                            </option>
+                                        {% endif %}
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        {% if comm.type == 'article' and comm.status.value == 'résumé_soumis' %}
+                                            Vous pouvez maintenant soumettre l'article complet
+                                        {% elif comm.type == 'article' and comm.status.value == 'accepté' %}
+                                            Vous pouvez maintenant soumettre le poster
+                                        {% elif comm.type == 'wip' and comm.status.value == 'wip_soumis' %}
+                                            Vous pouvez maintenant soumettre le poster
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Fichier (PDF uniquement)</label>
+                                    <input type="file" class="form-control" name="file" required accept=".pdf">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="fas fa-upload"></i> Upload
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Historique des fichiers -->
+                <h5>Fichiers soumis</h5>
+                <div class="row">
+                    {% for file_type, files in files_by_type.items() %}
+                    {% if files %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-{{ 'success' if file_type == 'résumé' else 'danger' if file_type == 'article' else 'warning' if file_type == 'wip' else 'info' }} text-white">
+                                <i class="fas {{ 'fa-file-text' if file_type == 'résumé' else 'fa-file-pdf' if file_type == 'article' else 'fa-flask' if file_type == 'wip' else 'fa-image' }} me-2"></i>
+                                {{ file_type.title() }}
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    {% for file in files %}
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                              <strong>Version {{ file.version }}</strong>
+					      <br><small class="text-muted">{{ file.filename }}</small>
+                                                <br><small class="text-muted">{{ file.upload_date.strftime('%d/%m %H:%M') }}</small>
+                                            </div>
+<a href="{{ url_for('main.download_file', file_id=file.id, renamed=1) }}" 
+   class="btn btn-sm btn-outline-secondary">
+    <i class="fas fa-tag"></i> {{ file.filename }}
+</a>
+
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <!-- Workflow info -->
+                <div class="alert alert-info mt-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Workflow :</strong>
+                    {% if comm.type == 'article' %}
+                        Résumé → Article complet → Review → (Si accepté) Poster
+                    {% elif comm.type == 'wip' %}
+                        Work in Progress → Poster
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Panneau latéral -->
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('main.mes_communications') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Retour à mes soumissions
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statut review (seulement pour les articles) -->
+        {% if comm.type == 'article' and comm.reviews %}
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">Reviews</h5>
+            </div>
+            <div class="card-body">
+                {% for review in comm.reviews %}
+                <div class="mb-2">
+                    <span class="badge bg-{{ 'success' if review.recommendation == 'accept' else 'danger' if review.recommendation == 'reject' else 'warning' }}">
+                        {{ review.recommendation }}
+                    </span>
+                    <small class="text-muted">Score: {{ review.score }}/5</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+
+
+

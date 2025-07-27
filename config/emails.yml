@@ -1,0 +1,15 @@
+# Configuration des emails
+# Fichier : config/emails.yml
+
+templates:
+  subjects:
+    welcome: "Bienvenue au congrès SFT 2026"
+    submission_received: "Communication reçue - SFT 2026"
+    review_assigned: "Nouvelle review assignée - SFT 2026"
+    decision_notification: "Décision sur votre communication - SFT 2026"
+    
+  signatures:
+    default: |
+      Cordialement,
+      L'équipe d'organisation SFT 2026
+      congres-sft2026@univ-lorraine.fr

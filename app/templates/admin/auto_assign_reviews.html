@@ -1,0 +1,412 @@
+{% extends 'base.html' %}
+
+{% block title %}Affectation automatique des reviewers{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-2">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}">Administration</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.manage_reviews') }}">Reviews</a></li>
+                    <li class="breadcrumb-item active">Affectation automatique</li>
+                </ol>
+            </nav>
+            <h1 class="h2 text-primary mb-0">
+                <i class="fas fa-magic me-2"></i>Affectation automatique des reviewers
+            </h1>
+            <p class="text-muted">Système intelligent d'affectation basé sur les spécialités et les conflits d'intérêt</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.view_assignments') }}" class="btn btn-outline-info">
+                <i class="fas fa-list me-2"></i>Voir les affectations
+            </a>
+            <a href="{{ url_for('admin.export_assignments') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-download me-2"></i>Export CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-primary mb-2">
+                        <i class="fas fa-file-alt fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.total_communications }}</h4>
+                    <small class="text-muted">Communications totales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-warning mb-2">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.communications_sans_reviewers }}</h4>
+                    <small class="text-muted">Sans reviewers</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-info mb-2">
+                        <i class="fas fa-user-clock fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.communications_un_reviewer }}</h4>
+                    <small class="text-muted">1 seul reviewer</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-user-check fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.reviewers_disponibles }}</h4>
+                    <small class="text-muted">Reviewers disponibles</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paramètres d'affectation -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-cogs me-2"></i>Paramètres d'affectation
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin.run_auto_assign') }}" id="assignForm">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="nb_reviewers" class="form-label">Nombre de reviewers par communication</label>
+                            <select class="form-select" id="nb_reviewers" name="nb_reviewers">
+                                <option value="1">1 reviewer</option>
+                                <option value="2" selected>2 reviewers</option>
+                                <option value="3">3 reviewers</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="force_reassign" name="force_reassign">
+                                <label class="form-check-label" for="force_reassign">
+                                    Réassigner tous (supprimer les affectations existantes)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Actions</label>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success" id="runAssignBtn">
+                                    <i class="fas fa-magic me-2"></i>Lancer l'affectation automatique
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-info-circle me-2"></i>Critères d'affectation
+                    </h6>
+                    <ul class="mb-0">
+                        <li><strong>Spécialités :</strong> Les reviewers doivent être spécialisés dans au moins une thématique de la communication</li>
+                        <li><strong>Conflits d'intérêt :</strong> Évite les reviewers de la même affiliation que les auteurs</li>
+                        <li><strong>Équilibrage :</strong> Privilégie les reviewers avec moins de reviews assignées</li>
+                        <li><strong>Disponibilité :</strong> Exclut les reviewers déjà assignés à la communication</li>
+                    </ul>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Liste des communications en attente -->
+    {% if communications_pending %}
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-clipboard-list me-2"></i>Communications en attente d'affectation
+            </h5>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="selectAll" onchange="toggleAllCommunications()">
+                <label class="form-check-label" for="selectAll">
+                    Tout sélectionner
+                </label>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 50px;">
+                                <input type="checkbox" class="form-check-input" id="headerCheckbox" onchange="toggleAllCommunications()">
+                            </th>
+                            <th>Titre</th>
+                            <th>Thématiques</th>
+                            <th>Auteurs</th>
+                            <th class="text-center">Reviewers assignés</th>
+                            <th class="text-center">Reviewers potentiels</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for comm in communications_pending %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="form-check-input communication-checkbox" 
+                                       name="communications" value="{{ comm.id }}" form="assignForm">
+                            </td>
+                            <td>
+                                <strong>{{ comm.title }}</strong>
+                                <small class="text-muted d-block">ID: {{ comm.id }}</small>
+                            </td>
+                            <td>
+                                {% for thematique in comm.thematiques %}
+                                <span class="badge text-white me-1" style="background-color: {{ thematique.couleur }};">
+                                    {{ thematique.code }}
+                                </span>
+                                {% endfor %}
+                                {% if not comm.thematiques %}
+                                <span class="badge bg-warning">Aucune thématique</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if comm.authors %}
+                                    {% for author in comm.authors %}
+                                    <div class="small">
+                                        {{ author.email }}
+                                        {% if author.affiliation %}
+                                        <span class="text-muted">({{ author.affiliation.sigle }})</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                <span class="text-muted">Non renseigné</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if comm.nb_reviewers_assigned > 0 %}
+                                <span class="badge bg-info">{{ comm.nb_reviewers_assigned }}</span>
+                                {% else %}
+                                <span class="badge bg-warning">0</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% set potential_count = comm.get_potential_reviewers()|length %}
+                                {% if potential_count >= 2 %}
+                                <span class="badge bg-success">{{ potential_count }}</span>
+                                {% elif potential_count == 1 %}
+                                <span class="badge bg-warning">{{ potential_count }}</span>
+                                {% else %}
+                                <span class="badge bg-danger">{{ potential_count }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-info" 
+                                            onclick="showPotentialReviewers({{ comm.id }})"
+                                            title="Voir les reviewers potentiels">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-success" 
+                                            onclick="assignSingle({{ comm.id }})"
+                                            title="Affecter individuellement">
+                                        <i class="fas fa-user-plus"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer">
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted">{{ communications_pending|length }} communication(s) en attente</small>
+                <button type="submit" form="assignForm" class="btn btn-primary">
+                    <i class="fas fa-magic me-2"></i>Affecter les communications sélectionnées
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Aucune communication en attente -->
+    <div class="text-center py-5">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h5 class="text-success">Toutes les communications ont des reviewers assignés !</h5>
+        <p class="text-muted">Parfait ! Tous les articles ont au moins 2 reviewers assignés.</p>
+        <a href="{{ url_for('admin.view_assignments') }}" class="btn btn-primary">
+            <i class="fas fa-list me-2"></i>Voir toutes les affectations
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal pour afficher les reviewers potentiels -->
+<div class="modal fade" id="potentialReviewersModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reviewers potentiels</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="potentialReviewersContent">
+                <!-- Contenu chargé dynamiquement -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleAllCommunications() {
+    const headerCheckbox = document.getElementById('headerCheckbox');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const communicationCheckboxes = document.querySelectorAll('.communication-checkbox');
+    
+    const isChecked = headerCheckbox.checked || selectAllCheckbox.checked;
+    
+    communicationCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+    
+    // Synchroniser les deux checkboxes de sélection
+    headerCheckbox.checked = isChecked;
+    selectAllCheckbox.checked = isChecked;
+}
+
+function showPotentialReviewers(communicationId) {
+    const modal = new bootstrap.Modal(document.getElementById('potentialReviewersModal'));
+    document.getElementById('potentialReviewersContent').innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p class="mt-2">Chargement des reviewers potentiels...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // Simulation du chargement - à remplacer par un appel AJAX réel
+    setTimeout(() => {
+        document.getElementById('potentialReviewersContent').innerHTML = `
+            <p>Reviewers potentiels pour la communication ${communicationId}</p>
+            <p>Fonctionnalité à implémenter : liste des reviewers avec leurs spécialités, charge de travail, etc.</p>
+        `;
+    }, 1000);
+}
+
+function assignSingle(communicationId) {
+    if (confirm(`Affecter automatiquement des reviewers à la communication ${communicationId} ?`)) {
+        // Créer un formulaire temporaire pour cette communication uniquement
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("admin.run_auto_assign") }}';
+        
+        const commInput = document.createElement('input');
+        commInput.type = 'hidden';
+        commInput.name = 'communications';
+        commInput.value = communicationId;
+        
+        const nbReviewersInput = document.createElement('input');
+        nbReviewersInput.type = 'hidden';
+        nbReviewersInput.name = 'nb_reviewers';
+        nbReviewersInput.value = document.getElementById('nb_reviewers').value;
+        
+        form.appendChild(commInput);
+        form.appendChild(nbReviewersInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Gestion du formulaire principal
+document.getElementById('assignForm').addEventListener('submit', function(e) {
+    const selectedCommunications = document.querySelectorAll('.communication-checkbox:checked');
+    
+    if (selectedCommunications.length === 0) {
+        e.preventDefault();
+        alert('Veuillez sélectionner au moins une communication.');
+        return;
+    }
+    
+    const forceReassign = document.getElementById('force_reassign').checked;
+    let message = `Affecter automatiquement des reviewers à ${selectedCommunications.length} communication(s) ?`;
+    
+    if (forceReassign) {
+        message += '\n\nATTENTION : Les affectations existantes seront supprimées !';
+    }
+    
+    if (!confirm(message)) {
+        e.preventDefault();
+        return;
+    }
+    
+    // Afficher l'indicateur de chargement
+    const submitBtn = document.getElementById('runAssignBtn');
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Affectation en cours...';
+    submitBtn.disabled = true;
+});
+
+// Mise à jour du compteur de sélection
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('communication-checkbox')) {
+        updateSelectionCount();
+    }
+});
+
+function updateSelectionCount() {
+    const selectedCount = document.querySelectorAll('.communication-checkbox:checked').length;
+    const totalCount = document.querySelectorAll('.communication-checkbox').length;
+    
+    // Mettre à jour l'état du checkbox "tout sélectionner"
+    const headerCheckbox = document.getElementById('headerCheckbox');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    
+    if (selectedCount === 0) {
+        headerCheckbox.indeterminate = false;
+        headerCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (selectedCount === totalCount) {
+        headerCheckbox.indeterminate = false;
+        headerCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        headerCheckbox.indeterminate = true;
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+</script>
+
+<style>
+.badge {
+    font-size: 0.75em;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.form-check-input:indeterminate {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10h8'/%3e%3c/svg%3e");
+}
+</style>
+{% endblock %}

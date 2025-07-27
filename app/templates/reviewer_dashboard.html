@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Reviews - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-clipboard-check me-2"></i>Mes Reviews</h2>
+    <span class="badge bg-info fs-6">{{ current_user.full_name or current_user.email }}</span>
+</div>
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-2x mb-2"></i>
+                <h3>{{ pending_reviews|length }}</h3>
+                <p class="mb-0">En attente</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x mb-2"></i>
+                <h3>{{ completed_reviews|length }}</h3>
+                <p class="mb-0">Terminées</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card bg-danger text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-times-circle fa-2x mb-2"></i>
+                <h3>{{ declined_reviews|length }}</h3>
+                <p class="mb-0">Refusées</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-user-check fa-2x mb-2"></i>
+                <h3>{{ current_user.nb_reviews_assigned }}</h3>
+                <p class="mb-0">Assignées</p>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-award fa-2x mb-2"></i>
+                <h3>{{ current_user.nb_reviews_completed }}</h3>
+                <p class="mb-0">Réalisées</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reviews en attente -->
+{% if pending_reviews %}
+<div class="card mb-4">
+    <div class="card-header bg-warning text-white">
+        <h5 class="mb-0"><i class="fas fa-hourglass-half me-2"></i>Reviews en attente ({{ pending_reviews|length }})</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for item in pending_reviews %}
+            {% set assignment = item.assignment %}
+            {% set communication = item.communication %}
+            {% set review = item.review %}
+            
+            <div class="col-md-6 mb-3">
+                <div class="card border-warning">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">{{ communication.title[:50] }}{% if communication.title|length > 50 %}...{% endif %}</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <span class="badge bg-danger">Article complet</span>
+                            <span class="badge bg-warning">{{ communication.status.value.replace('_', ' ').title() }}</span>
+                        </div>
+                        
+                        <p class="mb-1"><strong>Auteurs :</strong></p>
+                        <ul class="list-unstyled ms-3 mb-2">
+                            {% for author in communication.authors %}
+                                <li><small>{{ author.full_name or author.email }}</small></li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <p class="mb-1"><strong>Thématiques :</strong></p>
+                        <div class="mb-2">
+                            {% if communication.thematiques_codes %}
+                                {% for code in communication.thematiques_codes.split(',') %}
+                                    <span class="badge bg-secondary me-1">{{ code.strip() }}</span>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>Assigné le :<br>
+                                    {{ assignment.assigned_at.strftime('%d/%m/%Y') }}
+                                </small>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>Échéance :<br>
+                                    {% if assignment.due_date %}
+                                        <span class="{% if assignment.is_overdue %}text-danger fw-bold{% endif %}">
+                                            {{ assignment.due_date.strftime('%d/%m/%Y') }}
+                                        </span>
+                                        {% if assignment.is_overdue %}
+                                            <br><span class="badge bg-danger">En retard</span>
+                                        {% endif %}
+                                    {% else %}
+                                        Non définie
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+<div class="card-footer">
+
+
+
+  {% if assignment.declined %}
+        <!-- Si la review a été refusée -->
+        <div class="alert alert-warning mb-0">
+            <i class="fas fa-times-circle me-2"></i>Review refusée
+        </div>
+    {% else %}
+        <!-- Bouton principal -->
+        <div class="d-grid mb-2">
+            <a href="{{ url_for('main.submit_review', comm_id=communication.id) }}" 
+               class="btn btn-{% if assignment.is_overdue %}danger{% else %}warning{% endif %}">
+                <i class="fas fa-{% if review and review.score %}edit{% else %}plus{% endif %} me-2"></i>
+                {% if review and review.score %}
+                    Modifier ma review
+                {% else %}
+                    Commencer la review
+                {% endif %}
+            </a>
+        </div>
+        
+        <div class="d-grid">
+            <a href="{{ url_for('main.decline_review_assignment', assignment_id=assignment.id) }}" 
+               class="btn btn-outline-danger btn-sm">
+                <i class="fas fa-times me-2"></i>Refuser cette review
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+
+
+		    
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Reviews terminées -->
+{% if completed_reviews %}
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Reviews terminées ({{ completed_reviews|length }})</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Communication</th>
+                        <th>Score</th>
+                        <th>Recommandation</th>
+                        <th>Biot-Fourier</th>
+                        <th>Terminée le</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in completed_reviews %}
+                    {% set assignment = item.assignment %}
+                    {% set communication = item.communication %}
+                    {% set review = item.review %}
+                    
+                    <tr>
+                        <td>
+                            <strong>{{ communication.title[:40] }}{% if communication.title|length > 40 %}...{% endif %}</strong>
+<br><small class="text-muted">
+    {% for author in communication.authors[:2] %}
+        {{ author.full_name or author.email }}{% if not loop.last %}, {% endif %}
+    {% endfor %}
+    {% if communication.authors|length > 2 %}...{% endif %}
+</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if review.score >= 7 else 'warning' if review.score >= 5 else 'danger' }}">
+                                {{ review.score }}/10
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if review.recommendation.value == 'accepter' else 'warning' if review.recommendation.value == 'réviser' else 'danger' }}">
+                                {{ review.recommendation.value.title() }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if review.recommend_for_biot_fourier %}
+                                <span class="badge bg-warning"><i class="fas fa-award"></i> Proposé</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ review.submitted_at.strftime('%d/%m/%Y %H:%M') if review.submitted_at else 'N/A' }}</small>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('main.submit_review', comm_id=communication.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> Voir
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Reviews refusées -->
+{% if declined_reviews %}
+<div class="card mt-4">
+<div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="fas fa-times-circle me-2"></i>Reviews refusées ({{ declined_reviews|length }})</h5>
+    </div>
+    <div class="card-body">
+        {% for assignment_data in declined_reviews %}
+        <div class="border-bottom pb-3 mb-3">
+            <h6>{{ assignment_data.communication.title }}</h6>
+            <p class="text-muted mb-1">
+                ID: {{ assignment_data.communication.id }} • 
+                Type: {{ assignment_data.communication.type|title }}
+            </p>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-danger">
+                        <i class="fas fa-clock"></i> Refusée le {{ assignment_data.assignment.declined_at.strftime('%d/%m/%Y à %H:%M') if assignment_data.assignment.declined_at }}
+                    </small><br>
+                    <small class="text-muted">
+                        <strong>Raison :</strong> {{ assignment_data.assignment.decline_reason_display }}
+                    </small>
+                </div>
+                <span class="badge bg-danger">Refusée</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+
+
+<!-- Message si aucune review -->
+{% if not pending_reviews and not completed_reviews %}
+<div class="text-center py-5">
+    <i class="fas fa-clipboard-list fa-4x text-muted mb-3"></i>
+    <h4 class="text-muted">Aucune review assignée</h4>
+    <p class="text-muted">Vous n'avez pas encore de communication à reviewer.</p>
+</div>
+{% endif %}
+
+<!-- Aide -->
+<div class="card mt-4">
+    <div class="card-body">
+        <h6><i class="fas fa-question-circle me-2"></i>Aide</h6>
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Processus de review :</strong></p>
+                <ol>
+                    <li>Consultez la communication et téléchargez les fichiers</li>
+                    <li>Remplissez votre évaluation (score, recommandation, commentaires)</li>
+                    <li>Soumettez votre review avant l'échéance</li>
+                </ol>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Critères d'évaluation :</strong></p>
+                <ul>
+                    <li>Qualité scientifique et originalité</li>
+                    <li>Méthodologie et rigueur</li>
+                    <li>Clarté de la rédaction</li>
+                    <li>Adéquation avec les thématiques SFT</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

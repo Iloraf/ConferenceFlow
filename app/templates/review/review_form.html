@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Review - {{ communication.title }} - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-warning">
+                <h4><i class="fas fa-clipboard-check me-2"></i>Évaluation</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <!-- Critères d'évaluation -->
+                    <h5 class="mb-3">Critères d'évaluation</h5>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Originalité et innovation</label>
+                        <div class="btn-group w-100" role="group">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" class="btn-check" name="originality" id="orig{{ i }}" value="{{ i }}" required>
+                            <label class="btn btn-outline-primary" for="orig{{ i }}">{{ i }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Qualité scientifique</label>
+                        <div class="btn-group w-100" role="group">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" class="btn-check" name="quality" id="qual{{ i }}" value="{{ i }}" required>
+                            <label class="btn btn-outline-primary" for="qual{{ i }}">{{ i }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Clarté et présentation</label>
+                        <div class="btn-group w-100" role="group">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" class="btn-check" name="clarity" id="clar{{ i }}" value="{{ i }}" required>
+                            <label class="btn btn-outline-primary" for="clar{{ i }}">{{ i }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Pertinence pour la conférence</label>
+                        <div class="btn-group w-100" role="group">
+                            {% for i in range(1, 6) %}
+                            <input type="radio" class="btn-check" name="relevance" id="rel{{ i }}" value="{{ i }}" required>
+                            <label class="btn btn-outline-primary" for="rel{{ i }}">{{ i }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Score global -->
+                    <div class="mb-4">
+                        <label for="score" class="form-label fw-bold">Score global</label>
+                        <select class="form-select" name="score" id="score" required>
+                            <option value="">Choisir...</option>
+                            <option value="1">1 - Très faible</option>
+                            <option value="2">2 - Faible</option>
+                            <option value="3">3 - Moyen</option>
+                            <option value="4">4 - Bon</option>
+                            <option value="5">5 - Excellent</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Recommandation -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Recommandation</label>
+                        <div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="recommendation" id="accept" value="accept" required>
+                                <label class="form-check-label text-success" for="accept">
+                                    <i class="fas fa-check-circle me-1"></i>Accepter
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="recommendation" id="minor" value="minor_revision" required>
+                                <label class="form-check-label text-warning" for="minor">
+                                    <i class="fas fa-exclamation-circle me-1"></i>Révisions mineures
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="recommendation" id="major" value="major_revision" required>
+                                <label class="form-check-label text-warning" for="major">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Révisions majeures
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="recommendation" id="reject" value="reject" required>
+                                <label class="form-check-label text-danger" for="reject">
+                                    <i class="fas fa-times-circle me-1"></i>Rejeter
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Commentaires -->
+                    <div class="mb-4">
+                        <label for="comments" class="form-label fw-bold">Commentaires pour les auteurs</label>
+                        <textarea class="form-control" name="comments" id="comments" rows="6" required></textarea>
+                        <div class="form-text">Soyez constructif et précis dans vos remarques.</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="confidential_comments" class="form-label fw-bold">Commentaires confidentiels (comité seulement)</label>
+                        <textarea class="form-control" name="confidential_comments" id="confidential_comments" rows="4"></textarea>
+                    </div>
+                    
+                    <!-- Boutons -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('review.my_reviews') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Annuler
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check me-2"></i>Soumettre l'évaluation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Panneau communication -->
+    <div class="col-md-4">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Communication</h5>
+            </div>
+            <div class="card-body">
+                <h6>{{ communication.title }}</h6>
+                <p class="text-muted small">{{ communication.abstract[:200] }}...</p>
+                
+                <hr>
+                
+                <p><strong>Type :</strong> 
+                    <span class="badge bg-{{ 'danger' if communication.type == 'article' else 'warning' }}">
+                        {{ communication.type.upper() }}
+                    </span>
+                </p>
+                <p><strong>Auteurs :</strong></p>
+                <ul class="list-unstyled small">
+                    {% for author in communication.authors %}
+                    <li>{{ author.full_name }}</li>
+                    {% endfor %}
+                </ul>
+                
+                <hr>
+                
+                <h6>Fichiers à évaluer</h6>
+                {% if files %}
+                    {% for file in files %}
+                    <a href="{{ url_for('main.download_file', file_id=file.id) }}" 
+                       class="btn btn-sm btn-outline-primary mb-2 w-100">
+                        <i class="fas fa-download me-1"></i>{{ file.file_type.title() }}
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted small">Aucun fichier</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">Guide d'évaluation</h5>
+            </div>
+            <div class="card-body small">
+                <p><strong>Score 1-2 :</strong> Qualité insuffisante</p>
+                <p><strong>Score 3 :</strong> Qualité acceptable avec réserves</p>
+                <p><strong>Score 4-5 :</strong> Bonne à excellente qualité</p>
+                <hr>
+                <p class="mb-0">Date limite : <span class="text-danger">{{ review.deadline.strftime('%d/%m/%Y') }}</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

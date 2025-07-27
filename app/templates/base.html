@@ -1,0 +1,187 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>{{ conference.short_name or 'SFT 2026' }} {{ conference_location.city or 'Nancy' }}</title>   
+    <!-- PWA -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#022949">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <!-- CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <!-- CSS commun SFT -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sft-style.css') }}">
+    
+
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<div class="banner-container">  
+  <img src="{{ url_for('static', filename='images/bandeau_sft2026.png') }}" alt="Bandeau" class="banner-image">
+</div>
+
+    <!-- Navigation principale -->
+  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+  <!--<nav class="navbar navbar-expand-lg navbar-dark bg-primary">-->
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">
+                <i class="fas fa-fire-flame-curved me-2"></i>{{ conference.short_name or 'SFT 2026' }} {{ conference_location.city or 'Nancy' }}
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mx-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.index') }}">
+                            <i class="fas fa-home me-1"></i>Accueil
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="fas fa-file-text me-1"></i>Communication
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('conference.communication_info') }}">
+                                <i class="fas fa-info-circle me-2"></i>Informations générales
+                            </a></li>
+                           <!-- <li><a class="dropdown-item" href="{{ url_for('main.choose_type') if current_user.is_authenticated else url_for('auth.login') }}">
+                                <i class="fas fa-plus me-2"></i>Soumettre
+                            </a></li>-->
+                            {% if current_user.is_authenticated %}
+                            <li><a class="dropdown-item" href="{{ url_for('main.mes_communications') }}">
+                                <i class="fas fa-folder me-2"></i>Mes communications
+                            </a></li>
+                            {% endif %}
+                        </ul>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('conference.programme') }}">
+                            <i class="fas fa-calendar-days me-1"></i>Programme
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('conference.localisation') }}">
+                            <i class="fas fa-map-marker-alt me-1"></i>Localisation
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('conference.organisation') }}">
+                            <i class="fas fa-users me-1"></i>Organisation
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('conference.inscription_conference') }}">
+                            <i class="fas fa-ticket me-1"></i>Inscription
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('conference.contact') }}">
+                            <i class="fas fa-envelope me-1"></i>Contact
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-circle me-1"></i>{{ current_user.first_name }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('main.profile') }}">
+                                    <i class="fas fa-user me-2"></i>Mon profil
+                                </a></li>
+                                {% if current_user.is_reviewer %}
+                                <li><a class="dropdown-item" href="{{ url_for('main.reviewer_dashboard') }}">
+                                    <i class="fas fa-check-circle me-2"></i>Mes reviews
+                                </a></li>
+                                {% endif %}
+                                {% if current_user.is_admin %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin.admin_dashboard') }}">
+                                    <i class="fas fa-tachometer-alt me-2"></i>Administration
+                                </a></li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                                </a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.login') }}">
+                                <i class="fas fa-sign-in-alt me-1"></i>Connexion
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Messages flash -->
+    <main class="container-xxl mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-5 py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <h5><i class="fas fa-fire-flame-curved me-2"></i>SFT 2026</h5>
+                    <p class="mb-0">Congrès Français de Thermique</p>
+                    <p>2-5 juin 2026 • Nancy</p>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h5>Liens rapides</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="{{ url_for('conference.programme') }}" class="text-white-50">Programme</a></li>
+                        <li><a href="{{ url_for('conference.inscription_conference') }}" class="text-white-50">Inscription</a></li>
+                        <li><a href="{{ url_for('conference.contact') }}" class="text-white-50">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h5>Contact</h5>
+                    <p class="mb-0"><i class="fas fa-envelope me-2"></i>congres-sft2026@univ-lorraine.fr</p>
+                    <!-- <p><i class="fas fa-phone me-2"></i>+33 3 83 00 00 00</p> -->
+                </div>
+            </div>
+            <hr class="my-3 bg-white-50">
+            <div class="text-center">
+                <p class="mb-0">© 2026 Société Française de Thermique - Tous droits réservés</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

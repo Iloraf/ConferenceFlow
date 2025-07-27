@@ -1,0 +1,454 @@
+{% extends 'base.html' %}
+
+{% block title %}Soumission {{ type }} - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+              <h4>
+
+<!-- Workflow info -->
+<div class="alert alert-info mb-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h6><i class="fas fa-info-circle me-2"></i>Workflow de soumission</h6>
+            {% if type == 'article' %}
+                <p class="mb-1"><strong>Article complet :</strong></p>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-primary me-2">1. Résumé</span>
+                    <i class="fas fa-arrow-right me-2 text-muted"></i>
+                    <span class="badge bg-outline-primary me-2">2. Article</span>
+                    <i class="fas fa-arrow-right me-2 text-muted"></i>
+                    <span class="badge bg-outline-primary me-2">3. Review</span>
+                    <i class="fas fa-arrow-right me-2 text-muted"></i>
+                    <span class="badge bg-outline-primary">4. Poster</span>
+                </div>
+                <small class="text-muted">Après soumission de ce résumé, vous pourrez uploader l'article complet.</small>
+            {% elif type == 'wip' %}
+                <p class="mb-1"><strong>Work in Progress :</strong></p>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-warning me-2">1. WIP (2-4 pages)</span>
+                    <i class="fas fa-arrow-right me-2 text-muted"></i>
+                    <span class="badge bg-outline-warning">2. Poster</span>
+                </div>
+                <small class="text-muted">Après soumission, vous pourrez directement uploader votre poster.</small>
+            {% endif %}
+        </div>
+        <div class="col-md-4 text-end">
+            {% if type == 'article' %}
+                <i class="fas fa-file-pdf fa-3x text-danger"></i>
+            {% elif type == 'wip' %}
+                <i class="fas fa-flask fa-3x text-warning"></i>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+		
+                    <i class="fas fa-edit me-2"></i>
+                    Nouvelle soumission : {{ 'Article complet' if type == 'article' else 'Work in Progress' }}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <!-- Titre -->
+                    <div class="mb-4">
+                        <label for="title" class="form-label fw-bold">Titre de la communication *</label>
+                        <input type="text" class="form-control" id="title" name="title" required maxlength="500">
+                        <div class="form-text">Maximum 500 caractères</div>
+                    </div>
+                    
+
+		    
+<div class="mb-4">
+    <label class="form-label fw-bold">Thématique *</label>
+    <div class="form-text mb-3">Sélectionnez la thématique correspondant à votre communication</div>
+    <div class="row">
+        {% for thematique in all_thematiques %}
+        <div class="col-md-6 mb-2">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="thematique" 
+                       value="{{ thematique.code }}" id="them_{{ thematique.code }}" required>
+                <label class="form-check-label" for="them_{{ thematique.code }}">
+                    <span class="badge me-2 text-white" style="background-color: {{ thematique.couleur }}">
+                        {{ thematique.nom }}
+                    </span>
+                </label>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Co-auteurs avec index alphabétique -->
+<div class="mb-4">
+    <label class="form-label fw-bold">Co-auteurs</label>
+    <div class="form-text mb-2">Vous êtes automatiquement ajouté comme auteur principal</div>
+    
+    <!-- Index alphabétique -->
+    <div class="mb-3">
+        <h6>Filtrer par première lettre du nom :</h6>
+        <div class="btn-group flex-wrap" role="group">
+            <button type="button" class="btn btn-sm btn-outline-primary active" id="filter-all">Tous</button>
+            {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+                <button type="button" class="btn btn-sm btn-outline-primary" id="filter-{{ letter }}">{{ letter }}</button>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Zone de recherche -->
+    <div class="mb-3">
+        <input type="text" id="author-search" class="form-control" 
+               placeholder="Rechercher un auteur par nom ou email...">
+        <small class="text-muted">
+            <span id="author-count">{{ users|length }}</span> auteur(s) affiché(s)
+        </small>
+    </div>
+    
+    <!-- Liste des auteurs disponibles -->
+      <div id="authors-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0.5rem;">
+      {% for user in users %}
+            <div class="form-check author-item" data-letter="{{ (user.last_name or user.email)[0]|upper }}">
+                <input class="form-check-input" type="checkbox" name="coauthors" 
+                       value="{{ user.id }}" id="author_{{ user.id }}">
+                <label class="form-check-label" for="author_{{ user.id }}">
+                    <strong>{{ user.full_name or user.email }}</strong>
+                    {% if user.full_name and user.email %}
+                        <small class="text-muted">({{ user.email }})</small>
+                    {% endif %}
+                    {% if user.affiliations %}
+                        <br><small class="text-muted">
+                            {% for aff in user.affiliations %}
+                                <span class="badge bg-light text-dark">{{ aff.sigle }}</span>
+                            {% endfor %}
+                        </small>
+                    {% endif %}
+                </label>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Bouton pour ajouter un nouvel auteur -->
+    <div class="mt-3">
+        <small class="text-muted">L'auteur n'est pas dans la liste ?</small><br>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newAuthorModal">
+            <i class="fas fa-plus"></i> Ajouter un nouvel auteur
+        </button>
+    </div>
+</div>
+
+<!-- JavaScript pour la recherche et filtrage -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('author-search');
+    const authorItems = document.querySelectorAll('.author-item');
+    const countElement = document.getElementById('author-count');
+    const filterButtons = document.querySelectorAll('[id^="filter-"]');
+    
+    let currentFilter = 'all';
+    
+    // Fonction de filtrage
+    function filterAuthors() {
+        const searchTerm = searchInput.value.toLowerCase();
+        let visibleCount = 0;
+        
+        authorItems.forEach(function(item) {
+            const text = item.textContent.toLowerCase();
+            const letter = item.getAttribute('data-letter');
+            
+            const matchesSearch = text.includes(searchTerm);
+            const matchesLetter = currentFilter === 'all' || letter === currentFilter;
+            
+            if (matchesSearch && matchesLetter) {
+                item.style.display = 'block';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        countElement.textContent = visibleCount;
+    }
+    
+    // Événement de recherche
+    searchInput.addEventListener('input', filterAuthors);
+    
+    // Événements des boutons de filtrage
+    filterButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+            // Retirer la classe active de tous les boutons
+            filterButtons.forEach(b => b.classList.remove('active'));
+            
+            // Ajouter la classe active au bouton cliqué
+            this.classList.add('active');
+            
+            // Mettre à jour le filtre courant
+            if (this.id === 'filter-all') {
+                currentFilter = 'all';
+            } else {
+                currentFilter = this.id.replace('filter-', '');
+            }
+            
+            // Appliquer le filtrage
+            filterAuthors();
+        });
+    });
+});
+</script>
+
+
+
+
+
+
+                    
+
+<div class="mb-4">
+    <label for="file" class="form-label fw-bold">
+        Fichier {{ 'résumé' if type == 'article' else 'work in progress' }} *
+    </label>
+    <input type="file" class="form-control" id="file" name="file" required accept=".pdf">
+    <div class="form-text">
+        <strong>Obligatoire :</strong> Format PDF uniquement.
+        {% if type == 'article' %}
+            Uploadez votre résumé (le fichier article complet sera demandé à l'étape suivante).
+        {% elif type == 'wip' %}
+            Uploadez votre Work in Progress (2-4 pages).
+        {% endif %}
+    </div>
+</div>
+
+<!-- À ajouter dans templates/submit_abstract.html, juste avant le bouton de soumission -->
+
+<div class="form-group mb-3">
+    <div class="card border-info">
+        <div class="card-header bg-info text-white">
+   <h6 class="mb-0"><i class="fas fa-archive"></i> Dépôt automatisé sur HAL</h6>
+        </div>
+        <div class="card-body">
+            <div class="form-check">
+                <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    name="hal_authorization" 
+                    id="hal_authorization" 
+                    checked
+                >
+                <label class="form-check-label" for="hal_authorization">
+                    <strong>J'autorise le dépôt automatisé de ma communication sur HAL</strong>
+                </label>
+            </div>
+            <small class="text-muted mt-2 d-block">
+                <i class="fas fa-info-circle"></i>
+                En cochant cette case, vous autorisez l'organisation à déposer votre communication 
+                sur l'archive ouverte HAL en votre nom après acceptation.
+                <br>
+                <strong>Attention :</strong> Votre IDHAL doit être renseigné dans votre profil.
+            </small>
+        </div>
+    </div>
+</div>
+
+
+		    
+                    <!-- Boutons -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <a href="{{ url_for('main.choose_type') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Retour
+                            </a>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check me-2"></i>Soumettre
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+
+
+<!-- Modal pour ajouter un nouvel auteur -->
+<div class="modal fade" id="newAuthorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un nouvel auteur</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="new-author-form">
+                    <div class="mb-3">
+                        <label for="new-author-email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="new-author-email" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="new-author-first-name" class="form-label">Prénom</label>
+                            <input type="text" class="form-control" id="new-author-first-name">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new-author-last-name" class="form-label">Nom</label>
+                            <input type="text" class="form-control" id="new-author-last-name">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="addNewAuthor()">
+                    <i class="fas fa-plus"></i> Ajouter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const halCheckbox = document.getElementById('hal_authorization');
+    const form = document.querySelector('form');
+    
+    // Vérifier l'IDHAL de l'utilisateur actuel côté serveur
+    const userIdhal = '{{ current_user.idhal or "" }}';
+    
+    function checkIdhalRequirement() {
+        if (halCheckbox.checked && !userIdhal.trim()) {
+            // Afficher un avertissement si HAL autorisé mais pas d'IDHAL
+            showIdhalWarning();
+        } else {
+            hideIdhalWarning();
+        }
+    }
+    
+    function showIdhalWarning() {
+        // Supprimer l'avertissement existant s'il y en a un
+        const existingWarning = document.getElementById('idhal-warning');
+        if (existingWarning) {
+            existingWarning.remove();
+        }
+        
+        // Créer le nouvel avertissement
+        const warning = document.createElement('div');
+        warning.id = 'idhal-warning';
+        warning.className = 'alert alert-warning mt-2';
+        warning.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Attention :</strong> Vous devez renseigner votre IDHAL dans votre 
+            <a href="${window.location.origin}/profile" target="_blank">profil utilisateur</a> 
+            pour autoriser le dépôt HAL.
+        `;
+        
+        // Insérer après la carte HAL
+        const halCard = document.querySelector('.card.border-info');
+        halCard.parentNode.insertBefore(warning, halCard.nextSibling);
+    }
+    
+    function hideIdhalWarning() {
+        const warning = document.getElementById('idhal-warning');
+        if (warning) {
+            warning.remove();
+        }
+    }
+    
+    // Vérifier au chargement de la page
+    checkIdhalRequirement();
+    
+    // Vérifier quand la case est cochée/décochée
+    halCheckbox.addEventListener('change', checkIdhalRequirement);
+    
+    // Validation avant soumission du formulaire
+    form.addEventListener('submit', function(e) {
+        if (halCheckbox.checked && !userIdhal.trim()) {
+            e.preventDefault();
+            alert('Veuillez renseigner votre IDHAL dans votre profil avant d\'autoriser le dépôt HAL.');
+            return false;
+        }
+    });
+});
+</script>
+
+
+<script>
+function addNewAuthor() {
+    const email = document.getElementById('new-author-email').value;
+    const firstName = document.getElementById('new-author-first-name').value;
+    const lastName = document.getElementById('new-author-last-name').value;
+    
+    if (!email) {
+        alert('Email obligatoire');
+        return;
+    }
+    
+    // Créer un nouvel élément dans la liste
+    const authorsList = document.getElementById('authors-list');
+    const newAuthorDiv = document.createElement('div');
+    newAuthorDiv.className = 'form-check author-item';
+    
+    const fullName = `${firstName} ${lastName}`.trim() || email;
+    const newId = 'new_' + Date.now();
+    
+    newAuthorDiv.innerHTML = `
+        <input class="form-check-input" type="checkbox" name="coauthors" 
+               value="new:${email}:${firstName}:${lastName}" id="${newId}" checked>
+        <label class="form-check-label" for="${newId}">
+            <strong>${fullName}</strong>
+            ${fullName !== email ? `<small class="text-muted">(${email})</small>` : ''}
+            <span class="badge bg-warning">Nouveau</span>
+        </label>
+    `;
+    
+    authorsList.appendChild(newAuthorDiv);
+    
+    // Fermer le modal et réinitialiser le formulaire
+    const modal = bootstrap.Modal.getInstance(document.getElementById('newAuthorModal'));
+    modal.hide();
+    document.getElementById('new-author-form').reset();
+    
+    // Mettre à jour le compteur
+    const countElement = document.getElementById('author-count');
+    countElement.textContent = parseInt(countElement.textContent) + 1;
+}
+</script>
+
+<!-- JavaScript pour la recherche -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('author-search');
+    const authorItems = document.querySelectorAll('.author-item');
+    const countElement = document.getElementById('author-count');
+    
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        let visibleCount = 0;
+        
+        authorItems.forEach(function(item) {
+            const text = item.textContent.toLowerCase();
+            if (text.includes(searchTerm)) {
+                item.style.display = 'block';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        countElement.textContent = visibleCount;
+    });
+});
+</script>
+
+
+
+{% endblock %}

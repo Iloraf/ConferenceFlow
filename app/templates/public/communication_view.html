@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}{{ communication.title }} - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>{{ communication.title }}</h1>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <p><strong>Type:</strong> {{ communication.type }}</p>
+            <p><strong>Statut:</strong> {{ communication.status.value }}</p>
+            
+            <h3>Auteurs :</h3>
+            <ul>
+                {% for author in communication.authors %}
+                <li>{{ author.full_name }}</li>
+                {% endfor %}
+            </ul>
+            
+            <h3>Fichiers disponibles :</h3>
+            {% if available_files %}
+                {% for file_type, file_obj in available_files.items() %}
+                <div class="mb-2">
+                    <a href="{{ url_for('public_comm.download_communication_file', comm_id=communication.id, file_type=file_type) }}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-download"></i> 
+                        {% if file_type == 'resume' %}
+                            Résumé
+                        {% elif file_type == 'article' %}
+                            Article
+                        {% elif file_type == 'poster' %}
+                            Poster
+                        {% elif file_type == 'wip' %}
+                            Work in Progress
+                        {% else %}
+                            {{ file_type.title() }}
+                        {% endif %}
+                    </a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>Aucun fichier disponible</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

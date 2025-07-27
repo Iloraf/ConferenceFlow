@@ -1,0 +1,210 @@
+<!-- templates/conference/organisation.html -->
+{% extends 'base.html' %}
+
+{% block title %}Organisation - SFT 2026{% endblock %}
+
+{% block content %}
+
+    <!-- Comité d'organisation -->
+ <!-- Comité d'organisation -->
+    <div class="content-section">
+        <div class="section-header">
+            <h2 class="h4 mb-0"><i class="fas fa-users me-2"></i>{{ committees.organizing.title }}</h2>
+        </div>
+        
+        <!-- Présidents -->
+        {% if committees.organizing.presidents %}
+        <div class="row mb-4">
+            {% for president in committees.organizing.presidents %}
+            <div class="col-md-6 mb-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-primary">{{ president.role }}</h5>
+                        <h6 class="card-subtitle mb-2">{{ president.name }}</h6>
+                        <p class="card-text small">{{ president.institution }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Membres -->
+        {% if committees.organizing.members %}
+        <div class="row">
+            {% for member in committees.organizing.members %}
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ member.name }}</h6>
+                        <p class="card-text small mb-1 text-primary">{{ member.role }}</p>
+                        <p class="card-text small">{{ member.institution }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+  <!-- Comité scientifique -->
+    <div class="content-section">
+        <div class="section-header">
+            <h2 class="h4 mb-0"><i class="fas fa-graduation-cap me-2"></i>{{ committees.scientific.title }}</h2>
+        </div>
+        
+        <!-- Membres -->
+        {% if committees.scientific.members %}
+        <div class="row">
+            {% set half_length = (committees.scientific.members|length / 2) | round(0, 'ceil') | int %}
+            
+            <div class="col-md-6">
+                {% for member in committees.scientific.members[:half_length] %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ member.name }}</h6>
+                        <p class="card-text small text-muted">{{ member.institution }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="col-md-6">
+                {% for member in committees.scientific.members[half_length:] %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ member.name }}</h6>
+                        <p class="card-text small text-muted">{{ member.institution }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            Le comité scientifique sera annoncé prochainement.
+        </div>
+        {% endif %}
+    </div>
+
+    
+
+
+    <!-- Partenaires et sponsors -->
+    {% if committees.sponsors %}
+    <div class="content-section">
+        <div class="section-header">
+            <h2 class="h4 mb-0"><i class="fas fa-handshake me-2"></i>Partenaires et sponsors</h2>
+        </div>
+        
+        <!-- Sponsors Platinum -->
+        {% set platinum_sponsors = committees.sponsors | selectattr('level', 'equalto', 'platinum') | list %}
+        {% if platinum_sponsors %}
+        <h5 class="text-warning mb-3"><i class="fas fa-star me-2"></i>Partenaires Platinum</h5>
+        <div class="row mb-4">
+            {% for sponsor in platinum_sponsors %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100 border-warning">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">{{ sponsor.name }}</h6>
+                        <p class="card-text small text-muted">Partenaire principal</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Sponsors Gold -->
+        {% set gold_sponsors = committees.sponsors | selectattr('level', 'equalto', 'gold') | list %}
+        {% if gold_sponsors %}
+        <h5 class="text-warning mb-3"><i class="fas fa-medal me-2"></i>Partenaires Gold</h5>
+        <div class="row mb-4">
+            {% for sponsor in gold_sponsors %}
+            <div class="col-md-3 mb-3">
+                <div class="card h-100 border-warning">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">{{ sponsor.name }}</h6>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Sponsors Silver -->
+        {% set silver_sponsors = committees.sponsors | selectattr('level', 'equalto', 'silver') | list %}
+        {% if silver_sponsors %}
+        <h5 class="text-muted mb-3"><i class="fas fa-award me-2"></i>Partenaires Silver</h5>
+        <div class="row">
+            {% for sponsor in silver_sponsors %}
+            <div class="col-md-3 mb-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">{{ sponsor.name }}</h6>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Contact -->
+    <div class="content-section">
+        <div class="section-header">
+            <h2 class="h4 mb-0"><i class="fas fa-envelope me-2"></i>Secrétariat et contacts</h2>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Secrétariat du congrès</h5>
+                        <p class="card-text">
+                            <strong>LEMTA - Université de Lorraine</strong><br>
+                            2 avenue de la Forêt de Haye<br>
+                            54518 Vandœuvre-lès-Nancy Cedex<br>
+                            France
+                        </p>
+                        <hr>
+                        <p class="card-text">
+                            <i class="fas fa-envelope me-2"></i>
+                            <a href="mailto:congres2026@lemta.univ-lorraine.fr">congres2026@lemta.univ-lorraine.fr</a><br>
+                            <i class="fas fa-phone me-2"></i>+33 (0)3 83 68 51 00
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">Contacts spécialisés</h5>
+                        <div class="mb-3">
+                            <h6>Questions scientifiques</h6>
+                            <p class="small mb-0">
+                                <i class="fas fa-envelope me-1"></i>scientifique@congres-sft2026.fr
+                            </p>
+                        </div>
+                        <div class="mb-3">
+                            <h6>Inscriptions et logistique</h6>
+                            <p class="small mb-0">
+                                <i class="fas fa-envelope me-1"></i>inscription@congres-sft2026.fr
+                            </p>
+                        </div>
+                        <div>
+                            <h6>Partenariats industriels</h6>
+                            <p class="small mb-0">
+                                <i class="fas fa-envelope me-1"></i>partenariat@congres-sft2026.fr
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

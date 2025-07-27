@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Reviews - SFT 2026{% endblock %}
+
+{% block content %}
+<h2 class="mb-4"><i class="fas fa-check-circle me-2"></i>Mes Reviews</h2>
+
+<ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" data-bs-toggle="tab" href="#pending">
+            En attente <span class="badge bg-warning ms-1">{{ pending_reviews|length }}</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#completed">
+            Complétées <span class="badge bg-success ms-1">{{ completed_reviews|length }}</span>
+        </a>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- Reviews en attente -->
+    <div class="tab-pane fade show active" id="pending">
+        {% if pending_reviews %}
+            <div class="row">
+                {% for review in pending_reviews %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 border-warning">
+                        <div class="card-header">
+                            <h5 class="mb-1">{{ review.communication.title[:60] }}...</h5>
+                            <span class="badge bg-{{ 'danger' if review.communication.type == 'article' else 'warning' }}">
+                                {{ review.communication.type.upper() }}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">{{ review.communication.abstract[:150] }}...</p>
+                            <p><strong>Date limite :</strong> 
+                                <span class="text-danger">{{ review.deadline.strftime('%d/%m/%Y') }}</span>
+                            </p>
+                            <a href="{{ url_for('review.review_communication', review_id=review.id) }}" 
+                               class="btn btn-primary">
+                                <i class="fas fa-edit me-2"></i>Évaluer
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Aucune review en attente.
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Reviews complétées -->
+    <div class="tab-pane fade" id="completed">
+        {% if completed_reviews %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Communication</th>
+                            <th>Type</th>
+                            <th>Score</th>
+                            <th>Recommandation</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for review in completed_reviews %}
+                        <tr>
+                            <td>{{ review.communication.title[:40] }}...</td>
+                            <td>
+                                <span class="badge bg-{{ 'danger' if review.communication.type == 'article' else 'warning' }}">
+                                    {{ review.communication.type.upper() }}
+                                </span>
+                            </td>
+                            <td>{{ review.score }}/5</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if review.recommendation == 'accept' else 'danger' if review.recommendation == 'reject' else 'warning' }}">
+                                    {{ review.recommendation }}
+                                </span>
+                            </td>
+                            <td>{{ review.completed_at.strftime('%d/%m/%Y') }}</td>
+                            <td>
+                                <a href="{{ url_for('review.view_review', review_id=review.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Aucune review complétée.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

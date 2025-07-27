@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Aperçu email - {{ reviewer.full_name or reviewer.email }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-envelope me-2"></i>Aperçu email pour {{ reviewer.full_name or reviewer.email }}</h2>
+    <a href="{{ url_for('admin.send_grouped_notifications') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Retour
+    </a>
+</div>
+
+<!-- Informations du reviewer -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="fas fa-user me-2"></i>Destinataire</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Nom :</strong> {{ reviewer.full_name or 'Non défini' }}</p>
+                <p><strong>Email :</strong> {{ reviewer.email }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Spécialités :</strong> {{ reviewer.specialites_codes or 'Aucune' }}</p>
+                <p><strong>Nb reviews assignées :</strong> {{ assignments|length }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Aperçu de l'email -->
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-envelope-open me-2"></i>Aperçu de l'email qui sera envoyé</h5>
+    </div>
+    <div class="card-body">
+        <!-- Simulation de l'email -->
+        <div style="border: 2px solid #dee2e6; border-radius: 8px; padding: 20px; background-color: #ffffff; font-family: Arial, sans-serif;">
+            
+            <!-- En-tête de l'email -->
+            <div style="border-bottom: 2px solid #007bff; padding-bottom: 15px; margin-bottom: 20px;">
+                <h2 style="color: #007bff; margin: 0;">📋 Vos assignations de reviews SFT 2026</h2>
+            </div>
+            
+            <p>Bonjour <strong>{{ reviewer.full_name or reviewer.email }}</strong>,</p>
+            
+            <p>Vous avez été assigné(e) à <strong>{{ assignments|length }} review(s)</strong> pour le congrès SFT 2026.</p>
+            
+            <!-- Informations importantes -->
+            <div style="background-color: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #0056b3;">ℹ️ Informations importantes</h3>
+                <ul>
+                    <li>Consultez chaque communication attentivement</li>
+                    <li>Respectez les échéances indiquées</li>
+                    <li>En cas d'impossibilité, utilisez le bouton "Refuser cette review"</li>
+                    <li>Vos spécialités: <strong>{{ reviewer.specialites_codes or 'Non spécifiées' }}</strong></li>
+                </ul>
+            </div>
+            
+            <h3 style="color: #28a745;">📝 Vos reviews à effectuer:</h3>
+            
+            <!-- Liste des reviews -->
+            {% for assignment in assignments %}
+            {% set communication = assignment.communication %}
+            <div style="border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin: 15px 0; background-color: #f8f9fa;">
+                <h4 style="color: #007bff; margin-top: 0;">📄 Review #{{ loop.index }}</h4>
+                <p><strong>Titre :</strong> {{ communication.title }}</p>
+                <p><strong>Auteurs :</strong> {{ communication.authors|map(attribute='full_name')|join(', ') or 'Non spécifiés' }}</p>
+                <p><strong>Type :</strong> {{ communication.type.title() }}</p>
+                <p><strong>Thématiques :</strong> {{ communication.thematiques_codes or 'Non spécifiées' }}</p>
+                <p><strong>Échéance :</strong> {{ assignment.due_date.strftime('%d/%m/%Y') if assignment.due_date else 'Non définie' }}</p>
+                
+                <div style="margin-top: 15px;">
+                    <span style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px; display: inline-block;">
+                        📝 Faire la review
+                    </span>
+                    <span style="background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                        ❌ Refuser cette review
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+            
+            <!-- Bouton dashboard -->
+            <div style="text-align: center; margin: 30px 0;">
+                <span style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 16px; display: inline-block;">
+                    🏠 Accéder à mon dashboard reviewer
+                </span>
+            </div>
+            
+            <!-- Pied de page -->
+            <hr>
+            <p style="color: #666; font-size: 12px;">
+                Congrès SFT 2026 - Villers-lès-Nancy<br>
+                Pour toute question: contact@sft2026-nancy.fr
+            </p>
+        </div>
+        
+        <!-- Note pour l'admin -->
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Note :</strong> Ceci est un aperçu. Dans l'email réel, les boutons seront des liens cliquables 
+            menant directement aux pages de review et de refus.
+        </div>
+    </div>
+</div>
+{% endblock %}

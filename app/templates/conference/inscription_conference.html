@@ -1,0 +1,241 @@
+<!-- templates/conference/inscription_conference.html -->
+{% extends 'base.html' %}
+
+{% block title %}Inscription Conférence - SFT 2026{% endblock %}
+
+{% block extra_css %}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-ticket me-2"></i>Inscription à la conférence</h1>
+        
+        <!-- Alerte Early Bird -->
+        <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-clock me-2"></i>
+            <strong>Tarif préférentiel jusqu'au 15 avril 2026 !</strong> 
+            Économisez jusqu'à 100€ en vous inscrivant maintenant.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        
+        <!-- Tarifs -->
+        <h2 class="mb-4">Tarifs d'inscription</h2>
+        
+        <!-- Early Bird -->
+        <div class="mb-5">
+            <h3 class="text-success mb-3">
+                <i class="fas fa-tag me-2"></i>Tarif préférentiel ({{ fees.early.date }})
+            </h3>
+            <div class="row">
+
+              <div class="col-md-3 mb-4">
+                <div class="price-header early-bird text-center">
+                  <h4>Étudiant</h4>
+                  <div class="price-amount">{{ fees.early.student }}€</div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-4">
+                <div class="price-header early-bird text-center">
+                  <h4>Membre SFT à titre individuel</h4>
+                  <div class="price-amount">{{ fees.early.member_indiv }}€</div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-4">
+                <div class="price-header early-bird text-center">
+                  <h4>Membre d'une collectivité adhérente à la SFT</h4>
+                  <div class="price-amount">{{ fees.early.member_collec }}€</div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-4">
+                <div class="price-header early-bird text-center">
+                  <h4>Non-membre SFT</h4>
+                  <div class="price-amount">{{ fees.early.not_member }}€</div>
+                </div>
+              </div>
+            </div>
+        </div>
+        
+        <!-- Tarif normal -->
+        <div class="mb-5">
+            <h3 class="text-primary mb-3">
+                <i class="fas fa-calendar me-2"></i>Tarif normal ({{ fees.regular.date }})
+            </h3>
+            <div class="row">
+              <div class="col-md-3 mb-4">
+                <div class="price-header regular-price text-center">
+                  <h4>Étudiant</h4>
+                  <div class="price-amount">{{ fees.regular.student }}€</div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-4">
+                <div class="price-header regular-price text-center">
+                  <h4>Membre SFT à titre individuel</h4>
+                  <div class="price-amount">{{ fees.regular.member_indiv }}€</div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-4">
+                <div class="price-header regular-price text-center">
+                  <h4>Membre d'une collectivité adhérente à la SFT</h4>
+                  <div class="price-amount">{{ fees.regular.member_collec }}€</div>
+                </div>
+              </div>
+              <div class="col-md-3 mb-4">
+                <div class="price-header regular-price text-center">
+                  <h4>Non-membre SFT</h4>
+                  <div class="price-amount">{{ fees.regular.not_member }}€</div>
+                </div>
+              </div>
+
+            </div>
+        </div>
+        
+        <!-- Ce qui est inclus -->
+        <div class="row mb-5">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0"><i class="fas fa-check-circle me-2"></i>Inclus dans l'inscription</h4>
+                    </div>
+                    <div class="card-body">
+                        {% for item in fees.included %}
+                        <div class="included-item">
+                            <i class="fas fa-check text-success me-2"></i>{{ item }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-info text-white">
+                        <h4 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Options supplémentaires</h4>
+                    </div>
+                    <div class="card-body">
+                        {% for option in fees.optional %}
+                        <div class="optional-item d-flex justify-content-between align-items-center">
+                            <span>{{ option.item }}</span>
+                            <span class="badge bg-primary">+{{ option.price }}€</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modalités de paiement -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-credit-card me-2"></i>Modalités de paiement</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+              <!--      <div class="col-md-4 text-center mb-3">
+                        <i class="fas fa-credit-card fa-3x mb-2 text-primary"></i>
+                        <h5>Carte bancaire</h5>
+                        <p class="text-muted">Paiement sécurisé en ligne</p>
+                    </div>-->
+                    <div class="col-md-6 text-center mb-3">
+                        <i class="fas fa-money-check fa-3x mb-2 text-success"></i>
+                        <h5>Virement bancaire</h5>
+                        <p class="text-muted">RIB fourni après inscription</p>
+                    </div>
+                    <div class="col-md-6 text-center mb-3">
+                        <i class="fas fa-file-invoice fa-3x mb-2 text-warning"></i>
+                        <h5>Bon de commande</h5>
+                        <p class="text-muted">Pour les institutions</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Conditions -->
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5><i class="fas fa-info-circle me-2"></i>Conditions d'inscription</h5>
+                <ul>
+                    <li>L'inscription est nominative et non transférable</li>
+                    <li>Annulation possible jusqu'au 1er mai 2026 avec 50% de frais</li>
+                    <li>Aucun remboursement après le 15 mai 2026</li>
+                    <li>Facture délivrée après paiement complet</li>
+                    <li>Tarif doctorant sur justificatif valide uniquement</li>
+                </ul>
+            </div>
+        </div>
+        <!-- Bouton inscription -->
+        <div class="text-center">
+          <h3 class="mb-3">Prêt à vous inscrire ?</h3>
+<a href="https://2026.congres-sft.fr/index.php?langue=fr&onglet=6" class="btn btn-primary btn-lg me-2" target="_blank">
+    <i class="fas fa-external-link-alt me-2"></i>S'inscrire au congrès
+</a>
+<a href="https://2026.congres-sft.fr/index.php?langue=fr&onglet=12" class="btn btn-primary btn-lg me-2" target="_blank">
+    <i class="fas fa-external-link-alt me-2"></i>Inscrire un accompagnant 
+</a>
+
+        </div>
+    </div>
+</div>
+
+
+<style>
+.price-box {
+    border-radius: 15px;
+    padding: 1.5rem;
+    color: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.price-box:hover {
+    transform: translateY(-5px);
+}
+
+.price-box h4 {
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.price-amount {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.price-header.early-bird {
+    border-radius: 15px !important;
+    padding: 1.5rem;
+}
+
+
+.price-header.regular-price {
+    border-radius: 15px !important;
+    padding: 1.5rem;
+}
+
+</style>
+
+<!-- Modal d'inscription (pour utilisateurs connectés)
+{% if current_user.is_authenticated %}
+<div class="modal fade" id="registrationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Inscription à SFT 2026</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Le système d'inscription en ligne sera disponible prochainement.</p>
+                <p>En attendant, vous pouvez nous contacter pour réserver votre place.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <a href="{{ url_for('conference.contact') }}" class="btn btn-primary">
+                    <i class="fas fa-envelope me-2"></i>Nous contacter
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %} -->
+{% endblock %}

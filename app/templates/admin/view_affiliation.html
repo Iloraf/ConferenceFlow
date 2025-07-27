@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Affiliation - {{ affiliation.sigle }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}">Administration</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.list_affiliations') }}">Affiliations</a></li>
+            <li class="breadcrumb-item active">{{ affiliation.sigle }}</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <h4>{{ affiliation.sigle }} - {{ affiliation.nom_complet }}</h4>
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Sigle :</dt>
+                <dd class="col-sm-9">{{ affiliation.sigle }}</dd>
+                
+                <dt class="col-sm-3">Nom complet :</dt>
+                <dd class="col-sm-9">{{ affiliation.nom_complet }}</dd>
+                
+                {% if affiliation.adresse %}
+                <dt class="col-sm-3">Adresse :</dt>
+                <dd class="col-sm-9">{{ affiliation.adresse }}</dd>
+                {% endif %}
+                
+                {% if affiliation.citation %}
+                <dt class="col-sm-3">Citation :</dt>
+                <dd class="col-sm-9">{{ affiliation.citation }}</dd>
+                {% endif %}
+                
+                {% if affiliation.identifiant_hal %}
+                <dt class="col-sm-3">ID HAL :</dt>
+                <dd class="col-sm-9">{{ affiliation.identifiant_hal }}</dd>
+                {% endif %}
+            </dl>
+            
+            <a href="{{ url_for('admin.list_affiliations') }}" class="btn btn-secondary">Retour</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

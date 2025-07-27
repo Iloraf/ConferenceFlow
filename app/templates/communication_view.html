@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ communication.title }} - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3>{{ communication.title }}</h3>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <span class="badge bg-{{ 'danger' if communication.type == 'article' else 'warning' }}">
+                        {{ communication.type.upper() }}
+                    </span>
+                    <span class="text-muted ms-3">
+                        <i class="fas fa-calendar me-1"></i>
+                        Soumis le {{ communication.created_at.strftime('%d/%m/%Y') }}
+                    </span>
+                </div>
+                
+                <!-- Auteurs -->
+                {% if communication.authors %}
+                <div class="mb-4">
+                    <h5>Auteurs</h5>
+                    <ul class="list-unstyled">
+                        {% for author in communication.authors %}
+                        <li>
+                            <i class="fas fa-user me-2"></i>
+                            {{ author.full_name }}
+                            {% if author.affiliations %}
+                                <span class="text-muted">({{ author.affiliations[0].name }})</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                
+                <!-- Mots-clés -->
+                {% if communication.keywords %}
+                <div class="mb-4">
+                    <h5>Mots-clés</h5>
+                    <div>
+                        {% for keyword in communication.keywords.split(',') %}
+                        <span class="badge bg-secondary me-2">{{ keyword.strip() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Fichiers disponibles -->
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Documents disponibles</h5>
+            </div>
+            <div class="card-body">
+                {% if latest_article %}
+                <div class="mb-3">
+                    <h6><i class="fas fa-file-pdf text-danger me-2"></i>Article complet</h6>
+                    <small class="text-muted d-block">{{ latest_article.original_filename }}</small>
+                    <a href="{{ url_for('main.download_file', file_id=latest_article.id) }}" class="btn btn-sm btn-outline-danger mt-2">
+                        <i class="fas fa-download me-1"></i>Télécharger
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% if latest_wip %}
+                <div class="mb-3">
+                    <h6><i class="fas fa-flask text-warning me-2"></i>Work in Progress</h6>
+                    <small class="text-muted d-block">{{ latest_wip.original_filename }}</small>
+                    <a href="{{ url_for('main.download_file', file_id=latest_wip.id) }}" class="btn btn-sm btn-outline-warning mt-2">
+                        <i class="fas fa-download me-1"></i>Télécharger
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% if latest_poster %}
+                <div class="mb-3">
+                    <h6><i class="fas fa-image text-info me-2"></i>Poster</h6>
+                    <small class="text-muted d-block">{{ latest_poster.original_filename }}</small>
+                    <a href="{{ url_for('main.download_file', file_id=latest_poster.id) }}" class="btn btn-sm btn-outline-info mt-2">
+                        <i class="fas fa-download me-1"></i>Télécharger
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% if not latest_article and not latest_wip and not latest_poster %}
+                <p class="text-muted text-center">Aucun fichier disponible</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- QR Code -->
+        {% if communication.qr_code_path %}
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">QR Code</h5>
+            </div>
+            <div class="card-body text-center">
+                <img src="/{{ communication.qr_code_path }}" alt="QR Code" class="img-fluid" style="max-width: 200px;">
+                <p class="mt-2 text-muted small">Scannez pour accès mobile</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

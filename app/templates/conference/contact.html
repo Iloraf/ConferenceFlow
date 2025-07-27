@@ -1,0 +1,223 @@
+<!-- templates/conference/contact.html -->
+{% extends 'base.html' %}
+
+{% block title %}Contact - SFT 2026{% endblock %}
+
+{% block extra_css %}
+<style>
+    .contact-card {
+        transition: transform 0.3s;
+        height: 100%;
+    }
+    
+    .contact-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .contact-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4"><i class="fas fa-envelope me-2"></i>Contact</h1>
+        
+        <!-- Contacts principaux -->
+        <div class="row mb-5">
+            {% for key, contact in contacts.items() %}
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card contact-card text-center">
+                    <div class="card-body">
+                        <div class="contact-icon">
+                            {% if key == 'general' %}
+                                <i class="fas fa-info-circle text-primary"></i>
+                            {% elif key == 'scientific' %}
+                                <i class="fas fa-flask text-success"></i>
+                            {% elif key == 'registration' %}
+                                <i class="fas fa-ticket text-warning"></i>
+                            {% elif key == 'communication' %}
+                                <i class="fas fa-graduation-cap text-info"></i>
+                            {% endif %}
+                        </div>
+                        <h5>{{ contact.title }}</h5>
+                        {% if contact.person %}
+                        <p class="mb-1"><strong>{{ contact.person }}</strong></p>
+                        {% endif %}
+                        <p class="mb-1">
+                            <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                        </p>
+                        <!-- {% if contact.phone %} -->
+                        <!-- <p class="mb-0">{{ contact.phone }}</p> -->
+                        <!-- {% endif %} -->
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Formulaire de contact -->
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0"><i class="fas fa-paper-plane me-2"></i>Nous contacter</h3>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="name" class="form-label">Nom complet *</label>
+                                        <input type="text" class="form-control" id="name" name="name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email *</label>
+                                        <input type="email" class="form-control" id="email" name="email" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="subject" class="form-label">Sujet *</label>
+                                <select class="form-select" id="subject" name="subject" required>
+                                    <option value="">Choisir un sujet...</option>
+                                    <option value="general">Question générale</option>
+                                    <option value="submission">Soumission de communication</option>
+                                    <option value="registration">Inscription au congrès</option>
+                                    <option value="accommodation">Hébergement</option>
+                                    <option value="sponsorship">Partenariat / Sponsoring</option>
+                                    <option value="other">Autre</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="message" class="form-label">Message *</label>
+                                <textarea class="form-control" id="message" name="message" rows="6" required 
+                                          placeholder="Votre message..."></textarea>
+                            </div>
+                            
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="copy" name="copy">
+                                <label class="form-check-label" for="copy">
+                                    Recevoir une copie de ce message
+                                </label>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-paper-plane me-2"></i>Envoyer le message
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Informations complémentaires -->
+        <div class="row mt-5">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5><i class="fas fa-building me-2"></i>Adresse postale</h5>
+                        <address>
+                            <strong>Congrès SFT 2026</strong><br>
+                            LEMTA - Université de Lorraine<br>
+                            2 Avenue de la Forêt de Haye<br>
+                            54500 Vandœuvre-lès-Nancy<br>
+                            France
+                        </address>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5><i class="fas fa-clock me-2"></i>Horaires du secrétariat</h5>
+                        <p>Du lundi au vendredi : 9h00 - 12h00 et 14h00 - 17h00</p>
+                        <p class="mb-0">Fermé les weekends et jours fériés</p>
+                        <hr>
+                        <h5><i class="fas fa-share-alt me-2"></i>Réseaux sociaux</h5>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-outline-primary">
+                                <i class="fab fa-twitter"></i>
+                            </button>
+                            <button class="btn btn-outline-primary">
+                                <i class="fab fa-linkedin"></i>
+                            </button>
+                            <button class="btn btn-outline-primary">
+                                <i class="fab fa-youtube"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- FAQ rapide -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Questions fréquentes</h5>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="faqAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                                Comment soumettre une communication ?
+                            </button>
+                        </h2>
+                        <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                Créez d'abord un compte sur la plateforme, puis accédez à la section 
+                                "Communication > Soumettre" pour déposer votre résumé.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                                Quels sont les moyens de transport pour venir à Nancy ?
+                            </button>
+                        </h2>
+                        <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                Nancy est accessible en TGV (1h30 de Paris), par l'autoroute A31, 
+                                ou via l'aéroport Metz-Nancy-Lorraine avec navette.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                                Le dîner de gala est-il inclus dans l'inscription ?
+                            </button>
+                        </h2>
+                        <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                Non, le dîner de gala est une option supplémentaire à 80€. 
+                                Il aura lieu le jeudi 4 juin à la Mairie de Nancy.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

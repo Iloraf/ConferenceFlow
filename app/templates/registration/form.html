@@ -1,0 +1,303 @@
+<!-- templates/registration/form.html -->
+{% extends "base.html" %}
+
+{% block title %}
+Inscription au Congrès SFT 2026
+{% endblock %}
+
+{% block content %}
+
+
+    <div class="alert alert-info">
+        <strong>Information RGPD :</strong> Les informations demandées permettront aux organisateurs d'assurer l'organisation logistique de l'événement. 
+        Conformément aux dispositions de la loi informatique et libertés, vous disposez d'un droit d'accès, de rectification et d'opposition. 
+        Contact : <a href="mailto:inscription2026@congres-sft.fr">inscription2026@congres-sft.fr</a>
+    </div>
+
+    <form id="inscriptionForm" method="POST" enctype="multipart/form-data">
+        
+        <!-- Code d'invitation -->
+        <div class="form-section">
+            <div class="section-header">
+                <h3 class="h5 mb-0">Code d'invitation</h3>
+            </div>
+            <p>Si vous détenez un code d'invitation, merci de le saisir ci-dessous :</p>
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="form-group">
+                        <label for="invitationCode">Code invitation</label>
+                        <input type="text" class="form-control" id="invitationCode" name="invitationCode" placeholder="Code invitation">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <button type="button" class="btn btn-outline-primary mt-4">Valider le code</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Identification du participant -->
+        <div class="form-section">
+            <div class="section-header">
+                <h3 class="h5 mb-0">Identification du participant</h3>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="nom">Nom <span class="required">*</span></label>
+                        <input type="text" class="form-control" id="nom" name="nom" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="prenom">Prénom <span class="required">*</span></label>
+                        <input type="text" class="form-control" id="prenom" name="prenom" required>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="email">Email <span class="required">*</span></label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="telephone">Téléphone</label>
+                        <input type="tel" class="form-control" id="telephone" name="telephone">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="organisme">Organisme / Institution <span class="required">*</span></label>
+                <input type="text" class="form-control" id="organisme" name="organisme" required>
+            </div>
+            <div class="form-group">
+                <label for="fonction">Fonction</label>
+                <input type="text" class="form-control" id="fonction" name="fonction">
+            </div>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="acceptationListe" name="acceptationListe">
+                <label class="form-check-label" for="acceptationListe">
+                    J'accepte que mon nom, prénom, fonction et organisme soient mentionnés dans la liste des participants qui sera diffusée pendant le congrès.
+                </label>
+            </div>
+        </div>
+
+        <!-- Statut et droits d'inscription -->
+        <div class="form-section">
+            <div class="section-header">
+                <h3 class="h5 mb-0">Statut et droits d'inscription au congrès</h3>
+            </div>
+            <div class="form-group mb-3">
+                <label class="form-label">Votre statut <span class="required">*</span></label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="statut" id="etudiant" value="etudiant" required>
+                    <label class="form-check-label" for="etudiant">Étudiant</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="statut" id="membreIndividuel" value="membreIndividuel" required>
+                    <label class="form-check-label" for="membreIndividuel">Membre à titre individuel SFT</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="statut" id="membreCollectivite" value="membreCollectivite" required>
+                    <label class="form-check-label" for="membreCollectivite">Membre d'une collectivité adhérente à la SFT</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="statut" id="nonMembre" value="nonMembre" required>
+                    <label class="form-check-label" for="nonMembre">Non-membre SFT</label>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered pricing-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Période d'inscription</th>
+                            <th scope="col">Étudiant</th>
+                            <th scope="col">Membre individuel SFT</th>
+                            <th scope="col">Membre collectivité SFT</th>
+                            <th scope="col">Non-membre SFT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Jusqu'au 15 Avril 2026</th>
+                            <td>300 € TTC</td>
+                            <td>390 € TTC</td>
+                            <td>450 € TTC</td>
+                            <td>500 € TTC</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">À partir du 16 Avril 2026</th>
+                            <td>450 € TTC</td>
+                            <td>540 € TTC</td>
+                            <td>600 € TTC</td>
+                            <td>650 € TTC</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="alert alert-warning">
+                <strong>ATTENTION :</strong> Nous ne pouvons pas garantir les repas ni la participation au dîner de gala pour les inscriptions postérieures au 15 mai 2026. La participation se fera en fonction des places disponibles.
+            </div>
+        </div>
+
+        <!-- Participation aux déjeuners et soirée de Gala -->
+        <section class="form-section">
+            <div class="section-header">
+                <h3 class="h5 mb-0">Participation aux déjeuners et soirée de Gala</h3>
+            </div>
+            <p><strong>Je participerai aux repas suivants :</strong></p>
+
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="dejeunerJeudi" name="repas[]" value="dejeunerJeudi">
+                <label class="form-check-label" for="dejeunerJeudi">Cocktail d'accueil du mardi 2 juin</label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="dejeunerJeudi" name="repas[]" value="dejeunerJeudi">
+                <label class="form-check-label" for="dejeunerJeudi">Déjeuner du mercredi 3 juin</label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="dejeunerJeudi" name="repas[]" value="dejeunerJeudi">
+                <label class="form-check-label" for="dejeunerJeudi">Déjeuner du jeudi 4 juin</label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="dinerGala" name="repas[]" value="dinerGala">
+                <label class="form-check-label" for="dinerGala">Dîner de gala du jeudi 4 juin</label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="dejeunerVendredi" name="repas[]" value="dejeunerVendredi">
+                <label class="form-check-label" for="dejeunerVendredi">Déjeuner du vendredi 5 juin (repas froid et à emporter)</label>
+            </div>
+        </section>
+
+        <!-- Régimes alimentaires -->
+        <section class="form-section">
+            <div class="section-header">
+                <h3 class="h5 mb-0">Régimes alimentaires</h3>
+            </div>
+            <p><strong>Merci de préciser vos spécificités alimentaires :</strong></p>
+            <div class="form-group">
+                <textarea class="form-control" id="regimeAlimentaire" name="regimeAlimentaire" rows="3" placeholder="Allergies, régimes spéciaux, etc."></textarea>
+            </div>
+        </section>
+
+        <!-- Visites - Jeudi 5 juin -->
+        <section class="form-section">
+            <div class="section-header">
+                <h3 class="h5 mb-0">Visites - Jeudi 4 juin à 17h00</h3>
+            </div>
+            <p>Vous pouvez télécharger le descriptif de ces deux visites <a href="http://2026.congres-sft.fr/static/upload/SFT2026_Visites_Jeudi_4Juin.pdf" target="_blank">ici</a>.</p>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="visite1" name="visites[]" value="visite1">
+		    <label class="form-check-label" for="visite1">
+		    Visite 1 (Places disponibles : 60/60)
+                <!--<input type="checkbox" class="form-check-input" id="visite1" name="visites[]" value="visite1" disabled>
+                  <label class="form-check-label text-muted" for="visite1">
+		    <del>Visite 1 - Complet (Place : 0/25)</del>-->
+                </label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="visite2" name="visites[]" value="visite2">
+                <label class="form-check-label" for="visite2">Visite 2 (Places disponibles : 60/60)</label>
+            </div>
+        </section>
+
+        <!-- Visite - Vendredi 6 juin -->
+        <section class="form-section">
+            <div class="section-header">
+                <h3 class="h5 mb-0">Visite - Vendredi 5 juin 13h00 - 17h00</h3>
+            </div>
+            <p>Vous pouvez télécharger le descriptif de cette visite <a href="http://2026.congres-sft.fr/static/upload/SFT2026_Visite_Vendredi_5juin.pdf" target="_blank">ici</a>.</p>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="visite2" name="visites[]" value="visite3">
+                <label class="form-check-label" for="visite3">Visite (Places disponibles : 60/60)</label>
+            </div>
+        </section>
+
+        <!-- Pièce d'identité 
+        <section class="form-section">
+            <div class="section-header">
+                <h3 class="h5 mb-0">Pièce d'identité</h3>
+            </div>
+            <div class="alert alert-info">
+                <strong>Important :</strong> Dans le cadre de la visite des plateformes expérimentales du CEA, il est impératif que vous nous fournissiez en amont une copie d'une pièce d'identité valide (passeport ou carte d'identité, les permis de conduire ne sont pas acceptés). Sans ce document, la visite sera impossible.
+            </div>
+            <p>Nous devons transmettre ces pièces au CEA avant le <strong>15 mai 2025</strong> dernier délai ; il n'est donc pas possible de les présenter pour la première fois le jour de la visite.</p>
+            <div class="form-group">
+                <label for="pieceIdentite">Téléverser votre justificatif d'identité :</label>
+                <input type="file" class="form-control-file" id="pieceIdentite" name="pieceIdentite" accept=".pdf,.jpg,.jpeg,.png">
+                <small class="form-text text-muted">Formats acceptés : PDF, JPG, PNG (max 5 Mo)</small>
+            </div>
+        </section>-->
+
+        <!-- Conditions d'annulation -->
+        <section class="form-section">
+            <div class="section-header">
+                <h3 class="h5 mb-0">Conditions d'annulation</h3>
+            </div>
+            <ul class="small">
+                <li>Remboursement de 90% en cas d'annulation reçue avant le 15 avril 2026</li>
+                <li>Remboursement de 50% en cas d'annulation reçue entre le 15 avril et le 15 mai 2026</li>
+                <li>Aucun remboursement en cas d'annulation après le 15 mai 2026</li>
+            </ul>
+            <p class="small text-muted">Le cachet de la poste ou date d'envoi du courriel faisant foi.</p>
+        </section>
+
+        <!-- Acceptation conditions -->
+        <div class="form-section">
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="acceptationConditions" name="acceptationConditions" required>
+                <label class="form-check-label" for="acceptationConditions">
+                    <span class="required">*</span> J'accepte les conditions d'inscription et d'annulation du congrès SFT 2026
+                </label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="acceptationImage" name="acceptationImage">
+                <label class="form-check-label" for="acceptationImage">
+                    J'accepte que des photos prises pendant le congrès puissent être publiées sur le site Internet et les réseaux sociaux de la SFT
+                </label>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">S'inscrire au congrès</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Calcul automatique du prix selon le statut sélectionné
+    document.addEventListener('DOMContentLoaded', function() {
+        const statutRadios = document.querySelectorAll('input[name="statut"]');
+        const today = new Date();
+        const deadline = new Date('2026-04-15');
+        
+        statutRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                updatePrice();
+            });
+        });
+        
+        function updatePrice() {
+            const selectedStatut = document.querySelector('input[name="statut"]:checked');
+            if (selectedStatut) {
+                const prices = today <= deadline ? {
+                    'etudiant': '300 €',
+                    'membreIndividuel': '390 €',
+                    'membreCollectivite': '450 €',
+                    'nonMembre': '500 €'
+                } : {
+                    'etudiant': '450 €',
+                    'membreIndividuel': '540 €',
+                    'membreCollectivite': '600 €',
+                    'nonMembre': '650 €'
+                };
+                
+                console.log('Prix sélectionné:', prices[selectedStatut.value]);
+            }
+        }
+    });
+</script>
+{% endblock %}
