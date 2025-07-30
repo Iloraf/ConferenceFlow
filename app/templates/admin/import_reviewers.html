@@ -120,6 +120,7 @@ scientist@lab.org</code></pre>
     </div>
 </div>
 
+
 <script>
 // Gestion du formulaire d'upload
 document.getElementById('uploadForm').addEventListener('submit', function(e) {
@@ -156,18 +157,123 @@ function downloadTemplate() {
 document.getElementById('csv_file').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
+        // Vérification de l'extension
         if (!file.name.toLowerCase().endsWith('.csv')) {
             alert('Veuillez sélectionner un fichier CSV.');
             this.value = '';
             return;
         }
         
-        if (file.size > 2 * 1024 * 1024) { // 2MB
+        // Vérification de la taille (max 2MB pour les reviewers)
+        if (file.size > 2 * 1024 * 1024) {
             alert('Le fichier est trop volumineux (max 2MB).');
             this.value = '';
             return;
         }
+        
+        // Lecture et validation du contenu CSV
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const content = e.target.result;
+            const lines = content.split('\n').filter(line => line.trim());
+            
+            // Validation basique des emails
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            let validEmails = 0;
+            let invalidLines = [];
+            
+            lines.forEach((line, index) => {
+                const email = line.trim();
+                if (email) {
+                    if (emailRegex.test(email)) {
+                        validEmails++;
+                    } else {
+                        invalidLines.push(index + 1);
+                    }
+                }
+            });
+            
+            // Affichage du résumé
+            const fileInfo = document.getElementById('file-info');
+            if (fileInfo) {
+                let infoHtml = `
+                    <div class="alert alert-info mt-2">
+                        <strong>Fichier analysé :</strong> ${file.name}<br>
+                        <strong>Emails valides :</strong> ${validEmails}<br>
+                        <strong>Lignes totales :</strong> ${lines.length}
+                `;
+                
+                if (invalidLines.length > 0) {
+                    infoHtml += `<br><strong style="color: #dc3545;">Lignes invalides :</strong> ${invalidLines.slice(0, 5).join(', ')}`;
+                    if (invalidLines.length > 5) {
+                        infoHtml += ` et ${invalidLines.length - 5} autres...`;
+                    }
+                }
+                
+                infoHtml += '</div>';
+                fileInfo.innerHTML = infoHtml;
+            }
+        };
+        
+        reader.readAsText(file);
     }
+});
+
+// Validation en temps réel du formulaire
+function validateForm() {
+    const fileInput = document.getElementById('csv_file');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (fileInput.files.length > 0) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-secondary');
+        submitBtn.classList.add('btn-primary');
+    } else {
+        submitBtn.disabled = true;
+        submitBtn.classList.remove('btn-primary');
+        submitBtn.classList.add('btn-secondary');
+    }
+}
+
+// Fonction pour générer un CSV d'exemple plus réaliste
+function generateExampleCSV() {
+    const exampleEmails = [
+        'marie.dupont@univ-paris.fr',
+        'jean.martin@cnrs.fr',
+        'sophie.bernard@insa-lyon.fr',
+        'pierre.durand@ens.fr',
+        'claire.moreau@polytechnique.edu'
+    ];
+    
+    return exampleEmails.join('\n');
+}
+
+// Initialisation lors du chargement de la page
+document.addEventListener('DOMContentLoaded', function() {
+    // Validation initiale
+    validateForm();
+    
+    // Écouteur pour la validation en temps réel
+    document.getElementById('csv_file').addEventListener('change', validateForm);
+    
+    // Mise à jour du template avec des emails plus réalistes
+    const downloadTemplateBtn = document.querySelector('[onclick="downloadTemplate()"]');
+    if (downloadTemplateBtn) {
+        downloadTemplateBtn.onclick = function() {
+            const csvContent = generateExampleCSV();
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'modele_reviewers.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    }
+    
+    console.log('Page import reviewers chargée');
 });
 </script>
 {% endblock %}

@@ -157,19 +157,75 @@ function downloadTemplate() {
 document.getElementById('csv_file').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
+        // Vérification de l'extension
         if (!file.name.toLowerCase().endsWith('.csv')) {
             alert('Veuillez sélectionner un fichier CSV.');
             this.value = '';
             return;
         }
         
-        if (file.size > 5 * 1024 * 1024) { // 5MB
+        // Vérification de la taille (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
             alert('Le fichier est trop volumineux (max 5MB).');
             this.value = '';
             return;
         }
+        
+        // Affichage des informations du fichier
+        const fileInfo = document.getElementById('file-info');
+        if (fileInfo) {
+            fileInfo.innerHTML = `
+                <div class="alert alert-info mt-2">
+                    <strong>Fichier sélectionné :</strong> ${file.name}<br>
+                    <strong>Taille :</strong> ${(file.size / 1024).toFixed(1)} KB
+                </div>
+            `;
+        }
     }
 });
+
+// Fonction pour afficher/masquer l'exemple
+function toggleExample() {
+    const example = document.getElementById('csv-example');
+    const button = document.getElementById('toggle-example-btn');
+    
+    if (example.style.display === 'none') {
+        example.style.display = 'block';
+        button.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Masquer l\'exemple';
+    } else {
+        example.style.display = 'none';
+        button.innerHTML = '<i class="fas fa-eye me-1"></i>Voir l\'exemple';
+    }
+}
+
+// Validation en temps réel du formulaire
+function validateForm() {
+    const fileInput = document.getElementById('csv_file');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (fileInput.files.length > 0) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-secondary');
+        submitBtn.classList.add('btn-primary');
+    } else {
+        submitBtn.disabled = true;
+        submitBtn.classList.remove('btn-primary');
+        submitBtn.classList.add('btn-secondary');
+    }
+}
+
+// Initialisation lors du chargement de la page
+document.addEventListener('DOMContentLoaded', function() {
+    // Validation initiale
+    validateForm();
+    
+    // Écouteur pour la validation en temps réel
+    document.getElementById('csv_file').addEventListener('change', validateForm);
+    
+    // Affichage du total d'affiliations
+    console.log('Page import affiliations chargée');
+});
 </script>
+
 {% endblock %}
 
