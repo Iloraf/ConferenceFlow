@@ -1,0 +1,61 @@
+<!-- templates/emails/welcome_reviewer.html - Email de bienvenue -->
+
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Bienvenue comme reviewer{% endblock %}
+
+{% block header_title %}Bienvenue !{% endblock %}
+{% block header_subtitle %}Vous êtes maintenant reviewer pour le congrès SFT{% endblock %}
+
+{% block content %}
+<p>Bonjour <strong>{{ reviewer.first_name or reviewer.email.split('@')[0] }}</strong>,</p>
+
+<p>🎉 <strong>Félicitations !</strong> Vous venez d'être promu(e) reviewer pour le congrès SFT.</p>
+
+{% if specialites %}
+<p>Vos domaines d'expertise ont été configurés :</p>
+<div class="thematiques" style="margin: 20px 0;">
+    {% for specialite in specialites %}
+    <span class="thematique-badge" style="background-color: {{ specialite.couleur }};">
+        {{ specialite.code }} - {{ specialite.nom }}
+    </span>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="alert alert-info">
+    <strong>En tant que reviewer, vous pourrez :</strong>
+    <ul>
+        <li>Évaluer les communications dans vos domaines d'expertise</li>
+        <li>Consulter votre tableau de bord personnalisé</li>
+        <li>Gérer vos affectations et échéances</li>
+        <li>Contribuer à la qualité scientifique du congrès</li>
+    </ul>
+</div>
+
+{% if first_time_reviewer %}
+<div class="alert alert-warning">
+    <strong>📋 Première fois comme reviewer ?</strong><br>
+    Nous vous recommandons vivement de consulter le guide du reviewer pour vous familiariser avec le processus d'évaluation et les critères utilisés.
+</div>
+{% endif %}
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ dashboard_url }}" class="btn">
+        📊 Mon tableau de bord reviewer
+    </a>
+    <a href="{{ help_url }}" class="btn btn-secondary">
+        📖 Guide du reviewer
+    </a>
+</div>
+
+{% if contact_person %}
+<p><strong>Contact :</strong> En cas de question, vous pouvez contacter {{ contact_person.name }} à l'adresse 
+<a href="mailto:{{ contact_person.email }}">{{ contact_person.email }}</a>.</p>
+{% endif %}
+
+<p>Nous vous remercions chaleureusement pour votre engagement et votre expertise au service de la communauté scientifique.</p>
+
+<p>Cordialement,<br>
+<strong>L'équipe d'organisation du congrès SFT</strong></p>
+{% endblock %}

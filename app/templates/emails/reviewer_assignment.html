@@ -1,0 +1,66 @@
+<!-- templates/emails/reviewer_assignment.html - Notification d'affectation -->
+
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Nouvelle affectation de review{% endblock %}
+
+{% block header_title %}Nouvelle affectation de review{% endblock %}
+{% block header_subtitle %}Vous avez été assigné(e) comme reviewer{% endblock %}
+
+{% block content %}
+<p>Bonjour <strong>{{ reviewer.first_name or reviewer.email.split('@')[0] }}</strong>,</p>
+
+<p>Vous venez d'être assigné(e) comme reviewer pour la communication suivante :</p>
+
+<div class="communication-box">
+    <div class="communication-title">{{ communication.title }}</div>
+    
+    {% if communication.authors %}
+    <p><strong>Auteur(s) :</strong> 
+        {% for author in communication.authors %}
+            {{ author.email }}{% if author.affiliation %} ({{ author.affiliation.sigle }}){% endif %}{% if not loop.last %}, {% endif %}
+        {% endfor %}
+    </p>
+    {% endif %}
+    
+    {% if thematiques %}
+    <div class="thematiques">
+        <strong>Thématiques :</strong><br>
+        {% for thematique in thematiques %}
+        <span class="thematique-badge" style="background-color: {{ thematique.couleur }};">
+            {{ thematique.code }} - {{ thematique.nom }}
+        </span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+{% if due_date %}
+<div class="alert alert-info">
+    <strong>📅 Échéance :</strong> {{ due_date.strftime('%d/%m/%Y') }}<br>
+    <small>Merci de rendre votre évaluation avant cette date.</small>
+</div>
+{% endif %}
+
+<p><strong>Prochaines étapes :</strong></p>
+<ol>
+    <li>Consultez la communication complète sur votre tableau de bord</li>
+    <li>Vérifiez qu'il n'y a pas de conflit d'intérêt</li>
+    <li>Réalisez votre évaluation dans les délais impartis</li>
+    <li>Soumettez votre rapport via l'interface dédiée</li>
+</ol>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ review_url }}" class="btn">
+        📖 Consulter la communication
+    </a>
+    <a href="{{ dashboard_url }}" class="btn btn-secondary">
+        📊 Mon tableau de bord
+    </a>
+</div>
+
+<p>Merci pour votre engagement et votre expertise au service de la communauté scientifique !</p>
+
+<p>Cordialement,<br>
+<strong>L'équipe d'organisation du congrès SFT</strong></p>
+{% endblock %}

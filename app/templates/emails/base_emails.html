@@ -81,9 +81,9 @@
             background: #007bff;
             color: white;
             text-decoration: none;
-            border-radius: 5px;
+            border-radius: 4px;
             font-weight: bold;
-            margin: 10px 5px;
+            margin: 5px;
         }
         
         .btn-secondary {
@@ -94,13 +94,8 @@
             background: #28a745;
         }
         
-        .btn-warning {
-            background: #ffc107;
-            color: #333;
-        }
-        
         .alert {
-            padding: 15px;
+            padding: 12px;
             border-radius: 4px;
             margin: 15px 0;
         }
@@ -123,26 +118,20 @@
             color: #721c24;
         }
         
-        .footer {
-            text-align: center;
-            padding-top: 20px;
-            border-top: 1px solid #dee2e6;
-            color: #6c757d;
-            font-size: 12px;
-        }
-        
         .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
             gap: 15px;
             margin: 20px 0;
         }
         
         .stat-box {
-            text-align: center;
-            padding: 15px;
+            flex: 1;
+            min-width: 120px;
             background: #f8f9fa;
+            padding: 15px;
             border-radius: 8px;
+            text-align: center;
             border: 1px solid #dee2e6;
         }
         
@@ -150,16 +139,29 @@
             font-size: 24px;
             font-weight: bold;
             color: #007bff;
-            margin-bottom: 5px;
         }
         
         .stat-label {
             font-size: 12px;
             color: #6c757d;
-            text-transform: uppercase;
+            margin-top: 5px;
         }
         
-        @media (max-width: 480px) {
+        .footer {
+            border-top: 1px solid #dee2e6;
+            padding-top: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .footer a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        /* Responsive */
+        @media (max-width: 600px) {
             body {
                 padding: 10px;
             }
@@ -173,6 +175,10 @@
                 width: 100%;
                 text-align: center;
                 margin: 10px 0;
+            }
+            
+            .stats-grid {
+                flex-direction: column;
             }
         }
     </style>
@@ -193,238 +199,9 @@
                 <strong>Congrès SFT</strong><br>
                 Cet email a été envoyé automatiquement par le système de gestion du congrès.<br>
                 Pour toute question, contactez l'organisation à 
-                <a href="mailto:contact@sft.asso.fr" style="color: #007bff;">contact@sft.asso.fr</a>
+                <a href="mailto:contact@sft.asso.fr">contact@sft.asso.fr</a>
             </p>
         </div>
     </div>
 </body>
 </html>
-
-<!-- templates/emails/reviewer_assignment.html - Notification d'affectation -->
-
-{% extends 'emails/base_email.html' %}
-
-{% block title %}Nouvelle affectation de review{% endblock %}
-
-{% block header_title %}Nouvelle affectation de review{% endblock %}
-{% block header_subtitle %}Vous avez été assigné(e) comme reviewer{% endblock %}
-
-{% block content %}
-<p>Bonjour <strong>{{ reviewer.first_name or reviewer.email.split('@')[0] }}</strong>,</p>
-
-<p>Vous venez d'être assigné(e) comme reviewer pour la communication suivante :</p>
-
-<div class="communication-box">
-    <div class="communication-title">{{ communication.title }}</div>
-    
-    {% if communication.authors %}
-    <p><strong>Auteur(s) :</strong> 
-        {% for author in communication.authors %}
-            {{ author.email }}{% if author.affiliation %} ({{ author.affiliation.sigle }}){% endif %}{% if not loop.last %}, {% endif %}
-        {% endfor %}
-    </p>
-    {% endif %}
-    
-    {% if thematiques %}
-    <div class="thematiques">
-        <strong>Thématiques :</strong><br>
-        {% for thematique in thematiques %}
-        <span class="thematique-badge" style="background-color: {{ thematique.couleur }};">
-            {{ thematique.code }} - {{ thematique.nom }}
-        </span>
-        {% endfor %}
-    </div>
-    {% endif %}
-</div>
-
-{% if due_date %}
-<div class="alert alert-info">
-    <strong>📅 Échéance :</strong> {{ due_date.strftime('%d/%m/%Y') }}<br>
-    <small>Merci de rendre votre évaluation avant cette date.</small>
-</div>
-{% endif %}
-
-<p><strong>Prochaines étapes :</strong></p>
-<ol>
-    <li>Consultez la communication complète sur votre tableau de bord</li>
-    <li>Vérifiez qu'il n'y a pas de conflit d'intérêt</li>
-    <li>Réalisez votre évaluation dans les délais impartis</li>
-    <li>Soumettez votre rapport via l'interface dédiée</li>
-</ol>
-
-<div style="text-align: center; margin: 30px 0;">
-    <a href="{{ review_url }}" class="btn">
-        📖 Consulter la communication
-    </a>
-    <a href="{{ dashboard_url }}" class="btn btn-secondary">
-        📊 Mon tableau de bord
-    </a>
-</div>
-
-<p>Merci pour votre engagement et votre expertise au service de la communauté scientifique !</p>
-
-<p>Cordialement,<br>
-<strong>L'équipe d'organisation du congrès SFT</strong></p>
-{% endblock %}
-
-<!-- templates/emails/reviewer_reminder.html - Rappel -->
-
-{% extends 'emails/base_email.html' %}
-
-{% block title %}Rappel - Reviews en attente{% endblock %}
-
-{% block header_title %}Rappel Reviews{% endblock %}
-{% block header_subtitle %}{{ assignments|length }} review(s) en attente{% endblock %}
-
-{% block content %}
-<p>Bonjour <strong>{{ reviewer.first_name or reviewer.email.split('@')[0] }}</strong>,</p>
-
-<p>Ce message vous rappelle que vous avez 
-<strong>{{ assignments|length }} review(s) en attente</strong> :</p>
-
-{% for assignment in assignments %}
-<div class="communication-box">
-    <div class="communication-title">{{ assignment.communication.title }}</div>
-    
-    {% if assignment.due_date %}
-        {% if assignment.is_overdue %}
-        <div class="alert alert-danger">
-            <strong>⚠️ EN RETARD</strong> - Échéance dépassée le {{ assignment.due_date.strftime('%d/%m/%Y') }}
-        </div>
-        {% else %}
-        <div class="alert alert-warning">
-            <strong>⏰ À rendre pour le {{ assignment.due_date.strftime('%d/%m/%Y') }}</strong>
-        </div>
-        {% endif %}
-    {% endif %}
-    
-    {% if assignment.communication.thematiques %}
-    <div class="thematiques">
-        {% for thematique in assignment.communication.thematiques %}
-        <span class="thematique-badge" style="background-color: {{ thematique.couleur }};">
-            {{ thematique.code }}
-        </span>
-        {% endfor %}
-    </div>
-    {% endif %}
-</div>
-{% endfor %}
-
-<div style="text-align: center; margin: 30px 0;">
-    <a href="{{ dashboard_url }}" class="btn btn-success">
-        📝 Accéder à mes reviews
-    </a>
-</div>
-
-<p>Merci de traiter ces évaluations dans les meilleurs délais.</p>
-
-<p>Cordialement,<br>
-<strong>L'équipe d'organisation du congrès SFT</strong></p>
-{% endblock %}
-
-<!-- templates/emails/admin_weekly_summary.html - Résumé hebdomadaire admin -->
-
-{% extends 'emails/base_email.html' %}
-
-{% block title %}Résumé hebdomadaire - Reviews{% endblock %}
-
-{% block header_title %}Résumé hebdomadaire{% endblock %}
-{% block header_subtitle %}Gestion des reviews - {{ period }}{% endblock %}
-
-{% block content %}
-<p>Bonjour,</p>
-
-<p>Voici le résumé de l'activité de review pour la période du <strong>{{ period }}</strong> :</p>
-
-<div class="stats-grid">
-    <div class="stat-box">
-        <div class="stat-number">{{ stats.new_assignments }}</div>
-        <div class="stat-label">Nouvelles affectations</div>
-    </div>
-    <div class="stat-box">
-        <div class="stat-number">{{ stats.completed_reviews }}</div>
-        <div class="stat-label">Reviews terminées</div>
-    </div>
-    <div class="stat-box">
-        <div class="stat-number" style="color: #dc3545;">{{ stats.overdue_reviews }}</div>
-        <div class="stat-label">Reviews en retard</div>
-    </div>
-    <div class="stat-box">
-        <div class="stat-number" style="color: #ffc107;">{{ stats.pending_communications }}</div>
-        <div class="stat-label">Communications sans 2 reviewers</div>
-    </div>
-</div>
-
-{% if stats.overdue_reviews > 0 %}
-<div class="alert alert-warning">
-    <strong>⚠️ Attention :</strong> {{ stats.overdue_reviews }} review(s) sont en retard.
-    Pensez à relancer les reviewers concernés.
-</div>
-{% endif %}
-
-{% if stats.pending_communications > 0 %}
-<div class="alert alert-info">
-    <strong>ℹ️ Info :</strong> {{ stats.pending_communications }} communication(s) n'ont pas encore 2 reviewers assignés.
-    Utilisez l'affectation automatique si nécessaire.
-</div>
-{% endif %}
-
-<div style="text-align: center; margin: 30px 0;">
-    <a href="{{ admin_url }}" class="btn">
-        📊 Tableau de bord admin
-    </a>
-</div>
-
-<p>Cordialement,<br>
-<strong>Système de gestion du congrès SFT</strong></p>
-{% endblock %}
-
-<!-- templates/emails/welcome_reviewer.html - Email de bienvenue -->
-
-{% extends 'emails/base_email.html' %}
-
-{% block title %}Bienvenue comme reviewer{% endblock %}
-
-{% block header_title %}Bienvenue !{% endblock %}
-{% block header_subtitle %}Vous êtes maintenant reviewer pour le congrès SFT{% endblock %}
-
-{% block content %}
-<p>Bonjour <strong>{{ reviewer.first_name or reviewer.email.split('@')[0] }}</strong>,</p>
-
-<p>🎉 <strong>Félicitations !</strong> Vous venez d'être promu(e) reviewer pour le congrès SFT.</p>
-
-{% if specialites %}
-<p>Vos domaines d'expertise ont été configurés :</p>
-<div class="thematiques" style="margin: 20px 0;">
-    {% for specialite in specialites %}
-    <span class="thematique-badge" style="background-color: {{ specialite.couleur }};">
-        {{ specialite.code }} - {{ specialite.nom }}
-    </span>
-    {% endfor %}
-</div>
-{% endif %}
-
-<div class="alert alert-info">
-    <strong>En tant que reviewer, vous pourrez :</strong>
-    <ul>
-        <li>Évaluer les communications dans vos domaines d'expertise</li>
-        <li>Consulter votre tableau de bord personnalisé</li>
-        <li>Gérer vos affectations et échéances</li>
-        <li>Contribuer à la qualité scientifique du congrès</li>
-    </ul>
-</div>
-
-<div style="text-align: center; margin: 30px 0;">
-    <a href="{{ dashboard_url }}" class="btn">
-        📊 Mon tableau de bord reviewer
-    </a>
-    <a href="{{ help_url }}" class="btn btn-secondary">
-        📖 Guide du reviewer
-    </a>
-</div>
-
-<p>Nous vous remercions chaleureusement pour votre engagement et votre expertise au service de la communauté scientifique.</p>
-
-<p>Cordialement,<br>
-<strong>L'équipe d'organisation du congrès SFT</strong></p>
-{% endblock %}

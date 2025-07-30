@@ -1,0 +1,54 @@
+<!-- templates/emails/reviewer_reminder.html - Rappel -->
+
+{% extends 'emails/base_email.html' %}
+
+{% block title %}Rappel - Reviews en attente{% endblock %}
+
+{% block header_title %}Rappel Reviews{% endblock %}
+{% block header_subtitle %}{{ assignments|length }} review(s) en attente{% endblock %}
+
+{% block content %}
+<p>Bonjour <strong>{{ reviewer.first_name or reviewer.email.split('@')[0] }}</strong>,</p>
+
+<p>Ce message vous rappelle que vous avez 
+<strong>{{ assignments|length }} review(s) en attente</strong> :</p>
+
+{% for assignment in assignments %}
+<div class="communication-box">
+    <div class="communication-title">{{ assignment.communication.title }}</div>
+    
+    {% if assignment.due_date %}
+        {% if assignment.is_overdue %}
+        <div class="alert alert-danger">
+            <strong>⚠️ EN RETARD</strong> - Échéance dépassée le {{ assignment.due_date.strftime('%d/%m/%Y') }}
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <strong>⏰ À rendre pour le {{ assignment.due_date.strftime('%d/%m/%Y') }}</strong>
+        </div>
+        {% endif %}
+    {% endif %}
+    
+    {% if assignment.communication.thematiques %}
+    <div class="thematiques">
+        {% for thematique in assignment.communication.thematiques %}
+        <span class="thematique-badge" style="background-color: {{ thematique.couleur }};">
+            {{ thematique.code }}
+        </span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ dashboard_url }}" class="btn btn-success">
+        📝 Accéder à mes reviews
+    </a>
+</div>
+
+<p>Merci de traiter ces évaluations dans les meilleurs délais.</p>
+
+<p>Cordialement,<br>
+<strong>L'équipe d'organisation du congrès SFT</strong></p>
+{% endblock %}

@@ -1,0 +1,198 @@
+# templates/emails/reviewer_assignment.txt
+
+CONGRÈS SFT - Nouvelle affectation de review
+============================================
+
+Bonjour {{ reviewer.first_name or reviewer.email.split('@')[0] }},
+
+Vous venez d'être assigné(e) comme reviewer pour la communication suivante :
+
+📄 COMMUNICATION
+{{ communication.title }}
+
+{% if communication.authors %}
+👥 AUTEUR(S) : 
+{% for author in communication.authors %}
+- {{ author.email }}{% if author.affiliation %} ({{ author.affiliation.sigle }}){% endif %}
+{% endfor %}
+{% endif %}
+
+{% if thematiques %}
+🏷️ THÉMATIQUES :
+{% for thematique in thematiques %}
+- {{ thematique.code }} : {{ thematique.nom }}
+{% endfor %}
+{% endif %}
+
+{% if due_date %}
+📅 ÉCHÉANCE : {{ due_date.strftime('%d/%m/%Y') }}
+Merci de rendre votre évaluation avant cette date.
+{% endif %}
+
+🔗 LIENS UTILES :
+- Consulter la communication : {{ review_url }}
+- Mon tableau de bord : {{ dashboard_url }}
+
+PROCHAINES ÉTAPES :
+1. Consultez la communication complète sur votre tableau de bord
+2. Vérifiez qu'il n'y a pas de conflit d'intérêt
+3. Réalisez votre évaluation dans les délais impartis
+4. Soumettez votre rapport via l'interface dédiée
+
+Merci pour votre engagement et votre expertise au service de la communauté scientifique !
+
+Cordialement,
+L'équipe d'organisation du congrès SFT
+
+---
+Congrès SFT - Société Française de Thermique
+Pour toute question : contact@sft.asso.fr
+
+# templates/emails/reviewer_reminder.txt
+
+CONGRÈS SFT - Rappel Reviews en attente
+=======================================
+
+Bonjour {{ reviewer.first_name or reviewer.email.split('@')[0] }},
+
+Ce message vous rappelle que vous avez {{ assignments|length }} review(s) en attente :
+
+{% for assignment in assignments %}
+📄 {{ assignment.communication.title }}
+{% if assignment.due_date %}
+   {% if assignment.is_overdue %}
+   ⚠️  EN RETARD - Échéance dépassée le {{ assignment.due_date.strftime('%d/%m/%Y') }}
+   {% else %}
+   ⏰ À rendre pour le {{ assignment.due_date.strftime('%d/%m/%Y') }}
+   {% endif %}
+{% endif %}
+   🏷️ {{ assignment.communication.thematiques_codes|join(', ') }}
+
+{% endfor %}
+
+🔗 Accéder à mes reviews : {{ dashboard_url }}
+
+Merci de traiter ces évaluations dans les meilleurs délais.
+
+Cordialement,
+L'équipe d'organisation du congrès SFT
+
+---
+Congrès SFT - Société Française de Thermique
+Pour toute question : contact@sft.asso.fr
+
+# templates/emails/admin_weekly_summary.txt
+
+CONGRÈS SFT - Résumé hebdomadaire
+=================================
+
+Résumé de l'activité de review pour la période du {{ period }} :
+
+📊 STATISTIQUES :
+- Nouvelles affectations : {{ stats.new_assignments }}
+- Reviews terminées : {{ stats.completed_reviews }}
+- Reviews en retard : {{ stats.overdue_reviews }}
+- Communications sans 2 reviewers : {{ stats.pending_communications }}
+
+{% if stats.overdue_reviews > 0 %}
+⚠️  ATTENTION : {{ stats.overdue_reviews }} review(s) sont en retard.
+Pensez à relancer les reviewers concernés.
+
+{% endif %}
+{% if stats.pending_communications > 0 %}
+ℹ️  INFO : {{ stats.pending_communications }} communication(s) n'ont pas encore 2 reviewers assignés.
+Utilisez l'affectation automatique si nécessaire.
+
+{% endif %}
+🔗 Tableau de bord admin : {{ admin_url }}
+
+Cordialement,
+Système de gestion du congrès SFT
+
+---
+Congrès SFT - Société Française de Thermique
+
+# templates/emails/welcome_reviewer.txt
+
+CONGRÈS SFT - Bienvenue comme reviewer !
+========================================
+
+Bonjour {{ reviewer.first_name or reviewer.email.split('@')[0] }},
+
+🎉 Félicitations ! Vous venez d'être promu(e) reviewer pour le congrès SFT.
+
+{% if specialites %}
+🎯 VOS DOMAINES D'EXPERTISE :
+{% for specialite in specialites %}
+- {{ specialite.code }} : {{ specialite.nom }}
+{% endfor %}
+
+{% endif %}
+EN TANT QUE REVIEWER, VOUS POURREZ :
+✓ Évaluer les communications dans vos domaines d'expertise
+✓ Consulter votre tableau de bord personnalisé
+✓ Gérer vos affectations et échéances
+✓ Contribuer à la qualité scientifique du congrès
+
+🔗 LIENS UTILES :
+- Mon tableau de bord reviewer : {{ dashboard_url }}
+- Guide du reviewer : {{ help_url }}
+
+Nous vous remercions chaleureusement pour votre engagement et votre expertise 
+au service de la communauté scientifique.
+
+Cordialement,
+L'équipe d'organisation du congrès SFT
+
+---
+Congrès SFT - Société Française de Thermique
+Pour toute question : contact@sft.asso.fr
+
+# templates/emails/reviewer_bulk_assignments.txt
+
+CONGRÈS SFT - {{ assignments|length }} nouvelles affectations de review
+=======================================================================
+
+Bonjour {{ reviewer.first_name or reviewer.email.split('@')[0] }},
+
+Vous venez de recevoir {{ assignments|length }} nouvelles affectations de review :
+
+{% for assignment in assignments %}
+{{ loop.index }}. {{ assignment.communication.title }}
+   🏷️ {{ assignment.communication.thematiques_codes|join(', ') }}
+   {% if assignment.due_date %}📅 Échéance : {{ assignment.due_date.strftime('%d/%m/%Y') }}{% endif %}
+
+{% endfor %}
+
+🔗 Accéder à toutes mes reviews : {{ dashboard_url }}
+
+PROCHAINES ÉTAPES :
+1. Consultez chaque communication sur votre tableau de bord
+2. Vérifiez qu'il n'y a pas de conflit d'intérêt
+3. Organisez votre planning d'évaluation
+4. Réalisez vos évaluations dans les délais impartis
+
+Merci pour votre engagement et votre expertise !
+
+Cordialement,
+L'équipe d'organisation du congrès SFT
+
+---
+Congrès SFT - Société Française de Thermique
+Pour toute question : contact@sft.asso.fr
+
+# templates/emails/admin_review_completed.txt
+
+CONGRÈS SFT - Review terminée
+============================
+
+Une review vient d'être terminée :
+
+📄 COMMUNICATION : {{ communication.title }}
+👤 REVIEWER : {{ reviewer.email }}
+📅 TERMINÉE LE : {{ assignment.completed_at.strftime('%d/%m/%Y à %H:%M') }}
+
+🔗 Voir les détails : {{ admin_url }}
+
+---
+Système de gestion du congrès SFT
