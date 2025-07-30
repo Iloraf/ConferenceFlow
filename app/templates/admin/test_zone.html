@@ -1,4 +1,4 @@
-<!-- Créer le fichier : templates/admin/test_zone.html -->
+<!-- templates/admin/test_zone.html - Template complet -->
 {% extends "base.html" %}
 
 {% block title %}Zone de Test - Administration{% endblock %}
@@ -91,7 +91,7 @@
                     </div>
                     
                     <div class="d-grid gap-2">
-                        <a href="{{ url_for('admin.import_affiliations_csv') }}" class="btn btn-primary">
+                        <a href="{{ url_for('admin.import_affiliations') }}" class="btn btn-primary">
                             <i class="fas fa-upload"></i> Importer les affiliations
                         </a>
                         <a href="{{ url_for('admin.setup_status') }}" class="btn btn-outline-primary">
@@ -164,7 +164,7 @@
 
         <div class="col-md-6">
             <div class="card h-100">
-                <div class="card-header bg-danger text-white">
+                <div class="card-header bg-orange text-white" style="background-color: #fd7e14;">
                     <h5 class="mb-0"><i class="fas fa-vials"></i> 4. Tests fonctionnels</h5>
                 </div>
                 <div class="card-body">
@@ -227,6 +227,55 @@
         </div>
     </div>
 
+    <!-- Section 4: Emails de test -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-envelope"></i> 6. Tests emails</h5>
+                </div>
+                <div class="card-body">
+                    <p>Tester l'envoi des emails automatiques.</p>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin.send_test_email') }}" class="btn btn-secondary">
+                            <i class="fas fa-paper-plane"></i> Email de test
+                        </a>
+                        <a href="{{ url_for('admin.send_qr_reminders') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-qrcode"></i> Rappels QR codes
+                        </a>
+                        <a href="{{ url_for('admin.send_grouped_notifications') }}" class="btn btn-outline-info">
+                            <i class="fas fa-bell"></i> Notifications groupées
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-tools"></i> 7. Outils avancés</h5>
+                </div>
+                <div class="card-body">
+                    <p>Outils pour le debugging et l'analyse.</p>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-dark" onclick="showDatabaseInfo()">
+                            <i class="fas fa-database"></i> Info base de données
+                        </button>
+                        <a href="{{ url_for('admin.export_communications_csv') }}" class="btn btn-outline-success">
+                            <i class="fas fa-download"></i> Export CSV
+                        </a>
+                        <button class="btn btn-outline-warning" onclick="checkSystemStatus()">
+                            <i class="fas fa-heartbeat"></i> Statut système
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Section d'urgence -->
     <div class="row">
         <div class="col-12">
@@ -259,7 +308,15 @@
 
 <script>
 function listTestFiles() {
-    alert('Fichiers générés dans static/uploads/test_pdfs/:\n\n• abstract_test.pdf\n• article_test.pdf\n• wip_test.pdf\n• poster1_test.pdf\n• poster2_test.pdf');
+    const files = [
+        'abstract_test.pdf',
+        'article_test.pdf', 
+        'wip_test.pdf',
+        'poster1_test.pdf',
+        'poster2_test.pdf'
+    ];
+    
+    alert('Fichiers générés dans static/uploads/test_pdfs/:\n\n• ' + files.join('\n• '));
 }
 
 function showDatabaseInfo() {
@@ -276,5 +333,53 @@ Prêt pour les tests HAL : {{ 'Oui' if stats.affiliations > 0 and stats.users_to
     
     alert(info);
 }
+
+function checkSystemStatus() {
+    const status = [];
+    
+    // Vérification des stats
+    const stats = {
+        affiliations: {{ stats.affiliations }},
+        users: {{ stats.users_total }},
+        reviewers: {{ stats.users_reviewers }},
+        communications: {{ stats.communications }}
+    };
+    
+    if (stats.affiliations === 0) {
+        status.push('❌ Aucune affiliation - Importez le fichier CSV');
+    } else {
+        status.push('✅ Affiliations OK (' + stats.affiliations + ')');
+    }
+    
+    if (stats.users === 0) {
+        status.push('❌ Aucun utilisateur - Générez des données test');
+    } else {
+        status.push('✅ Utilisateurs OK (' + stats.users + ')');
+    }
+    
+    if (stats.reviewers === 0) {
+        status.push('⚠️ Aucun reviewer - Créez des reviewers');
+    } else {
+        status.push('✅ Reviewers OK (' + stats.reviewers + ')');
+    }
+    
+    status.push('📊 Communications : ' + stats.communications);
+    
+    // Affichage du statut
+    alert('Statut du système :\n\n' + status.join('\n'));
+}
+
+// Initialisation au chargement de la page
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Zone de test chargée');
+    
+    // Ajout de tooltips Bootstrap si disponible
+    if (typeof bootstrap !== 'undefined') {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+});
 </script>
 {% endblock %}

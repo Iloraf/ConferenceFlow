@@ -664,7 +664,10 @@ def localisation():
     }
     return render_template("conference/localisation.html", venues=venues)
 
-# Route Organisation
+
+# Fonction organisation() complète pour conference_routes.py
+# À remplacer dans le fichier app/conference_routes.py
+
 @conference.route("/organisation")
 def organisation():
     """Affiche les informations sur l'organisation."""
@@ -674,6 +677,7 @@ def organisation():
         csv_path = os.path.join(current_app.root_path, '..', 'config', filename)
 
         if not os.path.exists(csv_path):
+            current_app.logger.warning(f"Fichier CSV non trouvé : {csv_path}")
             return []
             
         data = []
@@ -699,12 +703,12 @@ def organisation():
     committees = {
         'organizing': {
             'title': 'Comité local d\'organisation',
-            'presidents': [],  # Changé en liste pour plusieurs présidents
+            'presidents': [],  # Liste pour plusieurs présidents
             'members': []
         },
         'scientific': {
             'title': 'Comité scientifique de la SFT',
-            'members': []  # Simplifié : juste des membres, pas de présidents ni thèmes
+            'members': []  # Simplifié : juste des membres
         },
         'sponsors': []
     }
@@ -718,43 +722,87 @@ def organisation():
         }
         
         # Les présidents sont identifiés par le rôle "Président"
-        if member.get('role', '').lower() in ['président', 'president']:
+        if member.get('role', '').lower() in ['président', 'president', 'présidente']:
             committees['organizing']['presidents'].append(member_data)
         else:
             committees['organizing']['members'].append(member_data)
     
     # Traitement du comité scientifique
-
-    
     for member in scientific_members:
         member_data = {
             'name': member.get('nom', ''),
-            'institution': member.get('institution', '')
+            'institution': member.get('institution', ''),
+            'role': member.get('role', '')  # Au cas où il y aurait des rôles spéciaux
         }
         committees['scientific']['members'].append(member_data)
     
-    # Tri alphabétique par nom pour le comité scientifique
-    committees['scientific']['members'].sort(key=lambda x: x['name'].split()[-1])  # Tri par nom de famille
-
+    # Tri alphabétique par nom de famille pour le comité scientifique
+    committees['scientific']['members'].sort(key=lambda x: x['name'].split()[-1])
+    
     # Traitement des sponsors
     for sponsor in sponsors_data:
         sponsor_data = {
             'name': sponsor.get('nom', ''),
-            'level': sponsor.get('niveau', 'bronze'),
-            'logo': sponsor.get('logo', 'default.png')
+            'level': sponsor.get('niveau', 'bronze').lower(),
+            'logo': sponsor.get('logo', 'default.png'),
+            'url': sponsor.get('url', ''),  # Site web du sponsor
+            'description': sponsor.get('description', '')
         }
         committees['sponsors'].append(sponsor_data)
+    
+    # Tri des sponsors par niveau (or > argent > bronze)
+    level_order = {'or': 1, 'gold': 1, 'argent': 2, 'silver': 2, 'bronze': 3}
+    committees['sponsors'].sort(key=lambda x: level_order.get(x['level'], 4))
     
     # Valeurs par défaut si aucun président n'est trouvé
     if not committees['organizing']['presidents']:
         committees['organizing']['presidents'] = [{
             'name': 'À définir', 
             'role': 'Président', 
-            'institution': ''
+            'institution': 'Organisation en cours'
         }]
-
     
-    return render_template("conference/organisation.html", committees=committees)
+    # Valeurs par défaut si aucun membre scientifique
+    if not committees['scientific']['members']:
+        committees['scientific']['members'] = [{
+            'name': 'Société Française de Thermique',
+            'institution': 'Comité scientifique en cours de constitution',
+            'role': ''
+        }]
+    
+    # Informations de contact (peuvent être déplacées dans un fichier config plus tard)
+    contact_info = {
+        'general': {
+            'email': 'contact@sft2026.fr',
+            'phone': '+33 3 XX XX XX XX',
+            'address': 'Université de Lorraine, Nancy'
+        },
+        'organization': {
+            'email': 'organisation@sft2026.fr',
+            'description': 'Questions sur l\'organisation du congrès'
+        },
+        'scientific': {
+            'email': 'scientifique@sft2026.fr',
+            'description': 'Questions scientifiques et communications'
+        },
+        'registration': {
+            'email': 'inscription@sft2026.fr',
+            'description': 'Inscriptions et paiements'
+        }
+    }
+    
+    # Statistiques pour affichage (optionnel)
+    stats = {
+        'organizing_members': len(committees['organizing']['members']) + len(committees['organizing']['presidents']),
+        'scientific_members': len(committees['scientific']['members']),
+        'sponsors_count': len(committees['sponsors'])
+    }
+    
+    return render_template("conference/organisation.html", 
+                         committees=committees,
+                         contact_info=contact_info,
+                         stats=stats)
+
 
 
 # Route Inscription conférence (différent de l'inscription utilisateur)
