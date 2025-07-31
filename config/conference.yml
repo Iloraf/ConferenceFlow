@@ -1,11 +1,5 @@
-# Configuration générale de la conférence
+# Configuration complète de la conférence SFT 2026
 # Fichier : config/conference.yml
-# Description : Paramètres principaux de la conférence scientifique
-
-metadata:
-  config_version: "1.0"
-  last_updated: "2024-01-15"
-  created_by: "ConferenceFlow"
 
 # ===== INFORMATIONS GÉNÉRALES =====
 conference:
@@ -13,8 +7,6 @@ conference:
   short_name: "SFT 2026"
   theme: "Thermique & Décarbonation de l'industrie"
   year: 2026
-  edition: 34
-  
   # Organisateur principal
   organizer:
     name: "Société Française de Thermique"
@@ -27,7 +19,7 @@ conference:
     name: "Laboratoire Énergies & Mécanique Théorique et Appliquée"
     short_name: "LEMTA"
     description: "Unité mixte de recherche de l'Université de Lorraine et du CNRS"
-    
+
   # Présidents du congrès
   presidents:
     - name: "Michel Gradeck"
@@ -35,22 +27,13 @@ conference:
     - name: "Vincent Schick"
       role: "Président"
   
-  # Site web de la conférence
-  website: "https://2026.congres-sft.fr"
-  hashtag: "#SFT2026"
-  
-  # Description
-  description: |
-    Le 34ème Congrès Français de Thermique rassemble la communauté scientifique 
-    française et internationale autour des enjeux de la thermique et de la 
-    décarbonation de l'industrie.
-
 # ===== DATES IMPORTANTES =====
 dates:
   # Dates de la conférence
   start: "2026-06-02"
   end: "2026-06-05"
-  
+  dates: "2 au 5 juin 2026"
+
   # Dates limites de soumission
   deadlines:
     abstract_submission: "2025-11-15"
@@ -66,7 +49,7 @@ dates:
     regular_end: "2026-05-15"
     late_end: "2026-05-30"
     
-  # Dates importantes
+  # Dates importantes pour affichage
   important_dates:
     - date: "2025-11-15"
       event: "Soumission des résumés"
@@ -81,97 +64,52 @@ dates:
     - date: "2026-04-20"
       event: "Soumission des works in progress"
 
-# ===== LIEU ET LOCALISATION =====
+# ===== LIEU ET LOGISTIQUE =====
 location:
-  # Lieu principal
   venue: "Domaine de l'Asnée"
   address: "11 Rue de Laxou, 54600 Villers-lès-Nancy"
   city: "Nancy"
   region: "Grand Est"
   country: "France"
-  postal_code: "54600"
-  
-  # Coordonnées GPS
   coordinates:
     latitude: 48.674
     longitude: 6.1430
-  
+    
   # Capacité
   capacity:
-    max_participants: 500
-    max_posters: 200
-    amphitheater: 400
+    main_auditorium: 400
+    parallel_rooms: 3
+    poster_area: 100
+    exhibition_stands: 20
+
+# ===== CONTACTS =====
+contacts:
+  general:
+    title: "Contact général"
+    email: "congres-sft2026@univ-lorraine.fr"
+    phone: "+33 3 83 00 00 00"
     
-  # Accessibilité
-  accessibility:
-    wheelchair_accessible: true
-    parking_available: true
-    public_transport: true
+  scientific:
+    title: "Communications scientifiques"
+    email: "congres-sft2026@univ-lorraine.fr"
+    person: "Olivier Farges"
+    
+  registration:
+    title: "Inscriptions"
+    email: "congres-sft2026@univ-lorraine.fr"
+    person: "Virginie Grandemange"
+    
+  communication:
+    title: "Communication"
+    email: "congres-sft2026@univ-lorraine.fr"
+    person: "Christelle Moine"
+    
+  website:
+    title: "Site web"
+    email: "congres-sft2026@univ-lorraine.fr"
+    person: "Ludovic Buhler"
 
-# ===== TRANSPORT =====
-transport:
-  train:
-    title: "En train"
-    description: "Gare de Nancy à 15 min en bus du centre de congrès. TGV direct depuis Paris (1h30)."
-    stations:
-      - name: "Gare de Nancy"
-        distance: "15 min en bus"
-        lines: ["TGV", "TER Grand Est"]
-  
-  car:
-    title: "En voiture"
-    description: "A31 sortie Nancy-Centre/Laxou"
-    parking:
-      available: true
-      spaces: 200
-      price: "Gratuit"
-  
-  plane:
-    title: "En avion"
-    description: "Aéroport Metz-Nancy-Lorraine (45 min). Navette toutes les heures."
-    airports:
-      - name: "Aéroport Metz-Nancy-Lorraine"
-        code: "ETZ"
-        distance: "45 min"
-        
-  local_transport:
-    title: "Transports locaux"
-    description: "Réseau de bus Stanislas"
-    lines:
-      - number: "15"
-        stop: "Laxou Les Provines"
-      - number: "13"
-        stop: "Domaine de l'Asnée"
-
-# ===== HÉBERGEMENT =====
-accommodation:
-  hotels:
-    - name: "Grand Hôtel de la Reine"
-      category: "4 étoiles"
-      address: "2 Place Stanislas, 54000 Nancy"
-      distance: "500m du centre de congrès"
-      price_range: "120-180€/nuit"
-      website: "https://hotel-de-la-reine.com"
-      
-    - name: "Mercure Nancy Centre"
-      category: "4 étoiles"
-      address: "5 Rue des Carmes, 54000 Nancy"
-      distance: "800m du centre de congrès"
-      price_range: "95-150€/nuit"
-      
-    - name: "Ibis Nancy Centre"
-      category: "3 étoiles"
-      address: "3 Rue Crampel, 54000 Nancy"
-      distance: "1km du centre de congrès"
-      price_range: "75-120€/nuit"
-      
-  university_housing:
-    available: true
-    name: "Résidence universitaire"
-    price_range: "35-50€/nuit"
-    description: "Chambres étudiantes disponibles"
-
-# ===== TARIFS D'INSCRIPTION =====
+# ===== FRAIS D'INSCRIPTION =====
 fees:
   currency: "EUR"
   
@@ -203,76 +141,37 @@ fees:
     - "Le dîner de gala"
     - "Les actes sous format numérique"
 
-# ===== CONTACTS =====
-contacts:
-  general:
-    title: "Contact général"
-    email: "congres-sft2026@univ-lorraine.fr"
-    phone: "+33 3 83 00 00 00"
-    
-  scientific:
-    title: "Communications scientifiques"
-    email: "congres-sft2026@univ-lorraine.fr"
-    person: "Olivier Farges"
-    
-  registration:
-    title: "Inscriptions"
-    email: "congres-sft2026@univ-lorraine.fr"
-    person: "Virginie Grandemange"
-    
-  communication:
-    title: "Communication"
-    email: "congres-sft2026@univ-lorraine.fr"
-    person: "Christelle Moine"
-    
-  website:
-    title: "Site web"
-    email: "congres-sft2026@univ-lorraine.fr"
-    person: "Ludovic Buhler"
-
-# ===== WORKFLOW DE SOUMISSION =====
-submission:
-  # Types de communications acceptées
+# ===== SOUMISSIONS =====
+submissions:
   types:
-    article:
-      name: "Article complet"
-      description: "Travaux aboutis avec résultats complets"
-      pages: "6-8 pages"
-      review_process: true
+    - name: "Article complet"
+      code: "article"
+      description: "Communication aboutie avec résultats finalisés"
+      max_pages: 6
+      review_type: "peer_review"
       
-    wip:
-      name: "Work in Progress"
-      description: "Présentations, par posters uniquement, des travaux n'ayant pas pu faire l'objet d'un article"
-      pages: "Poster uniquement"
-      review_process: false
-      deadline: "2026-04-20"
+    - name: "Work in Progress"
+      code: "wip"
+      description: "Travaux en cours avec résultats préliminaires"
+      max_pages: 4
+      review_type: "editorial"
       
-    poster:
-      name: "Poster"
-      description: "Présentation visuelle avec QR code"
+    - name: "Poster"
+      code: "poster"
+      description: "Présentation sous forme d'affiche"
       format: "A0 portrait"
-      review_process: false
+      review_type: "editorial"
       
-  # Paramètres de review
-  review:
-    reviewers_per_paper: 2
-    review_deadline_weeks: 3
-    conflict_detection: true
-    anonymous_review: true
+  guidelines:
+    language: "français"
+    template_required: true
+    blind_review: true
+    max_authors: 8
+    corresponding_author_required: true
     
-  # Prix Biot-Fourier
-  biot_fourier_award:
-    enabled: true
-    title: "Prix Biot-Fourier 2026"
-    description: "Le prix sera décerné à la meilleure communication d'un.e jeune thermicien.ne"
-    
-  # Publications
-  publications:
-    actes_congres: true
-    doi_attribution: true
-    hal_deposit: true
-    selection_criteria: "Le Comité scientifique de la SFT sélectionnera les textes retenus dans les Actes du Congrès"
-    payment_required: "La publication de chaque communication est soumise au règlement effectif des frais de participation d'au moins un des auteurs avant le 15 avril 2026"
+  requirements:
+    hal_deposit: "Obligatoire pour les articles acceptés"
+    payment_condition: "Paiement effectif des frais de participation d'au moins un des auteurs avant le 15 avril 2026"
     
   # Formats de fichiers acceptés
   file_formats:
@@ -360,3 +259,37 @@ statistics:
     - year: 2022
       location: "Belfort"
       participants: 350
+
+# ===== TRANSPORT ET HÉBERGEMENT =====
+transport:
+  airports:
+    - name: "Aéroport Metz-Nancy-Lorraine"
+      distance_km: 45
+      shuttle_available: true
+      
+  train_stations:
+    - name: "Gare de Nancy"
+      distance_km: 8
+      direct_connection: "TGV Paris (1h30)"
+      
+  parking:
+    spaces: 200
+    free: true
+    
+accommodation:
+  partner_hotels:
+    - name: "Grand Hôtel de la Reine"
+      stars: 4
+      distance_km: 5
+      special_rate: 120
+      
+    - name: "Mercure Nancy Centre"
+      stars: 4
+      distance_km: 6
+      special_rate: 95
+      
+    - name: "Ibis Nancy Centre"
+      stars: 3
+      distance_km: 7
+      special_rate: 75
+
