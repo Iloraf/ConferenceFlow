@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Communications - Admin SFT 2026{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-line me-2"></i>Dashboard Communications</h2>
+    <div>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary me-2">
+            <i class="fas fa-arrow-left me-2"></i>Retour admin
+        </a>
+        <a href="{{ url_for('admin.export_communications_csv') }}" class="btn btn-success">
+            <i class="fas fa-download me-2"></i>Export CSV
+        </a>
+    </div>
+</div>
+
+<!-- Cartes de statistiques -->
+<div class="row mb-4">
+    {% for card in stats_cards %}
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="mb-2" style="color: {{ card.color }};">
+                    <i class="{{ card.icon }} fa-2x"></i>
+                </div>
+                <h3 class="mb-1">{{ card.value }}</h3>
+                <small class="text-muted">{{ card.label }}</small>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Onglets pour Articles/WIPs -->
+<ul class="nav nav-tabs" id="communicationTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="articles-tab" data-bs-toggle="tab" data-bs-target="#articles" 
+                type="button" role="tab" aria-controls="articles" aria-selected="true">
+            <i class="fas fa-newspaper me-2"></i>Articles ({{ articles|length }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="wips-tab" data-bs-toggle="tab" data-bs-target="#wips" 
+                type="button" role="tab" aria-controls="wips" aria-selected="false">
+            <i class="fas fa-cogs me-2"></i>Work in Progress ({{ wips|length }})
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="communicationTabsContent">
+    <!-- Onglet Articles -->
+    <div class="tab-pane fade show active" id="articles" role="tabpanel" aria-labelledby="articles-tab">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0">Articles complets</h5>
+                    </div>
+                    <div class="col-auto">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="sendBulkEmail('articles', 'authors')" id="emailAuthorsBtn">
+                                <i class="fas fa-envelope"></i> Email auteurs
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="sendBulkEmail('articles', 'reviewers')" id="emailReviewersBtn">
+                                <i class="fas fa-user-edit"></i> Email reviewers
+                            </button>
+                            <button class="btn btn-outline-info btn-sm" onclick="debugCheckboxes('articles')" title="Debug">
+                                <i class="fas fa-bug"></i> Test
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <input type="checkbox" class="form-check-input" id="selectAllArticles" 
+                                           onchange="toggleSelectAll('articles')">
+                                </th>
+                                <th>Titre</th>
+                                <th>Auteurs</th>
+                                <th>Statut</th>
+                                <th>Reviews</th>
+                                <th>Thématiques</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for article in articles %}
+                            <tr data-communication-id="{{ article.id }}" class="communication-row">
+                                <td>
+                                    <input type="checkbox" class="form-check-input article-checkbox" 
+                                           value="{{ article.id }}">
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong>{{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}</strong>
+                                        <br><small class="text-muted">ID: {{ article.id }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% for author in article.authors[:2] %}
+                                        <div class="small">{{ author.full_name or author.email }}</div>
+                                    {% endfor %}
+                                    {% if article.authors|length > 2 %}
+                                        <small class="text-muted">+{{ article.authors|length - 2 }} autres</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% set status_colors = {
+                                        'résumé_soumis': 'info',
+                                        'article_soumis': 'warning',
+                                        'en_review': 'primary',
+                                        'révision_demandée': 'warning',
+                                        'accepté': 'success',
+                                        'rejeté': 'danger',
+                                        'poster_soumis': 'info'
+                                    } %}
+                                    <span class="badge bg-{{ status_colors.get(article.status.value, 'secondary') }}">
+                                        {{ article.status.value.replace('_', ' ').title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% set review_count = article.reviews|length %}
+                                    {% if review_count == 0 %}
+                                        <span class="badge bg-light text-dark">Aucune</span>
+                                    {% elif review_count < 2 %}
+                                        <span class="badge bg-warning">{{ review_count }}/2</span>
+                                    {% else %}
+                                        <span class="badge bg-success">{{ review_count }}/2</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if article.thematiques_codes %}
+                                        {% for code in article.thematiques_codes.split(',')[:2] %}
+                                            <span class="badge bg-secondary me-1">{{ code.strip() }}</span>
+                                        {% endfor %}
+                                        {% if article.thematiques_codes.split(',')|length > 2 %}
+                                            <span class="badge bg-light text-dark">+{{ article.thematiques_codes.split(',')|length - 2 }}</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('admin.view_communication_details', comm_id=article.id) }}" 
+                                           class="btn btn-outline-primary btn-sm" title="Détails">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('admin.email_authors', comm_id=article.id) }}" 
+                                           class="btn btn-outline-info btn-sm" title="Email auteurs">
+                                            <i class="fas fa-envelope"></i>
+                                        </a>
+                                        {% if article.reviews %}
+                                        <a href="{{ url_for('admin.email_reviewers', comm_id=article.id) }}" 
+                                           class="btn btn-outline-warning btn-sm" title="Email reviewers">
+                                            <i class="fas fa-user-edit"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Onglet WIPs -->
+    <div class="tab-pane fade" id="wips" role="tabpanel" aria-labelledby="wips-tab">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0">Work in Progress</h5>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-outline-primary btn-sm" onclick="sendBulkEmail('wips', 'authors')">
+                            <i class="fas fa-envelope"></i> Email auteurs
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <input type="checkbox" class="form-check-input" id="selectAllWips" 
+                                           onchange="toggleSelectAll('wips')">
+                                </th>
+                                <th>Titre</th>
+                                <th>Auteurs</th>
+                                <th>Statut</th>
+                                <th>Thématiques</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for wip in wips %}
+                            <tr data-communication-id="{{ wip.id }}" class="communication-row">
+                                <td>
+                                    <input type="checkbox" class="form-check-input wip-checkbox" 
+                                           value="{{ wip.id }}">
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong>{{ wip.title[:50] }}{% if wip.title|length > 50 %}...{% endif %}</strong>
+                                        <br><small class="text-muted">ID: {{ wip.id }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% for author in wip.authors[:2] %}
+                                        <div class="small">{{ author.full_name or author.email }}</div>
+                                    {% endfor %}
+                                    {% if wip.authors|length > 2 %}
+                                        <small class="text-muted">+{{ wip.authors|length - 2 }} autres</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-purple text-white">
+                                        {{ wip.status.value.replace('_', ' ').title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if wip.thematiques_codes %}
+                                        {% for code in wip.thematiques_codes.split(',')[:2] %}
+                                            <span class="badge bg-secondary me-1">{{ code.strip() }}</span>
+                                        {% endfor %}
+                                        {% if wip.thematiques_codes.split(',')|length > 2 %}
+                                            <span class="badge bg-light text-dark">+{{ wip.thematiques_codes.split(',')|length - 2 }}</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('admin.view_communication_details', comm_id=wip.id) }}" 
+                                           class="btn btn-outline-primary btn-sm" title="Détails">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('admin.email_authors', comm_id=wip.id) }}" 
+                                           class="btn btn-outline-info btn-sm" title="Email auteurs">
+                                            <i class="fas fa-envelope"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour emails groupés -->
+<div class="modal fade" id="bulkEmailModal" tabindex="-1" aria-labelledby="bulkEmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkEmailModalLabel">Envoi d'email groupé</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bulkEmailForm">
+                    <input type="hidden" id="bulkRecipientType" name="recipient">
+                    <input type="hidden" id="bulkCommunicationType" name="communication_type">
+                    
+                    <div class="mb-3">
+                        <label for="bulkSubject" class="form-label">Sujet</label>
+                        <input type="text" class="form-control" id="bulkSubject" name="subject" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="bulkContent" class="form-label">Message</label>
+                        <textarea class="form-control" id="bulkContent" name="content" rows="8" required 
+                                  placeholder="Utilisez [NOM], [PRENOM], [TITRE_COMMUNICATION] pour personnaliser"></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <strong>Communications sélectionnées :</strong>
+                        <div id="selectedCommunications"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="sendBulkEmailSubmit()">
+                    <i class="fas fa-paper-plane me-2"></i>Envoyer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-purple {
+    background-color: #6f42c1 !important;
+}
+</style>
+
+<script>
+// Fonction de debug pour identifier le problème
+function debugCheckboxes(type) {
+    console.log('=== DEBUG CHECKBOXES ===');
+    console.log('Type demandé:', type);
+    
+    // Vérifier tous les sélecteurs possibles
+    const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+    console.log('Total de cases à cocher sur la page:', allCheckboxes.length);
+    
+    const articleCheckboxes = document.querySelectorAll('.article-checkbox');
+    console.log('Cases avec classe .article-checkbox:', articleCheckboxes.length);
+    
+    const checkedArticles = document.querySelectorAll('.article-checkbox:checked');
+    console.log('Cases .article-checkbox cochées:', checkedArticles.length);
+    
+    // Afficher les valeurs des cases cochées
+    checkedArticles.forEach((cb, index) => {
+        console.log(`Case ${index + 1}: valeur = ${cb.value}, cochée = ${cb.checked}`);
+    });
+    
+    alert(`Debug: ${checkedArticles.length} articles sélectionnés. Voir console pour détails.`);
+}
+
+function toggleSelectAll(type) {
+    console.log('Toggle select all pour:', type);
+    
+    let checkboxes, selectAll;
+    
+    if (type === 'articles') {
+        checkboxes = document.querySelectorAll('.article-checkbox');
+        selectAll = document.getElementById('selectAllArticles');
+    } else if (type === 'wips') {
+        checkboxes = document.querySelectorAll('.wip-checkbox');
+        selectAll = document.getElementById('selectAllWips');
+    }
+    
+    console.log('Cases trouvées:', checkboxes.length);
+    console.log('État du selectAll:', selectAll ? selectAll.checked : 'non trouvé');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+function sendBulkEmail(communicationType, recipientType) {
+    // Debug: Afficher les informations dans la console
+    console.log('Type de communication:', communicationType);
+    console.log('Type de destinataire:', recipientType);
+    
+    // Sélecteur plus robuste
+    let checkboxes;
+    if (communicationType === 'articles') {
+        checkboxes = document.querySelectorAll('.article-checkbox:checked');
+    } else if (communicationType === 'wips') {
+        checkboxes = document.querySelectorAll('.wip-checkbox:checked');
+    } else {
+        checkboxes = document.querySelectorAll('.communication-checkbox:checked');
+    }
+    
+    console.log('Cases cochées trouvées:', checkboxes.length);
+    console.log('Sélecteur utilisé:', communicationType === 'articles' ? '.article-checkbox:checked' : '.wip-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        alert('Veuillez sélectionner au moins une communication.');
+        return;
+    }
+    
+    // Remplir le modal
+    document.getElementById('bulkRecipientType').value = recipientType;
+    document.getElementById('bulkCommunicationType').value = communicationType;
+    
+    // Afficher les communications sélectionnées
+    const selectedDiv = document.getElementById('selectedCommunications');
+    selectedDiv.innerHTML = `${checkboxes.length} communication(s) sélectionnée(s)`;
+    
+    // Titre du modal
+    const modalTitle = document.getElementById('bulkEmailModalLabel');
+    modalTitle.textContent = `Envoi d'email aux ${recipientType === 'authors' ? 'auteurs' : 'reviewers'} - ${communicationType.toUpperCase()}`;
+    
+    // Ouvrir le modal
+    new bootstrap.Modal(document.getElementById('bulkEmailModal')).show();
+}
+
+function sendBulkEmailSubmit() {
+    const form = document.getElementById('bulkEmailForm');
+    const formData = new FormData(form);
+    
+    // Récupérer les IDs des communications sélectionnées
+    const communicationType = formData.get('communication_type');
+    
+    // Sélecteur plus robuste
+    let checkboxes;
+    if (communicationType === 'articles') {
+        checkboxes = document.querySelectorAll('.article-checkbox:checked');
+    } else if (communicationType === 'wips') {
+        checkboxes = document.querySelectorAll('.wip-checkbox:checked');
+    }
+    
+    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    console.log('IDs sélectionnés pour envoi:', selectedIds);
+    
+    // Préparer les données
+    const data = {
+        recipient: formData.get('recipient'),
+        subject: formData.get('subject'),
+        content: formData.get('content'),
+        [communicationType]: selectedIds
+    };
+    
+    // Envoyer la requête
+    fetch('{{ url_for("admin.send_bulk_email") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            // Fermer le modal
+            bootstrap.Modal.getInstance(document.getElementById('bulkEmailModal')).hide();
+            // Décocher toutes les cases
+            checkboxes.forEach(cb => cb.checked = false);
+        } else {
+            alert('Erreur : ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de l\'envoi');
+    });
+}
+</script>
+{% endblock %}

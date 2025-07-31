@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}Email aux auteurs - {{ communication.title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="fas fa-envelope me-2"></i>
+                Envoyer un email aux auteurs
+            </h2>
+            
+            <!-- Informations sur la communication -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Communication concernée</h5>
+                </div>
+                <div class="card-body">
+                    <h6>{{ communication.title }}</h6>
+                    <p class="mb-2"><strong>ID:</strong> {{ communication.id }}</p>
+                    <p class="mb-2"><strong>Type:</strong> {{ communication.type.title() }}</p>
+                    <p class="mb-2"><strong>Statut:</strong> 
+                        <span class="badge bg-info">{{ communication.status.value.replace('_', ' ').title() }}</span>
+                    </p>
+                    <p class="mb-0"><strong>Auteurs:</strong></p>
+                    <ul class="mb-0">
+                        {% for author in communication.authors %}
+                        <li>{{ author.first_name }} {{ author.last_name }} ({{ author.email }})</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Formulaire d'email -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Composer l'email</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('admin.send_individual_email') }}" method="POST">
+                        <input type="hidden" name="communication_id" value="{{ communication.id }}">
+                        <input type="hidden" name="recipient_type" value="authors">
+                        
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">Sujet</label>
+                            <input type="text" class="form-control" id="subject" name="subject" 
+                                   value="Concernant votre communication: {{ communication.title }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="template" class="form-label">Template prédéfini</label>
+                            <select class="form-select" id="template" onchange="loadTemplate()">
+                                <option value="">Email personnalisé</option>
+                                <option value="acceptation">Notification d'acceptation</option>
+                                <option value="refus">Notification de refus</option>
+                                <option value="revision">Demande de révision</option>
+                                <option value="rappel">Rappel d'action</option>
+                                <option value="information">Information générale</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Message</label>
+                            <textarea class="form-control" id="content" name="content" rows="10" required>Bonjour [PRENOM] [NOM],
+
+Concernant votre communication "{{ communication.title }}" (ID: {{ communication.id }}),
+
+[Votre message ici]
+
+Variables disponibles:
+- [PRENOM] : Prénom de l'auteur
+- [NOM] : Nom de l'auteur
+- [TITRE_COMMUNICATION] : Titre de la communication
+- [ID_COMMUNICATION] : ID de la communication
+
+Cordialement,
+L'équipe d'organisation SFT 2026</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="copy_admin" name="copy_admin" checked>
+                                <label class="form-check-label" for="copy_admin">
+                                    M'envoyer une copie
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            L'email sera envoyé à {{ communication.authors|length }} auteur(s) avec le design SFT 2026.
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin.communications_dashboard') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i>Envoyer l'email
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Templates d'emails définis dans la route
+const emailTemplates = {{ email_templates|tojson }};
+
+function loadTemplate() {
+    const templateKey = document.getElementById('template').value;
+    const contentTextarea = document.getElementById('content');
+    const subjectInput = document.getElementById('subject');
+    
+    if (emailTemplates[templateKey]) {
+        subjectInput.value = emailTemplates[templateKey].subject;
+        contentTextarea.value = emailTemplates[templateKey].content;
+    }
+}
+</script>
+{% endblock %}

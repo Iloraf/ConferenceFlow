@@ -165,77 +165,276 @@
             </div>
         </div>
         <!-- Bouton inscription -->
-        <div class="text-center">
-          <h3 class="mb-3">Prêt à vous inscrire ?</h3>
-<a href="https://2026.congres-sft.fr/index.php?langue=fr&onglet=6" class="btn btn-primary btn-lg me-2" target="_blank">
-    <i class="fas fa-external-link-alt me-2"></i>S'inscrire au congrès
-</a>
-<a href="https://2026.congres-sft.fr/index.php?langue=fr&onglet=12" class="btn btn-primary btn-lg me-2" target="_blank">
-    <i class="fas fa-external-link-alt me-2"></i>Inscrire un accompagnant 
-</a>
+<div class="text-center">
+    <h3 class="mb-3">Prêt à vous inscrire ?</h3>
+    
+    <button class="btn btn-primary btn-lg me-2" onclick="ouvrirInscription('participant')">
+        <i class="fas fa-user-graduate me-2"></i>S'inscrire au congrès
+    </button>
+    <button class="btn btn-warning btn-lg" onclick="ouvrirInscription('accompagnant')">
+        <i class="fas fa-user-friends me-2"></i>Inscrire un accompagnant
+    </button>
+    
+    <div class="mt-3">
+        <small class="text-muted">
+            <i class="fas fa-shield-alt me-1"></i>
+            Plateforme sécurisée • Paiement protégé
+        </small>
+    </div>
+</div>
 
+<!-- Modal pour l'inscription en iframe -->
+<div class="modal fade" id="inscriptionModal" tabindex="-1" aria-labelledby="inscriptionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white;">
+                <div class="d-flex align-items-center w-100">
+                    <div class="me-3">
+                        <i class="fas fa-ticket-alt fa-2x"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="modal-title mb-0" id="inscriptionModalLabel">
+                            Inscription SFT 2026
+                        </h5>
+                        <small class="opacity-75">34ème Congrès Français de Thermique</small>
+                    </div>
+                    <div class="me-3">
+                        <span class="badge bg-success">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            Sécurisé
+                        </span>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Message de transition -->
+                <div class="alert alert-info m-3" id="transitionMessage" style="display: none;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-sync-alt fa-spin me-2"></i>
+                        <span>Chargement de la plateforme d'inscription sécurisée...</span>
+                    </div>
+                </div>
+                
+                <!-- Iframe pour le formulaire externe -->
+                <iframe id="inscriptionIframe" 
+                        style="width: 100%; height: 80vh; border: none;" 
+                        src="" 
+                        title="Formulaire d'inscription SFT 2026">
+                </iframe>
+            </div>
+            <div class="modal-footer" style="background-color: #f8f9fa;">
+                <small class="text-muted me-auto">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Vous restez sur le site officiel SFT 2026
+                </small>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Fermer
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
+<!-- Overlay de chargement -->
+<div id="loadingOverlay" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.95);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+">
+    <div class="text-center">
+        <div style="
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        "></div>
+        <h5 class="text-primary">Préparation de votre inscription...</h5>
+        <p class="text-muted">Connexion à la plateforme sécurisée</p>
+    </div>
+</div>
 
 <style>
-.price-box {
-    border-radius: 15px;
-    padding: 1.5rem;
-    color: white;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease;
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
-.price-box:hover {
-    transform: translateY(-5px);
+/* Animation pour les boutons */
+.btn {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.price-box h4 {
-    margin-bottom: 1rem;
-    font-weight: 600;
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
 
-.price-amount {
-    font-size: 2rem;
-    font-weight: bold;
+/* Effet de brillance sur les boutons */
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
 }
 
-.price-header.early-bird {
-    border-radius: 15px !important;
-    padding: 1.5rem;
+.btn:hover::before {
+    left: 100%;
 }
 
-
-.price-header.regular-price {
-    border-radius: 15px !important;
-    padding: 1.5rem;
+/* Style pour l'iframe */
+#inscriptionIframe {
+    border-radius: 0 0 10px 10px;
 }
 
+/* Responsive pour mobile */
+@media (max-width: 768px) {
+    .modal-xl {
+        margin: 0.5rem;
+    }
+    
+    #inscriptionIframe {
+        height: 70vh;
+    }
+}
 </style>
 
-<!-- Modal d'inscription (pour utilisateurs connectés)
-{% if current_user.is_authenticated %}
-<div class="modal fade" id="registrationModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Inscription à SFT 2026</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Le système d'inscription en ligne sera disponible prochainement.</p>
-                <p>En attendant, vous pouvez nous contacter pour réserver votre place.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                <a href="{{ url_for('conference.contact') }}" class="btn btn-primary">
-                    <i class="fas fa-envelope me-2"></i>Nous contacter
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %} -->
+<script>
+// URLs des plateformes d'inscription
+const urlsInscription = {
+    participant: 'https://2026.congres-sft.fr/index.php?langue=fr&onglet=6',
+    accompagnant: 'https://2026.congres-sft.fr/index.php?langue=fr&onglet=12'
+};
+
+function ouvrirInscription(type) {
+    // Afficher l'overlay de chargement
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    
+    // Mettre à jour le titre du modal selon le type
+    const titre = type === 'participant' ? 
+        'Inscription Participant - SFT 2026' : 
+        'Inscription Accompagnant - SFT 2026';
+    document.getElementById('inscriptionModalLabel').textContent = titre;
+    
+    // Afficher le message de transition
+    document.getElementById('transitionMessage').style.display = 'block';
+    
+    // Simuler un délai de chargement pour une meilleure UX
+    setTimeout(() => {
+        // Masquer l'overlay
+        document.getElementById('loadingOverlay').style.display = 'none';
+        
+        // Configurer l'iframe avec l'URL appropriée
+        const iframe = document.getElementById('inscriptionIframe');
+        iframe.src = urlsInscription[type];
+        
+        // Ouvrir le modal
+        const modal = new bootstrap.Modal(document.getElementById('inscriptionModal'), {
+            backdrop: 'static', // Empêche la fermeture en cliquant à l'extérieur
+            keyboard: true      // Permet la fermeture avec Echap
+        });
+        modal.show();
+        
+        // Masquer le message de transition une fois l'iframe chargée
+        iframe.onload = () => {
+            setTimeout(() => {
+                document.getElementById('transitionMessage').style.display = 'none';
+            }, 1000);
+        };
+        
+        // Tracking analytics (optionnel)
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'inscription_ouverture', {
+                'event_category': 'inscription',
+                'event_label': type,
+                'value': 1
+            });
+        }
+        
+        console.log(`Ouverture inscription ${type}`);
+    }, 800); // Délai de 800ms pour l'effet
+}
+
+// Gestion des événements du modal
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('inscriptionModal');
+    
+    // Quand le modal se ferme
+    modal.addEventListener('hidden.bs.modal', function () {
+        // Vider l'iframe pour économiser les ressources
+        document.getElementById('inscriptionIframe').src = '';
+        
+        // Masquer le message de transition
+        document.getElementById('transitionMessage').style.display = 'none';
+        
+        console.log('Modal inscription fermé');
+    });
+    
+    // Quand le modal s'ouvre
+    modal.addEventListener('shown.bs.modal', function () {
+        console.log('Modal inscription ouvert');
+    });
+});
+
+// Gestion des messages depuis l'iframe (communication cross-origin si supportée)
+window.addEventListener('message', function(event) {
+    // Vérifier l'origine pour la sécurité
+    if (!event.origin.includes('congres-sft.fr')) return;
+    
+    const data = event.data;
+    
+    // Si inscription réussie
+    if (data.type === 'inscription_success') {
+        // Fermer le modal
+        bootstrap.Modal.getInstance(document.getElementById('inscriptionModal')).hide();
+        
+        // Afficher un message de succès
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>Inscription réussie !</strong> Vous allez recevoir un email de confirmation.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Insérer l'alerte en haut de la page
+        document.querySelector('.row').insertBefore(alertDiv, document.querySelector('.row').firstChild);
+        
+        // Scroll vers le haut
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+});
+
+// Amélioration UX : préchargement des iframes (optionnel)
+function prechargerIframes() {
+    // Créer des iframes cachées pour accélérer le chargement
+    Object.keys(urlsInscription).forEach(type => {
+        const iframe = document.createElement('iframe');
+        iframe.src = urlsInscription[type];
+        iframe.style.display = 'none';
+        iframe.style.width = '1px';
+        iframe.style.height = '1px';
+        document.body.appendChild(iframe);
+    });
+}
+
+// Précharger après 2 secondes (pour ne pas ralentir le chargement initial)
+setTimeout(prechargerIframes, 2000);
+</script>
 {% endblock %}

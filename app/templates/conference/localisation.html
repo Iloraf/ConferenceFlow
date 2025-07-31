@@ -42,31 +42,455 @@
         </div>
         
         <!-- Hébergements -->
-        <h2 class="mb-4"><i class="fas fa-bed me-2"></i>Hébergements partenaires</h2>
-        <div class="row mb-5">
-            {% for hotel in venues.hotels %}
-            <div class="col-md-4 mb-3">
-                <div class="card h-100 venue-card hotel-card">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ hotel.name }}</h5>
-                        <p class="star-rating mb-2">
-                            {% for i in range(hotel.stars) %}
-                                <i class="fas fa-star"></i>
-                            {% endfor %}
+<!-- Remplacer la section "Hébergements" dans votre template localisation.html -->
+
+<!-- Hébergements -->
+<h2 class="mb-4"><i class="fas fa-bed me-2"></i>Hébergements partenaires</h2>
+
+<!-- Introduction avec avantages -->
+<div class="alert alert-success mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h5 class="alert-heading mb-2">
+                <i class="fas fa-handshake me-2"></i>Réservation avec tarifs préférentiels
+            </h5>
+            <p class="mb-0">
+                Bénéficiez de tarifs négociés et d'un service de réservation simplifié 
+                grâce à notre partenariat avec des hôtels sélectionnés à Nancy.
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <span class="badge bg-success fs-6 p-2">
+                <i class="fas fa-percentage me-1"></i>
+                Jusqu'à -20%
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Options de réservation -->
+<div class="row mb-4">
+    <!-- Réservation en ligne -->
+    <div class="col-lg-8 mb-4">
+        <div class="card border-primary shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-laptop me-2"></i>
+                    Réservation en ligne - Plateforme officielle
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="text-primary">Recherche et réservation instantanée</h5>
+                        <ul class="list-unstyled mb-3">
+                            <li><i class="fas fa-check text-success me-2"></i>Sélection d'hôtels partenaires</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Tarifs négociés SFT 2026</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Confirmation immédiate</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Annulation flexible</li>
+                        </ul>
+                        <p class="text-muted mb-0">
+                            <small>
+                                <i class="fas fa-calendar-alt me-1"></i>
+                                Dates pré-remplies : 1-5 juin 2026
+                            </small>
                         </p>
-                        <p class="mb-1"><i class="fas fa-map-marker-alt me-2 text-muted"></i>{{ hotel.address }}</p>
-                        <p class="mb-1"><i class="fas fa-walking me-2 text-muted"></i>{{ hotel.distance }}</p>
-                        <p class="mb-0"><strong>{{ hotel.price }}</strong></p>
-                        <div class="mt-3">
-                            <button class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-external-link-alt me-1"></i>Réserver
-                            </button>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <button class="btn btn-primary btn-lg" onclick="ouvrirReservationHotel()">
+                            <i class="fas fa-search me-2"></i>
+                            Rechercher un hôtel
+                        </button>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-shield-alt me-1"></i>
+                                Réservation sécurisée
+                            </small>
                         </div>
                     </div>
                 </div>
             </div>
-            {% endfor %}
         </div>
+    </div>
+    
+    <!-- Informations pratiques -->
+    <div class="col-lg-4 mb-4">
+        <div class="card border-info h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Infos pratiques
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="info-item mb-3">
+                    <div class="d-flex align-items-center mb-1">
+                        <i class="fas fa-calendar text-primary me-2"></i>
+                        <strong>Dates du congrès</strong>
+                    </div>
+                    <small class="text-muted">2-5 juin 2026</small>
+                </div>
+                
+                <div class="info-item mb-3">
+                    <div class="d-flex align-items-center mb-1">
+                        <i class="fas fa-clock text-primary me-2"></i>
+                        <strong>Check-in suggéré</strong>
+                    </div>
+                    <small class="text-muted">1er juin (dimanche)</small>
+                </div>
+                
+                <div class="info-item mb-3">
+                    <div class="d-flex align-items-center mb-1">
+                        <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                        <strong>Rayon de recherche</strong>
+                    </div>
+                    <small class="text-muted">1 km du centre de congrès</small>
+                </div>
+                
+                <div class="alert alert-warning p-2 mb-0">
+                    <small>
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <strong>Réservez tôt !</strong><br>
+                        Les tarifs augmentent avec le temps
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hôtels recommandés (si vous voulez garder quelques exemples) -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h4 class="mb-0">
+            <i class="fas fa-star me-2"></i>
+            Sélection d'hôtels partenaires
+        </h4>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Exemples d'hôtels -->
+            <div class="col-md-4 mb-3">
+                <div class="hotel-preview-card">
+                    <div class="d-flex align-items-center">
+                        <div class="hotel-icon me-3">
+                            <i class="fas fa-building text-primary fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">Hôtels centre-ville</h6>
+                            <small class="text-muted">À partir de 85€/nuit</small>
+                            <div class="star-rating">
+                                <i class="fas fa-star text-warning"></i>
+                                <i class="fas fa-star text-warning"></i>
+                                <i class="fas fa-star text-warning"></i>
+                                <i class="fas fa-star text-warning"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+                <div class="hotel-preview-card">
+                    <div class="d-flex align-items-center">
+                        <div class="hotel-icon me-3">
+                            <i class="fas fa-tree text-success fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">Hôtels proche venue</h6>
+                            <small class="text-muted">À partir de 70€/nuit</small>
+                            <div class="star-rating">
+                                <i class="fas fa-star text-warning"></i>
+                                <i class="fas fa-star text-warning"></i>
+                                <i class="fas fa-star text-warning"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+                <div class="hotel-preview-card">
+                    <div class="d-flex align-items-center">
+                        <div class="hotel-icon me-3">
+                            <i class="fas fa-euro-sign text-info fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">Hôtels économiques</h6>
+                            <small class="text-muted">À partir de 55€/nuit</small>
+                            <div class="star-rating">
+                                <i class="fas fa-star text-warning"></i>
+                                <i class="fas fa-star text-warning"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-3">
+            <button class="btn btn-outline-primary" onclick="ouvrirReservationHotel()">
+                <i class="fas fa-eye me-2"></i>
+                Voir tous les hôtels disponibles
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Contact pour assistance -->
+<div class="alert alert-light border">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h6 class="mb-1">
+                <i class="fas fa-headset me-2"></i>
+                Besoin d'aide pour votre réservation ?
+            </h6>
+            <p class="mb-0 text-muted">
+                Notre équipe peut vous accompagner dans la recherche et la réservation 
+                de votre hébergement.
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="mailto:congres-sft2026@univ-lorraine.fr" class="btn btn-outline-primary">
+                <i class="fas fa-envelope me-2"></i>
+                Nous contacter
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour la réservation H-Resa -->
+<div class="modal fade" id="hotelModal" tabindex="-1" aria-labelledby="hotelModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
+                <div class="d-flex align-items-center w-100">
+                    <div class="me-3">
+                        <i class="fas fa-bed fa-2x"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="modal-title mb-0" id="hotelModalLabel">
+                            Réservation d'hébergement - SFT 2026
+                        </h5>
+                        <small class="opacity-75">Powered by H-Resa • Tarifs négociés</small>
+                    </div>
+                    <div class="me-3">
+                        <span class="badge bg-success">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            Sécurisé
+                        </span>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Message de chargement -->
+                <div class="alert alert-info m-3" id="hotelTransitionMessage" style="display: none;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-sync-alt fa-spin me-2"></i>
+                        <span>Chargement de la plateforme de réservation...</span>
+                    </div>
+                </div>
+                
+                <!-- Iframe pour H-Resa -->
+                <iframe id="hotelIframe" 
+                        style="width: 100%; height: 80vh; border: none;" 
+                        src="" 
+                        title="Réservation hôtel H-Resa">
+                </iframe>
+            </div>
+            <div class="modal-footer" style="background-color: #f8f9fa;">
+                <small class="text-muted me-auto">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Plateforme officielle de réservation SFT 2026
+                </small>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Overlay de chargement pour les hôtels -->
+<div id="hotelLoadingOverlay" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.95);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+">
+    <div class="text-center">
+        <div style="
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #28a745;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        "></div>
+        <h5 class="text-success">Recherche des meilleurs tarifs...</h5>
+        <p class="text-muted">Connexion à la plateforme H-Resa</p>
+    </div>
+</div>
+
+<style>
+/* Styles pour les cartes d'hôtels */
+.hotel-preview-card {
+    padding: 1rem;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.hotel-preview-card:hover {
+    border-color: #007bff;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.star-rating {
+    font-size: 0.8rem;
+}
+
+.info-item {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 0.5rem;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* Animation de rotation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Styles responsive */
+@media (max-width: 768px) {
+    .modal-xl {
+        margin: 0.5rem;
+    }
+    
+    #hotelIframe {
+        height: 70vh;
+    }
+}
+</style>
+
+<script>
+// URL de la plateforme H-Resa
+const urlHResa = 'https://insightoutside.h-resa.com/redirect.htm;AT?codeEvent=SFT2026&lang=fr&toAddressName=Nancy%252C%2520France&lat=48.67453211019228&lng=6.143106454972051&accomCode=&toCityCode=&new=&toPoiCode=&toPolygonCode=&startDate=2026-06-01&endDate=2026-06-05&mealPlans=&budgetMin=&budgetMax=&searchRadius=1000&supplierCodes=&refKey=&duplicatesCodes=&searchMode=&suppliers=&nbAdults_room_1=1';
+
+function ouvrirReservationHotel() {
+    // Afficher l'overlay de chargement
+    document.getElementById('hotelLoadingOverlay').style.display = 'flex';
+    
+    // Afficher le message de transition
+    document.getElementById('hotelTransitionMessage').style.display = 'block';
+    
+    // Simuler un délai de chargement
+    setTimeout(() => {
+        // Masquer l'overlay
+        document.getElementById('hotelLoadingOverlay').style.display = 'none';
+        
+        // Configurer l'iframe avec l'URL H-Resa
+        const iframe = document.getElementById('hotelIframe');
+        iframe.src = urlHResa;
+        
+        // Ouvrir le modal
+        const modal = new bootstrap.Modal(document.getElementById('hotelModal'), {
+            backdrop: 'static',
+            keyboard: true
+        });
+        modal.show();
+        
+        // Masquer le message de transition une fois chargé
+        iframe.onload = () => {
+            setTimeout(() => {
+                document.getElementById('hotelTransitionMessage').style.display = 'none';
+            }, 1000);
+        };
+        
+        // Tracking analytics
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'hotel_recherche', {
+                'event_category': 'hebergement',
+                'event_label': 'h-resa',
+                'value': 1
+            });
+        }
+        
+        console.log('Ouverture plateforme H-Resa');
+    }, 800);
+}
+
+// Gestion des événements du modal hôtel
+document.addEventListener('DOMContentLoaded', function() {
+    const hotelModal = document.getElementById('hotelModal');
+    
+    // Quand le modal se ferme
+    hotelModal.addEventListener('hidden.bs.modal', function () {
+        // Vider l'iframe
+        document.getElementById('hotelIframe').src = '';
+        
+        // Masquer le message de transition
+        document.getElementById('hotelTransitionMessage').style.display = 'none';
+        
+        console.log('Modal hébergement fermé');
+    });
+});
+
+// Communication avec H-Resa (si supportée)
+window.addEventListener('message', function(event) {
+    // Vérifier l'origine
+    if (!event.origin.includes('h-resa.com')) return;
+    
+    const data = event.data;
+    
+    // Si réservation réussie
+    if (data.type === 'reservation_success') {
+        // Fermer le modal
+        bootstrap.Modal.getInstance(document.getElementById('hotelModal')).hide();
+        
+        // Afficher message de succès
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>Réservation confirmée !</strong> Vous allez recevoir un email de confirmation.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.querySelector('.row').insertBefore(alertDiv, document.querySelector('.row').firstChild);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+});
+
+// Préchargement intelligent de l'iframe H-Resa (optionnel)
+function prechargerHResa() {
+    const iframe = document.createElement('iframe');
+    iframe.src = urlHResa;
+    iframe.style.display = 'none';
+    iframe.style.width = '1px';
+    iframe.style.height = '1px';
+    document.body.appendChild(iframe);
+}
+
+// Précharger après 3 secondes
+setTimeout(prechargerHResa, 3000);
+</script>
         
         <!-- Transports -->
         <h2 class="mb-4"><i class="fas fa-route me-2"></i>Comment venir</h2>

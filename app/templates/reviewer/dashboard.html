@@ -1,0 +1,330 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de bord Reviewer{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 text-primary mb-1">
+                <i class="fas fa-clipboard-check me-2"></i>Tableau de bord Reviewer
+            </h1>
+            <p class="text-muted mb-0">Bonjour {{ current_user.first_name or current_user.email }}, voici vos affectations</p>
+        </div>
+        <div>
+            <a href="{{ url_for('reviewer.profile') }}" class="btn btn-outline-primary">
+                <i class="fas fa-user me-2"></i>Mon profil
+            </a>
+            <a href="{{ url_for('reviewer.my_assignments') }}" class="btn btn-primary">
+                <i class="fas fa-list me-2"></i>Toutes mes reviews
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiques personnelles -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center h-100">
+                <div class="card-body">
+                    <div class="text-primary mb-2">
+                        <i class="fas fa-tasks fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.total_assignments }}</h4>
+                    <small class="text-muted">Reviews totales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center h-100">
+                <div class="card-body">
+                    <div class="text-warning mb-2">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.pending }}</h4>
+                    <small class="text-muted">En attente</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center h-100">
+                <div class="card-body">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ stats.completed }}</h4>
+                    <small class="text-muted">Terminées</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center h-100">
+                <div class="card-body">
+                    <div class="{% if stats.overdue > 0 %}text-danger{% else %}text-muted{% endif %} mb-2">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1 {% if stats.overdue > 0 %}text-danger{% endif %}">{{ stats.overdue }}</h4>
+                    <small class="text-muted">En retard</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mes spécialités -->
+    {% if current_user.specialites %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0">
+                <i class="fas fa-star me-2"></i>Mes spécialités ({{ stats.specialites }})
+            </h6>
+        </div>
+        <div class="card-body">
+            {% for specialite in current_user.specialites %}
+            <span class="badge text-white me-2 mb-2" style="background-color: {{ specialite.couleur }};">
+                {{ specialite.code }} - {{ specialite.nom }}
+            </span>
+            {% endfor %}
+            <div class="mt-2">
+                <a href="{{ url_for('reviewer.profile') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-edit me-1"></i>Modifier mes spécialités
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+        <h6 class="alert-heading">
+            <i class="fas fa-exclamation-triangle me-2"></i>Aucune spécialité configurée
+        </h6>
+        <p class="mb-2">Vous n'avez pas encore configuré vos domaines d'expertise. Cela limite les affectations que vous pouvez recevoir.</p>
+        <a href="{{ url_for('reviewer.profile') }}" class="btn btn-warning btn-sm">
+            <i class="fas fa-plus me-1"></i>Configurer mes spécialités
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Prochaines échéances -->
+    {% if upcoming_deadlines %}
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h6 class="mb-0">
+                <i class="fas fa-calendar-alt me-2"></i>Prochaines échéances ({{ upcoming_deadlines|length }})
+            </h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                {% for assignment in upcoming_deadlines %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">{{ assignment.communication.title }}</h6>
+                        <small class="text-muted">
+                            {% for thematique in assignment.communication.thematiques %}
+                            <span class="badge text-white me-1" style="background-color: {{ thematique.couleur }};">{{ thematique.code }}</span>
+                            {% endfor %}
+                        </small>
+                    </div>
+                    <div class="text-end">
+                        {% if assignment.due_date %}
+                        <small class="text-{% if assignment.is_overdue %}danger{% else %}warning{% endif %}">
+                            <i class="fas fa-clock me-1"></i>
+                            {{ assignment.due_date.strftime('%d/%m/%Y') }}
+                        </small>
+                        {% endif %}
+                        <div class="mt-1">
+                            <a href="{{ url_for('reviewer.view_assignment', assignment_id=assignment.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                Voir
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Affectations par statut -->
+    <div class="row">
+        <!-- Reviews en attente -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-clock text-warning me-2"></i>Reviews en attente
+                    </h6>
+                    <span class="badge bg-warning">{{ assignments_by_status.pending|length }}</span>
+                </div>
+                <div class="card-body">
+                    {% if assignments_by_status.pending %}
+                    <div class="list-group list-group-flush">
+                        {% for assignment in assignments_by_status.pending[:5] %}
+                        <div class="list-group-item px-0 py-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ assignment.communication.title|truncate(50) }}</h6>
+                                    <small class="text-muted">
+                                        Assigné le {{ assignment.assigned_at.strftime('%d/%m/%Y') if assignment.assigned_at }}
+                                    </small>
+                                    <div class="mt-1">
+                                        {% for thematique in assignment.communication.thematiques %}
+                                        <span class="badge text-white me-1" style="background-color: {{ thematique.couleur }}; font-size: 0.7em;">
+                                            {{ thematique.code }}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="ms-2">
+                                    <a href="{{ url_for('reviewer.view_assignment', assignment_id=assignment.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if assignments_by_status.pending|length > 5 %}
+                        <div class="list-group-item px-0 py-2 text-center">
+                            <a href="{{ url_for('reviewer.my_assignments', status='pending') }}" class="text-muted">
+                                Voir les {{ assignments_by_status.pending|length - 5 }} autres...
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <p class="mb-0">Aucune review en attente</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Reviews en retard -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-exclamation-triangle text-danger me-2"></i>Reviews en retard
+                    </h6>
+                    <span class="badge bg-danger">{{ assignments_by_status.overdue|length }}</span>
+                </div>
+                <div class="card-body">
+                    {% if assignments_by_status.overdue %}
+                    <div class="list-group list-group-flush">
+                        {% for assignment in assignments_by_status.overdue[:5] %}
+                        <div class="list-group-item px-0 py-2 border-start border-danger border-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1 text-danger">{{ assignment.communication.title|truncate(50) }}</h6>
+                                    <small class="text-muted">
+                                        Échéance : {{ assignment.due_date.strftime('%d/%m/%Y') if assignment.due_date }}
+                                    </small>
+                                    <div class="mt-1">
+                                        {% for thematique in assignment.communication.thematiques %}
+                                        <span class="badge text-white me-1" style="background-color: {{ thematique.couleur }}; font-size: 0.7em;">
+                                            {{ thematique.code }}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="ms-2">
+                                    <a href="{{ url_for('reviewer.view_assignment', assignment_id=assignment.id) }}" 
+                                       class="btn btn-sm btn-danger">
+                                        <i class="fas fa-exclamation"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if assignments_by_status.overdue|length > 5 %}
+                        <div class="list-group-item px-0 py-2 text-center">
+                            <a href="{{ url_for('reviewer.my_assignments', status='overdue') }}" class="text-danger">
+                                Voir les {{ assignments_by_status.overdue|length - 5 }} autres...
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-smile-beam fa-2x mb-2"></i>
+                        <p class="mb-0">Aucune review en retard</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions rapides -->
+    <div class="card">
+        <div class="card-header">
+            <h6 class="mb-0">
+                <i class="fas fa-bolt me-2"></i>Actions rapides
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <a href="{{ url_for('reviewer.my_assignments', status='pending') }}" class="btn btn-outline-warning w-100 mb-2">
+                        <i class="fas fa-clock me-2"></i>Reviews en attente
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('reviewer.my_assignments', status='completed') }}" class="btn btn-outline-success w-100 mb-2">
+                        <i class="fas fa-check me-2"></i>Reviews terminées
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('reviewer.profile') }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="fas fa-user me-2"></i>Mon profil
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{{ url_for('reviewer.notifications') }}" class="btn btn-outline-info w-100 mb-2">
+                        <i class="fas fa-bell me-2"></i>Notifications
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Refresh automatique des statistiques
+function refreshStats() {
+    fetch('{{ url_for("reviewer.api_stats") }}')
+        .then(response => response.json())
+        .then(data => {
+            // Mettre à jour les compteurs si nécessaire
+            console.log('Stats refreshed:', data);
+        })
+        .catch(error => console.error('Error refreshing stats:', error));
+}
+
+// Refresh toutes les 5 minutes
+setInterval(refreshStats, 5 * 60 * 1000);
+</script>
+
+<style>
+.badge {
+    font-size: 0.75em;
+}
+
+.list-group-item {
+    border-left: none;
+    border-right: none;
+}
+
+.card {
+    border-radius: 12px;
+}
+
+.border-3 {
+    border-width: 3px !important;
+}
+</style>
+{% endblock %}

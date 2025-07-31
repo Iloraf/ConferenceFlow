@@ -268,29 +268,6 @@ def view_affiliation(affiliation_id):
     affiliation = Affiliation.query.get_or_404(affiliation_id)
     return render_template('admin/view_affiliation.html', affiliation=affiliation)
 
-@admin.route("/admin/export/communications")
-@login_required
-def export_communications_csv():
-    if not current_user.is_admin:
-        flash("Accès réservé aux administrateurs.", "danger")
-        return redirect(url_for("main.index"))
-
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["communication_id", "title", "author_email", "status", "version"])
-
-    communications = Communication.query.all()
-    for comm in communications:
-        author_email = comm.authors[0].email if comm.authors else ""
-        writer.writerow([comm.id, comm.title, author_email, comm.status, comm.current_version])
-
-    output.seek(0)
-    return send_file(
-        StringIO(output.getvalue()),
-        mimetype="text/csv",
-        as_attachment=True,
-        download_name="communications_export.csv"
-    )
 
 @admin.route("/admin/export/users")
 @login_required
@@ -2767,3 +2744,559 @@ def preview_grouped_email(reviewer_id):
     return render_template('admin/preview_grouped_email.html', 
                          reviewer=reviewer, 
                          assignments=assignments)
+
+
+
+
+
+
+
+# À ajouter dans app/admin.py
+
+@admin.route('/communications-dashboard')
+@login_required
+def communications_dashboard():
+    """Tableau de bord synthétique de toutes les communications."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    # Utiliser le système de statistiques unifié
+    from app.statistics import StatisticsManager
+    
+    # Récupérer tous les articles et WIPs
+    articles = Communication.query.filter_by(type='article').order_by(
+        Communication.created_at.desc()
+    ).all()
+    
+    wips = Communication.query.filter_by(type='wip').order_by(
+        Communication.created_at.desc()
+    ).all()
+    
+    # Statistiques harmonisées
+    stats = StatisticsManager.get_communications_dashboard_stats()
+    
+    # Préparer les données pour les cartes de statistiques
+    stats_cards = [
+        StatisticsManager.get_stat_card_data(
+            'articles', 
+            stats['communications']['articles']['total'],
+            'articles',
+            'primary'
+        ),
+        StatisticsManager.get_stat_card_data(
+            'wips', 
+            stats['communications']['wips']['total'],
+            'wips', 
+            'purple'
+        ),
+        StatisticsManager.get_stat_card_data(
+            'en_review', 
+            stats['reviews']['en_cours'],
+            'reviews',
+            'orange'
+        ),
+        StatisticsManager.get_stat_card_data(
+            'acceptés', 
+            stats['communications']['articles']['acceptés'],
+            'acceptes',
+            'success'
+        ),
+    ]
+    
+    # Charger les thématiques pour les filtres
+    from app.config_loader import ThematiqueLoader
+    thematiques = ThematiqueLoader.load_themes()
+    
+    return render_template('admin/communications_dashboard.html',
+                         articles=articles,
+                         wips=wips,
+                         stats=stats,
+                         stats_cards=stats_cards,
+                         thematiques=thematiques)
+
+# Vers la ligne 2850-2890 dans admin.py, remplacez cette section :
+
+@admin.route('/send-bulk-email', methods=['POST'])
+@login_required
+def send_bulk_email():
+    """Envoi d'emails groupés aux auteurs ou reviewers."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    try:
+        data = request.get_json()
+        recipient_type = data.get('recipient')  # 'authors' ou 'reviewers'
+        subject = data.get('subject')
+        content = data.get('content')
+        article_ids = data.get('articles', [])
+        wip_ids = data.get('wips', [])
+        
+        if not subject or not content:
+            return jsonify({'success': False, 'message': 'Sujet et contenu requis'})
+        
+        emails_sent = 0
+        errors = []
+        
+        # Traiter les articles
+        for article_id in article_ids:
+            article = Communication.query.get(article_id)
+            if not article:
+                continue
+                
+            try:
+                if recipient_type == 'authors':
+                    # Envoyer aux auteurs
+                    for author in article.authors:
+                        if author.email:
+                            send_bulk_email_to_user(author, subject, content, [article])
+                            emails_sent += 1
+                            
+                elif recipient_type == 'reviewers':
+                    # Envoyer aux reviewers
+                    for review in article.reviews:
+                        if review.reviewer.email:
+                            send_bulk_email_to_user(review.reviewer, subject, content, [article])
+                            emails_sent += 1
+                            
+            except Exception as e:
+                errors.append(f"Article {article_id}: {str(e)}")
+        
+        # Traiter les WIPs
+        for wip_id in wip_ids:
+            wip = Communication.query.get(wip_id)
+            if not wip:
+                continue
+                
+            try:
+                if recipient_type == 'authors':
+                    # Envoyer aux auteurs (WIP n'ont pas de reviewers)
+                    for author in wip.authors:
+                        if author.email:
+                            send_bulk_email_to_user(author, subject, content, [wip])
+                            emails_sent += 1
+                            
+            except Exception as e:
+                errors.append(f"WIP {wip_id}: {str(e)}")
+        
+        # Log de l'action
+        current_app.logger.info(f"Email groupé envoyé par {current_user.email}: {emails_sent} emails")
+        
+        if errors:
+            return jsonify({
+                'success': True, 
+                'message': f'{emails_sent} emails envoyés avec {len(errors)} erreurs',
+                'errors': errors
+            })
+        else:
+            return jsonify({
+                'success': True, 
+                'message': f'{emails_sent} emails envoyés avec succès'
+            })
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi email groupé: {str(e)}")
+        return jsonify({'success': False, 'message': f'Erreur serveur: {str(e)}'})
+
+
+def send_bulk_email_to_user(user, subject, content, communications=None):
+    """Fonction utilitaire pour envoyer un email groupé avec template HTML."""
+    from flask_mail import Message
+    from app import mail
+    from flask import render_template
+    
+    try:
+        # Utiliser le template d'email groupé
+        html_body = render_template('emails/bulk_email.html',
+                                  recipient=user,
+                                  email_subject=subject,
+                                  email_content=content,
+                                  communications=communications or [])
+        
+        # Personnaliser le contenu texte
+        personalized_content = content.replace('[NOM]', user.last_name or '')
+        personalized_content = personalized_content.replace('[PRENOM]', user.first_name or '')
+        
+        # Ajouter les titres des communications pour la version texte
+        if communications:
+            comm_titles = '\n'.join([f"- {comm.title} (ID: {comm.id})" for comm in communications])
+            personalized_content += f"\n\nCommunication(s) concernée(s):\n{comm_titles}"
+        
+        msg = Message(
+            subject=subject,
+            recipients=[user.email],
+            body=personalized_content,  # Version texte
+            html=html_body,  # Version HTML avec template
+            sender=current_app.config.get('MAIL_DEFAULT_SENDER')
+        )
+        
+        mail.send(msg)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi email groupé à {user.email}: {str(e)}")
+        raise
+
+
+def send_email_to_user(user, subject, content, communication=None):
+    """Fonction utilitaire pour envoyer un email à un utilisateur avec template HTML."""
+    from flask_mail import Message
+    from app import mail
+    from flask import render_template
+    
+    try:
+        # Déterminer le template selon le type d'utilisateur
+        if user.is_reviewer and communication and any(r.reviewer_id == user.id for r in communication.reviews):
+            # C'est un reviewer pour cette communication
+            html_body = render_template('emails/communication_reviewers.html',
+                                      reviewer=user,
+                                      communication=communication,
+                                      email_subject=subject,
+                                      email_content=content)
+        else:
+            # C'est un auteur
+            html_body = render_template('emails/communication_authors.html',
+                                      author=user,
+                                      communication=communication,
+                                      email_subject=subject,
+                                      email_content=content)
+        
+        # Personnaliser le contenu texte pour les clients email sans HTML
+        personalized_content = content.replace('[NOM]', user.last_name or '')
+        personalized_content = personalized_content.replace('[PRENOM]', user.first_name or '')
+        
+        if communication:
+            personalized_content = personalized_content.replace('[TITRE_COMMUNICATION]', communication.title)
+            personalized_content = personalized_content.replace('[ID_COMMUNICATION]', str(communication.id))
+        
+        msg = Message(
+            subject=subject,
+            recipients=[user.email],
+            body=personalized_content,  # Version texte
+            html=html_body,  # Version HTML avec template
+            sender=current_app.config.get('MAIL_DEFAULT_SENDER')
+        )
+        
+        mail.send(msg)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi email à {user.email}: {str(e)}")
+        raise
+
+
+
+
+
+@admin.route('/email-authors/<int:comm_id>')
+@login_required
+def email_authors(comm_id):
+    """Page pour composer et envoyer un email aux auteurs d'une communication."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    # Templates d'emails prédéfinis
+    email_templates = {
+        'acceptation': {
+            'subject': f'Félicitations - Communication acceptée: {communication.title}',
+            'content': '''Nous avons le plaisir de vous informer que votre communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]) a été acceptée pour le 34ème Congrès Français de Thermique.
+
+Prochaines étapes:
+- Vous devez maintenant soumettre votre poster de présentation
+- Vous recevrez prochainement les instructions détaillées
+
+Félicitations pour cette excellente contribution !'''
+        },
+        'refus': {
+            'subject': f'Décision concernant votre communication: {communication.title}',
+            'content': '''Nous vous remercions pour votre soumission "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
+
+Après évaluation par notre comité scientifique, nous regrettons de vous informer que votre communication n'a pas été retenue pour le 34ème Congrès Français de Thermique.
+
+Cette décision ne reflète en rien la qualité de vos travaux et nous vous encourageons à soumettre à nouveau lors de futures éditions.'''
+        },
+        'revision': {
+            'subject': f'Révisions demandées - Communication: {communication.title}',
+            'content': '''Votre communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]) a été évaluée par notre comité scientifique.
+
+Des révisions sont demandées avant acceptation définitive. Vous trouverez les commentaires des reviewers dans votre espace personnel.
+
+Merci de soumettre votre version révisée dans les meilleurs délais.'''
+        },
+        'rappel': {
+            'subject': f'Rappel - Action requise: {communication.title}',
+            'content': '''Concernant votre communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]),
+
+Une action de votre part est en attente. Merci de vous connecter à votre espace personnel pour continuer le processus de soumission.'''
+        },
+        'information': {
+            'subject': f'Information - SFT 2026: {communication.title}',
+            'content': '''Nous souhaitons vous informer concernant votre communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
+
+[Votre information ici]'''
+        }
+    }
+    
+    return render_template('admin/email_authors.html', 
+                         communication=communication,
+                         email_templates=email_templates)
+
+
+@admin.route('/email-reviewers/<int:comm_id>')
+@login_required
+def email_reviewers(comm_id):
+    """Page pour composer et envoyer un email aux reviewers d'une communication."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    if not communication.reviews:
+        flash('Cette communication n\'a pas de reviewers assignés.', 'warning')
+        return redirect(url_for('admin.communications_dashboard'))
+    
+    # Templates d'emails prédéfinis pour reviewers
+    email_templates = {
+        'assignation': {
+            'subject': f'Nouvelle review assignée: {communication.title}',
+            'content': '''Une nouvelle review vous a été assignée pour la communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
+
+Vous pouvez accéder à votre espace reviewer pour effectuer cette évaluation.
+
+Merci pour votre contribution au processus de relecture.'''
+        },
+        'rappel': {
+            'subject': f'Rappel - Review en attente: {communication.title}',
+            'content': '''Nous vous rappelons qu'une review est en attente de votre part pour la communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
+
+Merci de bien vouloir effectuer cette évaluation dans les meilleurs délais.'''
+        },
+        'rappel_urgent': {
+            'subject': f'URGENT - Review en attente: {communication.title}',
+            'content': '''Nous vous rappelons de manière urgente qu'une review est en attente depuis plusieurs jours pour la communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
+
+Cette évaluation est importante pour respecter nos délais. Merci de l'effectuer au plus vite ou de nous signaler si vous rencontrez des difficultés.'''
+        },
+        'remerciement': {
+            'subject': f'Merci pour votre review: {communication.title}',
+            'content': '''Nous vous remercions pour avoir effectué la review de la communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
+
+Votre contribution est précieuse pour maintenir la qualité scientifique de notre congrès.'''
+        },
+        'information': {
+            'subject': f'Information reviewer - SFT 2026',
+            'content': '''Nous souhaitons vous informer concernant la communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
+
+[Votre information ici]'''
+        }
+    }
+    
+    return render_template('admin/email_reviewers.html', 
+                         communication=communication,
+                         email_templates=email_templates)
+
+
+@admin.route('/communication/<int:comm_id>')
+@login_required
+def view_communication_details(comm_id):
+    """Page de détails d'une communication."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    # Récupérer les informations supplémentaires
+    review_assignments = ReviewAssignment.query.filter_by(
+        communication_id=comm_id
+    ).all()
+    
+    return render_template('admin/communication_details.html',
+                         communication=communication,
+                         review_assignments=review_assignments)
+
+
+@admin.route('/export-communications-csv')
+@login_required
+def export_communications_csv():
+    """Exporte toutes les communications en CSV."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    import csv
+    import io
+    from flask import make_response
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # En-têtes
+    writer.writerow([
+        'ID', 'Type', 'Titre', 'Statut', 'Auteurs', 'Thématiques', 
+        'Date création', 'Date soumission résumé', 'Date soumission article',
+        'Reviewers', 'Décision finale', 'Date décision'
+    ])
+    
+    # Récupérer toutes les communications
+    communications = Communication.query.order_by(Communication.id).all()
+    
+    for comm in communications:
+        # Formater les auteurs
+        auteurs = '; '.join([f"{a.first_name} {a.last_name}" for a in comm.authors])
+        
+        # Formater les thématiques
+        thematiques = ''
+        if comm.thematiques:
+            thematiques = '; '.join([f"{t['code']}-{t['nom']}" for t in comm.thematiques])
+        
+        # Formater les reviewers
+        reviewers = ''
+        if comm.reviews:
+            reviewers = '; '.join([f"{r.reviewer.first_name} {r.reviewer.last_name}" for r in comm.reviews])
+        
+        writer.writerow([
+            comm.id,
+            comm.type,
+            comm.title,
+            comm.status.value,
+            auteurs,
+            thematiques,
+            comm.created_at.strftime('%Y-%m-%d %H:%M') if comm.created_at else '',
+            comm.resume_submitted_at.strftime('%Y-%m-%d %H:%M') if comm.resume_submitted_at else '',
+            comm.article_submitted_at.strftime('%Y-%m-%d %H:%M') if comm.article_submitted_at else '',
+            reviewers,
+            comm.final_decision or '',
+            comm.decision_date.strftime('%Y-%m-%d %H:%M') if comm.decision_date else ''
+        ])
+    
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=communications_sft2026_{datetime.now().strftime("%Y%m%d_%H%M")}.csv'
+    
+    return response
+
+
+@admin.route('/stats-communications')
+@login_required
+def stats_communications():
+    """Page de statistiques détaillées des communications."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    # Statistiques par statut
+    stats_status = {}
+    for status in CommunicationStatus:
+        count = Communication.query.filter_by(status=status).count()
+        stats_status[status.value] = count
+    
+    # Statistiques par thématique
+    from app.config_loader import ThematiqueLoader
+    thematiques = ThematiqueLoader.load_themes()
+    stats_thematiques = {}
+    
+    for theme in thematiques:
+        count = Communication.query.filter(
+            Communication.thematiques_codes.like(f'%{theme["code"]}%')
+        ).count()
+        stats_thematiques[theme['code']] = {
+            'nom': theme['nom'],
+            'count': count
+        }
+    
+    # Évolution des soumissions par mois
+    from sqlalchemy import func, extract
+    monthly_stats = db.session.query(
+        extract('year', Communication.created_at).label('year'),
+        extract('month', Communication.created_at).label('month'),
+        func.count(Communication.id).label('count')
+    ).group_by('year', 'month').order_by('year', 'month').all()
+    
+    # Statistiques des reviews
+    review_stats = {
+        'total_reviews': Review.query.count(),
+        'completed_reviews': Review.query.filter_by(completed=True).count(),
+        'pending_reviews': Review.query.filter_by(completed=False).count(),
+        'avg_review_time': 'À calculer'  # Vous pouvez ajouter le calcul
+    }
+    
+    return render_template('admin/communications_stats.html',
+                         stats_status=stats_status,
+                         stats_thematiques=stats_thematiques,
+                         monthly_stats=monthly_stats,
+                         review_stats=review_stats)
+
+
+@admin.route('/send-individual-email', methods=['POST'])
+@login_required
+def send_individual_email():
+    """Envoi d'email individuel aux auteurs ou reviewers d'une communication."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    try:
+        communication_id = request.form.get('communication_id')
+        recipient_type = request.form.get('recipient_type')  # 'authors' ou 'reviewers'
+        subject = request.form.get('subject')
+        content = request.form.get('content')
+        copy_admin = request.form.get('copy_admin') == 'on'
+        selected_reviewers = request.form.get('selected_reviewers', '')
+        
+        if not all([communication_id, recipient_type, subject, content]):
+            flash('Tous les champs sont requis.', 'danger')
+            return redirect(request.referrer)
+        
+        communication = Communication.query.get_or_404(communication_id)
+        emails_sent = 0
+        recipients = []
+        
+        if recipient_type == 'authors':
+            # Envoyer aux auteurs
+            for author in communication.authors:
+                if author.email:
+                    send_email_to_user(author, subject, content, communication)
+                    emails_sent += 1
+                    recipients.append(f"{author.first_name} {author.last_name} ({author.email})")
+                    
+        elif recipient_type == 'reviewers':
+            # Envoyer aux reviewers sélectionnés
+            if selected_reviewers:
+                reviewer_ids = [int(id) for id in selected_reviewers.split(',') if id.strip()]
+            else:
+                reviewer_ids = [review.reviewer.id for review in communication.reviews]
+            
+            for review in communication.reviews:
+                if review.reviewer.id in reviewer_ids and review.reviewer.email:
+                    send_email_to_user(review.reviewer, subject, content, communication)
+                    emails_sent += 1
+                    recipients.append(f"{review.reviewer.first_name} {review.reviewer.last_name} ({review.reviewer.email})")
+        
+        # Envoyer une copie à l'admin si demandé
+        if copy_admin and current_user.email:
+            copy_subject = f"[COPIE] {subject}"
+            copy_content = f"COPIE de l'email envoyé concernant la communication #{communication.id}\n\nDestinataires: {', '.join(recipients)}\n\n" + content
+            
+            from flask_mail import Message
+            from app import mail
+            
+            msg = Message(
+                subject=copy_subject,
+                recipients=[current_user.email],
+                body=copy_content,
+                sender=current_app.config.get('MAIL_DEFAULT_SENDER')
+            )
+            mail.send(msg)
+        
+        # Log de l'action
+        current_app.logger.info(f"Email individuel envoyé par {current_user.email} pour communication {communication_id}: {emails_sent} destinataires")
+        
+        flash(f'Email envoyé avec succès à {emails_sent} destinataire(s).', 'success')
+        
+        if copy_admin:
+            flash('Une copie vous a été envoyée.', 'info')
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi email individuel: {str(e)}")
+        flash(f'Erreur lors de l\'envoi: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.communications_dashboard'))
+

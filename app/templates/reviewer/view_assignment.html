@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}Review - {{ communication.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- En-tête -->
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2">
+                <li class="breadcrumb-item"><a href="{{ url_for('reviewer.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('reviewer.my_assignments') }}">Mes reviews</a></li>
+                <li class="breadcrumb-item active">Review #{{ assignment.id }}</li>
+            </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 text-primary mb-1">{{ communication.title }}</h1>
+                <p class="text-muted mb-0">Review assignée le {{ assignment.assigned_at.strftime('%d/%m/%Y à %H:%M') if assignment.assigned_at }}</p>
+            </div>
+            <div class="text-end">
+                {% if assignment.status == 'assigne

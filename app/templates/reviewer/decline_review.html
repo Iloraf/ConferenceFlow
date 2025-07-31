@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Refuser une review - SFT 2026{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Refuser une review</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Infos de la communication -->
+                    <div class="alert alert-info">
+                        <h6>Communication assignée :</h6>
+                        <strong>{{ communication.title }}</strong><br>
+                        <small class="text-muted">
+                            ID: {{ communication.id }} • 
+                            Type: {{ communication.type|title }} • 
+                            Assignée le: {{ assignment.assigned_at.strftime('%d/%m/%Y') if assignment.assigned_at }}
+                        </small>
+                    </div>
+
+                    <!-- Formulaire de refus -->
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Raison du refus :</strong></label>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="reason" value="conflict" id="reason_conflict" required>
+                                <label class="form-check-label" for="reason_conflict">
+                                    <strong>Conflit d'intérêt</strong><br>
+                                    <small class="text-muted">Vous avez un lien avec les auteurs ou l'institution</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="reason" value="workload" id="reason_workload" required>
+                                <label class="form-check-label" for="reason_workload">
+                                    <strong>Surcharge de travail</strong><br>
+                                    <small class="text-muted">Vous avez trop de reviews en cours</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="reason" value="expertise" id="reason_expertise" required>
+                                <label class="form-check-label" for="reason_expertise">
+                                    <strong>Domaine hors expertise</strong><br>
+                                    <small class="text-muted">Le sujet ne correspond pas à vos compétences</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="reason" value="unavailable" id="reason_unavailable" required>
+                                <label class="form-check-label" for="reason_unavailable">
+                                    <strong>Indisponibilité</strong><br>
+                                    <small class="text-muted">Vous n'êtes pas disponible dans les délais</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="reason" value="other" id="reason_other" required>
+                                <label class="form-check-label" for="reason_other">
+                                    <strong>Autre raison</strong>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Champ pour "Autre raison" -->
+                        <div class="mb-3" id="other_reason_field" style="display: none;">
+                            <label for="other_reason" class="form-label">Précisez la raison :</label>
+                            <textarea class="form-control" id="other_reason" name="other_reason" rows="3" 
+                                    placeholder="Expliquez pourquoi vous ne pouvez pas faire cette review..."></textarea>
+                        </div>
+
+                        <!-- Boutons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('main.reviewer_dashboard') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-times"></i> Confirmer le refus
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Afficher/masquer le champ "Autre raison"
+document.addEventListener('DOMContentLoaded', function() {
+    const reasonRadios = document.querySelectorAll('input[name="reason"]');
+    const otherField = document.getElementById('other_reason_field');
+    
+    reasonRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'other') {
+                otherField.style.display = 'block';
+                document.getElementById('other_reason').required = true;
+            } else {
+                otherField.style.display = 'none';
+                document.getElementById('other_reason').required = false;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

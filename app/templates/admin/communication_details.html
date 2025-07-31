@@ -1,0 +1,398 @@
+{% extends 'base.html' %}
+
+{% block title %}Détails - {{ communication.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-badge {
+        font-size: 0.85em;
+        padding: 0.4em 0.8em;
+    }
+    
+    .thematique-badge {
+        font-size: 0.75em;
+        margin: 0.1em;
+    }
+    
+    .communication-header {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px 10px 0 0;
+    }
+    
+    .review-card {
+        border-left: 4px solid #fd7e14;
+    }
+    
+    .file-item {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+    }
+    
+    .workflow-step {
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 0.5rem 0;
+    }
+    
+    .step-completed {
+        background: #d4edda;
+        border-left: 4px solid #28a745;
+    }
+    
+    .step-current {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+    }
+    
+    .step-pending {
+        background: #f8f9fa;
+        border-left: 4px solid #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="communication-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="mb-2">{{ communication.title }}</h1>
+                <p class="mb-1 opacity-75">ID: {{ communication.id }} • Type: {{ communication.type.title() }}</p>
+                <p class="mb-0 opacity-75">Créé le {{ communication.created_at.strftime('%d/%m/%Y à %H:%M') }}</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark fs-6 p-2">
+                    {{ communication.status.value.replace('_', ' ').title() }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Colonne principale -->
+        <div class="col-lg-8">
+            <!-- Informations générales -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Informations générales
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Titre :</strong><br>{{ communication.title }}</p>
+                            <p><strong>Type :</strong> {{ communication.type.title() }}</p>
+                            <p><strong>Statut :</strong> 
+                                <span class="badge status-badge bg-info">
+                                    {{ communication.status.value.replace('_', ' ').title() }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            {% if communication.keywords %}
+                            <p><strong>Mots-clés :</strong><br>{{ communication.keywords }}</p>
+                            {% endif %}
+                            
+                            {% if communication.thematiques %}
+                            <p><strong>Thématiques :</strong><br>
+                                {% for theme in communication.thematiques %}
+                                <span class="badge thematique-badge" style="background-color: {{ theme.couleur }};">
+                                    {{ theme.code }} - {{ theme.nom }}
+                                </span>
+                                {% endfor %}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auteurs -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Auteurs ({{ communication.authors|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for author in communication.authors %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card border-light">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title mb-1">
+                                        {{ author.first_name }} {{ author.last_name }}
+                                        {% if loop.index == 1 %}
+                                        <span class="badge bg-primary">Auteur principal</span>
+                                        {% endif %}
+                                    </h6>
+                                    <p class="card-text mb-1">
+                                        <i class="fas fa-envelope me-1"></i>{{ author.email }}
+                                    </p>
+                                    {% if author.affiliations %}
+                                    <p class="card-text mb-0">
+                                        <i class="fas fa-building me-1"></i>
+                                        {% for affiliation in author.affiliations %}
+                                        {{ affiliation.nom }}{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fichiers soumis -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-paperclip me-2"></i>
+                        Fichiers soumis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if communication.submission_files %}
+                        {% for file in communication.submission_files %}
+                        <div class="file-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <i class="fas fa-file-pdf me-1"></i>
+                                        {{ file.file_type.title() }}
+                                    </h6>
+                                    <p class="mb-0 text-muted">
+                                        {{ file.original_filename }} • {{ "%.1f"|format(file.file_size / 1024 / 1024) }} MB
+                                        • {{ file.upload_date.strftime('%d/%m/%Y à %H:%M') }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <a href="{{ url_for('main.download_file', file_id=file.id) }}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-download me-1"></i>Télécharger
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">Aucun fichier soumis pour le moment.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Reviews (pour les articles) -->
+            {% if communication.type == 'article' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-edit me-2"></i>
+                        Reviews ({{ communication.reviews|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if communication.reviews %}
+                        {% for review in communication.reviews %}
+                        <div class="card review-card mb-3">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    {{ review.reviewer.first_name }} {{ review.reviewer.last_name }}
+                                </h6>
+                                <span class="badge {{ 'bg-success' if review.completed else 'bg-warning' }}">
+                                    {{ 'Terminée' if review.completed else 'En cours' }}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                {% if review.completed %}
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Recommandation :</strong>
+                                                <span class="badge 
+                                                    {% if review.recommendation.value == 'accepter' %}bg-success
+                                                    {% elif review.recommendation.value == 'rejeter' %}bg-danger
+                                                    {% else %}bg-warning{% endif %}">
+                                                    {{ review.recommendation.value.title() }}
+                                                </span>
+                                            </p>
+                                            {% if review.score %}
+                                            <p><strong>Score :</strong> {{ review.score }}/10</p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Soumise le :</strong> {{ review.submitted_at.strftime('%d/%m/%Y') }}</p>
+                                            {% if review.recommend_for_biot_fourier %}
+                                            <p><span class="badge bg-warning">Recommandé pour Prix Biot-Fourier</span></p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if review.comments_for_authors %}
+                                    <div class="mt-3">
+                                        <strong>Commentaires pour les auteurs :</strong>
+                                        <div class="bg-light p-2 rounded mt-1">
+                                            {{ review.comments_for_authors|nl2br|safe }}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if review.comments_for_committee %}
+                                    <div class="mt-3">
+                                        <strong>Commentaires pour le comité :</strong>
+                                        <div class="bg-light p-2 rounded mt-1">
+                                            {{ review.comments_for_committee|nl2br|safe }}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% else %}
+                                    <p class="text-muted">Review en cours...</p>
+                                    {% set assignment = review_assignments|selectattr('reviewer_id', 'equalto', review.reviewer.id)|first %}
+                                    {% if assignment and assignment.due_date %}
+                                    <p><strong>Échéance :</strong> {{ assignment.due_date.strftime('%d/%m/%Y') }}</p>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">Aucun reviewer assigné pour le moment.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Colonne latérale -->
+        <div class="col-lg-4">
+            <!-- Actions rapides -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Actions rapides</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin.email_authors', comm_id=communication.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-envelope me-2"></i>Email aux auteurs
+                        </a>
+                        
+                        {% if communication.reviews %}
+                        <a href="{{ url_for('admin.email_reviewers', comm_id=communication.id) }}" class="btn btn-outline-warning">
+                            <i class="fas fa-user-edit me-2"></i>Email aux reviewers
+                        </a>
+                        {% endif %}
+                        
+                        {% if communication.type == 'article' and communication.status.value == 'article_soumis' %}
+                        <a href="{{ url_for('admin.suggest_reviewers', comm_id=communication.id) }}" class="btn btn-outline-success">
+                            <i class="fas fa-user-plus me-2"></i>Assigner reviewers
+                        </a>
+                        {% endif %}
+                        
+                        <hr>
+                        
+                        <a href="{{ url_for('admin.communications_dashboard') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Retour tableau de bord
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workflow progress -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Progression</h5>
+                </div>
+                <div class="card-body">
+                    {% if communication.type == 'article' %}
+                        <!-- Workflow Article -->
+                        <div class="workflow-step {{ 'step-completed' if communication.status.value != 'brouillon' else 'step-current' }}">
+                            <h6><i class="fas fa-edit me-1"></i>1. Résumé soumis</h6>
+                            {% if communication.resume_submitted_at %}
+                            <small>{{ communication.resume_submitted_at.strftime('%d/%m/%Y') }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="workflow-step {{ 'step-completed' if communication.status.value in ['article_soumis', 'en_review', 'accepté', 'rejeté'] else 'step-current' if communication.status.value == 'résumé_soumis' else 'step-pending' }}">
+                            <h6><i class="fas fa-file-alt me-1"></i>2. Article complet</h6>
+                            {% if communication.article_submitted_at %}
+                            <small>{{ communication.article_submitted_at.strftime('%d/%m/%Y') }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="workflow-step {{ 'step-completed' if communication.status.value in ['accepté', 'rejeté'] else 'step-current' if communication.status.value == 'en_review' else 'step-pending' }}">
+                            <h6><i class="fas fa-search me-1"></i>3. Review</h6>
+                            {% if communication.reviews %}
+                            <small>{{ communication.reviews|selectattr('completed', 'equalto', True)|list|length }}/{{ communication.reviews|length }} terminées</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="workflow-step {{ 'step-completed' if communication.status.value == 'poster_soumis' else 'step-current' if communication.status.value == 'accepté' else 'step-pending' }}">
+                            <h6><i class="fas fa-image me-1"></i>4. Poster</h6>
+                            {% if communication.poster_submitted_at %}
+                            <small>{{ communication.poster_submitted_at.strftime('%d/%m/%Y') }}</small>
+                            {% endif %}
+                        </div>
+                        
+                    {% elif communication.type == 'wip' %}
+                        <!-- Workflow WIP -->
+                        <div class="workflow-step {{ 'step-completed' if communication.status.value in ['wip_soumis', 'poster_soumis'] else 'step-current' }}">
+                            <h6><i class="fas fa-cogs me-1"></i>1. Work in Progress</h6>
+                            {% if communication.created_at %}
+                            <small>{{ communication.created_at.strftime('%d/%m/%Y') }}</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="workflow-step {{ 'step-completed' if communication.status.value == 'poster_soumis' else 'step-current' if communication.status.value == 'wip_soumis' else 'step-pending' }}">
+                            <h6><i class="fas fa-image me-1"></i>2. Poster</h6>
+                            {% if communication.poster_submitted_at %}
+                            <small>{{ communication.poster_submitted_at.strftime('%d/%m/%Y') }}</small>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Statistiques -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Statistiques</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-primary">{{ communication.authors|length }}</h4>
+                            <small class="text-muted">Auteur(s)</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-warning">{{ communication.submission_files|length }}</h4>
+                            <small class="text-muted">Fichier(s)</small>
+                        </div>
+                    </div>
+                    {% if communication.type == 'article' %}
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-info">{{ communication.reviews|length }}</h4>
+                            <small class="text-muted">Review(s)</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">{{ communication.reviews|selectattr('completed', 'equalto', True)|list|length }}</h4>
+                            <small class="text-muted">Terminée(s)</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

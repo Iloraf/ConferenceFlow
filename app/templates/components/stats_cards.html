@@ -1,0 +1,158 @@
+<!-- templates/components/stats_cards.html -->
+<!-- Template réutilisable pour afficher des cartes de statistiques harmonisées -->
+
+{% macro render_stats_grid(stats_data, title="", cols=4) %}
+<div class="stats-section">
+    {% if title %}
+    <h5 class="text-muted mb-3">{{ title }}</h5>
+    {% endif %}
+    
+    <div class="row">
+        {% for stat in stats_data %}
+        <div class="col-lg-{{ 12 // cols }} col-md-6 mb-3">
+            <div class="card stat-card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center">
+                    <div class="stat-icon me-3" style="color: {{ stat.color }};">
+                        <i class="{{ stat.icon }} fa-2x"></i>
+                    </div>
+                    <div class="stat-content flex-grow-1">
+                        <h3 class="stat-value mb-1" style="color: {{ stat.color }};">
+                            {{ stat.value }}
+                        </h3>
+                        <p class="stat-label mb-0 text-muted">{{ stat.label }}</p>
+                        {% if stat.get('subtitle') %}
+                        <small class="text-muted">{{ stat.subtitle }}</small>
+                        {% endif %}
+                    </div>
+                    {% if stat.get('trend') %}
+                    <div class="stat-trend">
+                        {% if stat.trend > 0 %}
+                        <i class="fas fa-arrow-up text-success"></i>
+                        {% elif stat.trend < 0 %}
+                        <i class="fas fa-arrow-down text-danger"></i>
+                        {% else %}
+                        <i class="fas fa-minus text-muted"></i>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% if stat.get('link') %}
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <a href="{{ stat.link }}" class="btn btn-sm btn-outline-primary">
+                        {{ stat.link_text or 'Voir détails' }}
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_status_breakdown(breakdown_data, title="Répartition par statut") %}
+<div class="status-breakdown">
+    <h6 class="text-muted mb-3">{{ title }}</h6>
+    <div class="row">
+        {% for status, data in breakdown_data.items() %}
+        <div class="col-md-6 col-lg-4 mb-2">
+            <div class="d-flex align-items-center">
+                <div class="status-indicator me-2" 
+                     style="width: 12px; height: 12px; border-radius: 50%; background-color: {{ data.color }};"></div>
+                <span class="flex-grow-1">{{ data.label }}</span>
+                <strong style="color: {{ data.color }};">{{ data.count }}</strong>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_progress_card(title, current, total, color="primary", icon="fa-chart-pie") %}
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="d-flex align-items-center mb-3">
+            <div class="progress-icon me-3" style="color: var(--bs-{{ color }});">
+                <i class="fas {{ icon }} fa-2x"></i>
+            </div>
+            <div>
+                <h6 class="mb-0">{{ title }}</h6>
+                <small class="text-muted">{{ current }}/{{ total }}</small>
+            </div>
+        </div>
+        
+        <div class="progress" style="height: 8px;">
+            <div class="progress-bar bg-{{ color }}" 
+                 style="width: {{ (current / total * 100) if total > 0 else 0 }}%"></div>
+        </div>
+        
+        <div class="mt-2 d-flex justify-content-between">
+            <small class="text-muted">Progression</small>
+            <small class="text-{{ color }}">
+                {{ "%.1f"|format((current / total * 100) if total > 0 else 0) }}%
+            </small>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+<!-- CSS pour les composants -->
+<style>
+.stat-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-left: 4px solid transparent;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-icon {
+    opacity: 0.8;
+}
+
+.status-indicator {
+    flex-shrink: 0;
+}
+
+.stats-section {
+    margin-bottom: 2rem;
+}
+
+.progress-icon {
+    opacity: 0.7;
+}
+
+/* Couleurs harmonisées */
+.stat-card.border-primary { border-left-color: #007bff !important; }
+.stat-card.border-success { border-left-color: #28a745 !important; }
+.stat-card.border-warning { border-left-color: #ffc107 !important; }
+.stat-card.border-danger { border-left-color: #dc3545 !important; }
+.stat-card.border-info { border-left-color: #17a2b8 !important; }
+.stat-card.border-secondary { border-left-color: #6c757d !important; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stat-value {
+        font-size: 2rem;
+    }
+    
+    .stat-icon {
+        display: none;
+    }
+}
+</style>

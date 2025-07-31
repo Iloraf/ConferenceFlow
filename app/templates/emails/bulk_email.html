@@ -1,0 +1,53 @@
+<!-- templates/emails/bulk_email.html -->
+{% extends 'emails/base_email.html' %}
+
+{% block title %}{{ email_subject }}{% endblock %}
+
+{% block header_title %}SFT 2026{% endblock %}
+{% block header_subtitle %}{{ email_subject }}{% endblock %}
+
+{% block content %}
+<p>Bonjour <strong>{{ recipient.first_name or recipient.email.split('@')[0] }}</strong>,</p>
+
+<p>{{ email_content|safe|replace('[PRENOM]', recipient.first_name or '')|replace('[NOM]', recipient.last_name or '') }}</p>
+
+{% if communications %}
+<div class="communication-box">
+    <strong>Communication(s) concernée(s) :</strong>
+    {% for communication in communications %}
+    <div style="margin: 10px 0; padding: 10px; border-left: 3px solid #007bff; background-color: #f8f9fa;">
+        <div class="communication-title">{{ communication.title }}</div>
+        <p><strong>ID :</strong> {{ communication.id }} | <strong>Type :</strong> {{ communication.type.title() }}</p>
+        
+        {% if communication.thematiques %}
+        <div class="thematiques">
+            {% for thematique in communication.thematiques %}
+            <span class="thematique-badge" style="background-color: {{ thematique.couleur }};">
+                {{ thematique.code }}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div style="text-align: center; margin: 30px 0;">
+    {% if recipient.is_reviewer %}
+    <a href="{{ url_for('main.reviewer_dashboard', _external=True) }}" class="btn">
+        📊 Mon tableau de bord reviewer
+    </a>
+    {% else %}
+    <a href="{{ url_for('main.mes_communications', _external=True) }}" class="btn">
+        📋 Mes communications
+    </a>
+    {% endif %}
+</div>
+
+<p>Pour toute question, n'hésitez pas à nous contacter à 
+<a href="mailto:congres-sft2026@univ-lorraine.fr" style="color: #007bff;">congres-sft2026@univ-lorraine.fr</a></p>
+
+<p>Cordialement,<br>
+<strong>L'équipe d'organisation SFT 2026</strong></p>
+{% endblock %}
