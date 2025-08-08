@@ -30,7 +30,15 @@ WORKDIR /home/appuser/
 COPY requirements.txt .
 RUN pip install --user -r requirements.txt
 
-COPY --chown=appuser:appuser . .
+COPY --chown=appuser:appuser app ./app
+COPY --chown=appuser:appuser config ./config
+
+COPY --chown=appuser:appuser config.py ./config.py
+COPY --chown=appuser:appuser setup.py ./setup.py
+COPY --chown=appuser:appuser run.py ./run.py
 
 
-CMD ["gunicorn", "-c", "deployment/cflow/gunicorn.conf.py", "run:app"]
+COPY --chown=appuser:appuser deployment/cflow/gunicorn.conf.py .
+
+
+CMD ["gunicorn", "-c", "gunicorn.conf.py", "run:app"]
