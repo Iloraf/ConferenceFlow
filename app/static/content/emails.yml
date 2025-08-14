@@ -1,0 +1,200 @@
+# Configuration complète des emails pour SFT 2026
+# Fichier : config/emails.yml
+
+# ===== MÉTADONNÉES =====
+metadata:
+  name: "Configuration emails SFT 2026"
+  version: "1.0"
+  last_updated: "2024-01-15"
+
+# ===== SUJETS DES EMAILS =====
+templates:
+  subjects:
+    # Utilisateurs
+    welcome: "Bienvenue au congrès SFT 2026"
+    activation: "Activez votre compte SFT 2026"
+    password_reset: "Réinitialisation de votre mot de passe - SFT 2026"
+    
+    # Soumissions
+    submission_received: "Communication reçue - SFT 2026"
+    submission_confirmed: "Confirmation de soumission - SFT 2026"
+    submission_updated: "Mise à jour de votre communication - SFT 2026"
+    
+    # Reviews
+    review_assigned: "Nouvelle review assignée - SFT 2026"
+    review_reminder: "Rappel : Reviews en attente - SFT 2026"
+    reviewer_welcome: "Bienvenue comme reviewer - SFT 2026"
+    
+    # Décisions
+    decision_notification: "Décision sur votre communication - SFT 2026"
+    decision_accept: "Félicitations ! Communication acceptée - SFT 2026"
+    decision_reject: "Décision sur votre communication - SFT 2026"
+    decision_revise: "Révisions demandées - SFT 2026"
+    
+    # Co-auteurs
+    coauthor_invitation: "Invitation comme co-auteur - SFT 2026"
+    coauthor_notification: "Nouvelle communication ajoutée - SFT 2026"
+    
+    # Prix et distinctions
+    biot_fourier_nomination: "Nomination au Prix Biot-Fourier - SFT 2026"
+    biot_fourier_winner: "Lauréat du Prix Biot-Fourier - SFT 2026"
+    
+    # Admin
+    admin_weekly_summary: "Résumé hebdomadaire - Reviews SFT 2026"
+    admin_alert: "Alerte système - SFT 2026"
+    
+    # QR Codes et posters
+    qr_code_ready: "QR Code de votre poster - SFT 2026"
+    poster_reminder: "Rappel : Soumission de votre poster - SFT 2026"
+    
+    # Inscription
+    registration_confirmed: "Inscription confirmée - SFT 2026"
+    payment_reminder: "Rappel de paiement - SFT 2026"
+
+# ===== SIGNATURES =====
+signatures:
+  default: |
+    Cordialement,
+    L'équipe d'organisation SFT 2026
+    congres-sft2026@univ-lorraine.fr
+    
+  scientific: |
+    Cordialement,
+    Le Comité Scientifique SFT 2026
+    scientifique@sft2026.fr
+    
+  technical: |
+    Cordialement,
+    L'équipe technique SFT 2026
+    technique@sft2026.fr
+    
+  registration: |
+    Cordialement,
+    Service inscription SFT 2026
+    inscription@sft2026.fr
+    
+  system: |
+    Cet email a été envoyé automatiquement.
+    Système de gestion du congrès SFT 2026
+    contact@sft2026.fr
+
+# ===== CONFIGURATIONS SPÉCIFIQUES =====
+notifications:
+  # Fréquence des rappels
+  reminder_frequency:
+    review_reminder_days: [7, 3, 1]  # Rappels à J-7, J-3, J-1
+    payment_reminder_days: [14, 7, 3]
+    submission_reminder_days: [10, 5, 2]
+    
+  # Notifications groupées
+  batch_processing:
+    enabled: true
+    max_emails_per_batch: 50
+    delay_between_batches_seconds: 60
+    
+  # Emails automatiques
+  auto_notifications:
+    submission_confirmation: true
+    review_assignment: true
+    decision_notification: true
+    qr_code_generation: true
+
+# ===== TEMPLATES PERSONNALISÉS =====
+custom_templates:
+  header:
+    logo_url: "/static/images/sft_logo.png"
+    background_color: "#007bff"
+    text_color: "#ffffff"
+    
+  footer:
+    include_social_links: true
+    include_unsubscribe: true
+    include_contact_info: true
+    
+  styling:
+    primary_color: "#007bff"
+    secondary_color: "#6c757d"
+    success_color: "#28a745"
+    warning_color: "#ffc107"
+    danger_color: "#dc3545"
+
+# ===== GESTION DES ERREURS =====
+error_handling:
+  bounce_management:
+    enabled: true
+    max_bounces: 3
+    disable_after_bounces: true
+    
+  retry_policy:
+    max_retries: 3
+    retry_delay_seconds: [60, 300, 900]  # 1min, 5min, 15min
+    
+  fallback:
+    admin_notification: true
+    admin_email: "admin@sft2026.fr"
+
+# ===== LOCALISATION =====
+localization:
+  default_language: "fr"
+  supported_languages: ["fr", "en"]
+  
+  date_formats:
+    fr: "%d/%m/%Y"
+    en: "%Y-%m-%d"
+    
+  time_formats:
+    fr: "%H:%M"
+    en: "%I:%M %p"
+
+# ===== INTÉGRATIONS =====
+integrations:
+  analytics:
+    track_opens: true
+    track_clicks: true
+    provider: "internal"
+    
+  attachments:
+    max_size_mb: 25
+    allowed_types: ["pdf", "doc", "docx", "png", "jpg"]
+    virus_scan: true
+    
+  calendar:
+    generate_ics: true
+    include_location: true
+    include_description: true
+
+# ===== MESSAGES PRÉDÉFINIS =====
+predefined_messages:
+  common_responses:
+    technical_support: |
+      Pour toute question technique, contactez :
+      technique@sft2026.fr
+      
+    scientific_inquiry: |
+      Pour toute question scientifique, contactez :
+      scientifique@sft2026.fr
+      
+    registration_help: |
+      Pour l'aide à l'inscription, contactez :
+      inscription@sft2026.fr
+      
+  auto_replies:
+    out_of_office: |
+      Merci pour votre message. Nous vous répondrons dans les plus brefs délais.
+      
+    confirmation: |
+      Votre message a été reçu et sera traité prochainement.
+
+# ===== TESTS ET DÉVELOPPEMENT =====
+testing:
+  test_mode: false
+  test_recipients: ["test@sft2026.fr"]
+  
+  mock_settings:
+    simulate_sending: false
+    log_only: false
+    
+  validation:
+    check_email_format: true
+    verify_templates: true
+    test_smtp_connection: true

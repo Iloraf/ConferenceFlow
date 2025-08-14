@@ -13,7 +13,7 @@ from flask import current_app
 class ConfigLoader:
     """Classe pour charger les configurations depuis les fichiers YAML et CSV."""
     
-    def __init__(self, config_dir="config"):
+    def __init__(self, config_dir="app/static/content"):
         """
         Initialise le chargeur de configuration.
         

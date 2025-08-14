@@ -618,31 +618,8 @@ def localisation():
             'description': 'Lieu principal de la conférence',
             'lat': 48.674,
             'lng': 6.1430,
-            'image': 'images/domaine_asnee.png'
+            'image': 'content/site.png'
         },
-        'hotels': [
-            {
-                'name': 'Grand Hôtel de la Reine',
-                'stars': 4,
-                'address': '2 Place Stanislas, 54000 Nancy',
-                'distance': '500m du centre de congrès',
-                'price': 'À partir de 120€/nuit'
-            },
-            {
-                'name': 'Mercure Nancy Centre',
-                'stars': 4,
-                'address': '5 Rue des Carmes, 54000 Nancy',
-                'distance': '800m du centre de congrès',
-                'price': 'À partir de 95€/nuit'
-            },
-            {
-                'name': 'Ibis Nancy Centre',
-                'stars': 3,
-                'address': '3 Rue Crampel, 54000 Nancy',
-                'distance': '1km du centre de congrès',
-                'price': 'À partir de 75€/nuit'
-            }
-        ],
         'transport': {
             'train': {
                 'title': 'En train',

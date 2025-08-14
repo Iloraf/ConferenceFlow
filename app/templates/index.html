@@ -4,7 +4,7 @@
 
 <div class="jumbotron bg-primary text-white p-5 rounded mb-4">
     <div class="container-fluid">
-        <h1 class="display-4">{{ conference.edition }}ème Congrès Français de Thermique</h1>
+        <h1 class="display-4">{{ conference.edition }}<sup>ème</sup> Congrès Français de Thermique</h1>
         <p class="lead">{{ conference.organizer.name }}</p>
         
         {% if not current_user.is_authenticated %}
@@ -22,17 +22,17 @@
 <div class="col-12">
   <!-- Information générale -->
             <div class="content-section">
-                <p class="lead">Le {{ conference.edition }}ème congrès français de thermique est organisé par le <strong>{{ conference.organizing_lab.name }} ({{ conference.organizing_lab.short_name }})</strong>, {{ conference.organizing_lab.description }}.</p>
+                <p class="lead">Le {{ conference.edition }}<sup>ème</sup> congrès français de thermique est organisé par le <strong>{{ conference.organizing_lab.name }} ({{ conference.organizing_lab.short_name }})</strong>, {{ conference.organizing_lab.description }}.</p>
                 
                 <div class="highlight-box text-center">
                     <h3 class="h4 mb-3"><i class="fas fa-map-marker-alt"></i> {{ conference_location.city }}</h3>
-                    <h2 class="h3 mb-3"><i class="fas fa-calendar-alt"></i>{{ conference_dates.dates }}</h2>
+                    <h2 class="h3 mb-3"><i class="fas fa-calendar-alt"></i>du {{ conference_dates.dates }}</h2>
                     <h4 class="h5">« {{ conference.theme }} »</h4>
                 </div>
                 
                 <div class="download-link">
                     <p class="mb-2"><i class="fas fa-file-pdf"></i> <strong>Documentation officielle</strong></p>
-                    <a href="./static/uploads/pdf/Congres_sft2026_flyer.pdf" target="_blank" class="btn btn-outline-primary">
+                    <a href="./static/content/flyer.pdf" target="_blank" class="btn btn-outline-primary">
                         <i class="fas fa-download"></i> Télécharger le flyer de présentation
                     </a>
                 </div>
@@ -49,8 +49,6 @@
                     <p class="mb-3">{{ conference.objectif | safe }}</p>
                 </div>
                 
-                <h5 class="mt-4"><i class="fas fa-users"></i> Public cible</h5>
-                <p>{{ conference.public | safe }}</p>
                 
                 <h5 class="mt-4"><i class="fas fa-clipboard-list"></i> Format des présentations</h5>
                 <div class="row">
