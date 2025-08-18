@@ -49,7 +49,7 @@ dates:
   # Dates de la conférence
   start: "2026-06-02"
   end: "2026-06-05"
-  dates: "du 2 au 5 juin 2026"
+  dates: "2 au 5 juin 2026"
 
   # Dates limites de soumission
   deadlines:
@@ -133,7 +133,7 @@ contacts:
     city: "Montbonnot-Saint-Martin"
     phone: "+33 825 595 525"
     phone_cost: "0,15€/min*"
-    email: "inscription2026@congres-sft.fr"
+    email: "inscription2025@congres-sft.fr"
 
 # ===== FRAIS D'INSCRIPTION =====
 fees:

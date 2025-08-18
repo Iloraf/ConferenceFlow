@@ -1,3 +1,4 @@
+# app/config_loader.py
 """
 Chargeur de configuration pour ConferenceFlow
 Gère le chargement des fichiers YAML et CSV de configuration
@@ -12,7 +13,7 @@ from flask import current_app
 class ConfigLoader:
     """Classe pour charger les configurations depuis les fichiers YAML et CSV."""
     
-    def __init__(self, config_dir="app/static/content"):
+    def __init__(self, config_dir="config"):
         """
         Initialise le chargeur de configuration.
         
@@ -20,17 +21,14 @@ class ConfigLoader:
             config_dir (str): Dossier contenant les fichiers de configuration
         """
         # Chemin relatif depuis la racine du projet
-        import os
-        # Obtenir le chemin du module app
-        app_path = os.path.dirname(os.path.abspath(__file__))
-        # Remonter d'un niveau pour avoir la racine du projet
-        project_root = os.path.dirname(app_path)
-        self.config_dir = Path(project_root) / config_dir
+        if hasattr(current_app, 'root_path'):
+            self.config_dir = Path(current_app.root_path).parent / config_dir
+        else:
+            self.config_dir = Path(config_dir)
         
         self._conference_config = None
         self._themes = None
         self._email_config = None
-
     
     def load_conference_config(self):
         """Charge la configuration générale de la conférence depuis conference.yml"""
@@ -80,60 +78,7 @@ class ConfigLoader:
         except Exception as e:
             current_app.logger.error(f"Erreur lors du chargement de emails.yml : {e}")
             return self._get_default_email_config()
-
-
-
-    def reload_all_configs(self):
-        """Force le rechargement de toutes les configurations."""
-        try:
-            # Réinitialiser le cache
-            self._conference_config = None
-            self._themes = None
-            self._email_config = None
-        
-            # Recharger toutes les configurations
-            conference_config = self.load_conference_config()
-            themes_config = self.load_themes()
-            email_config = self.load_email_config()
-        
-            return {
-                'success': True,
-                'message': 'Configuration rechargée avec succès',
-                'details': {
-                    'conference_sections': len(conference_config.keys()) if conference_config else 0,
-                    'themes_count': len(themes_config) if themes_config else 0,
-                    'email_templates': len(email_config.get('templates', {})) if email_config else 0
-                }
-            }
-        except Exception as e:
-            return {
-                'success': False,
-                'message': f'Erreur lors du rechargement: {str(e)}',
-                'details': {}
-            }
-
-    def get_config_status(self):
-        """Retourne le statut actuel des configurations."""
-        status = {
-            'conference_yml': {
-                'loaded': self._conference_config is not None,
-                'file_exists': (self.config_dir / "conference.yml").exists(),
-                'sections': len(self._conference_config.keys()) if self._conference_config else 0
-            },
-            'themes_yml': {
-                'loaded': self._themes is not None,
-                'file_exists': (self.config_dir / "themes.yml").exists(),
-                'count': len(self._themes) if self._themes else 0
-            },
-            'email_yml': {
-                'loaded': self._email_config is not None,
-                'file_exists': (self.config_dir / "emails.yml").exists(),
-                'templates': len(self._email_config.get('templates', {})) if self._email_config else 0
-            }
-        }
-        return status
-
-        
+    
     def load_csv_data(self, filename):
         """
         Charge des données depuis un fichier CSV.

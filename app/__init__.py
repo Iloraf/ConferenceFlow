@@ -83,7 +83,8 @@ def create_app():
         fees_info = app.conference_config.get('fees', {})
         transport_info = app.conference_config.get('transport', {})
         accommodation_info = app.conference_config.get('accommodation', {})
-    
+        legal_info = app.conference_config.get('legal', {})  # ← Ajout de cette ligne
+
         return {
             'conference': conference_info,
             'conference_dates': dates_info,
@@ -92,8 +93,10 @@ def create_app():
             'conference_fees': fees_info,
             'conference_transport': transport_info,
             'conference_accommodation': accommodation_info,
+            'legal': legal_info,  # ← Ajout de cette ligne
             'themes_available': len(app.themes_config)
         }
+            
     
     from .models import User
     @login_manager.user_loader

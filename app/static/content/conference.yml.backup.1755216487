@@ -49,7 +49,7 @@ dates:
   # Dates de la conférence
   start: "2026-06-02"
   end: "2026-06-05"
-  dates: "du 2 au 5 juin 2026"
+  dates: "2 au 5 juin 2026"
 
   # Dates limites de soumission
   deadlines:
@@ -108,7 +108,7 @@ contacts:
     
   scientific:
     title: "Communications scientifiques"
-    email: "olivier.farges@univ-lorraine.fr"
+    email: "congres-sft2026@univ-lorraine.fr"
     person: "Olivier Farges"
     
   registration:
@@ -125,15 +125,6 @@ contacts:
     title: "Site web"
     email: "congres-sft2026@univ-lorraine.fr"
     person: "Ludovic Buhler"
-
-  registration_provider:
-    company: "INSIGHT OUTSIDE"
-    address: "26 avenue Jean Kuntzmann"
-    postal_code: "38330"
-    city: "Montbonnot-Saint-Martin"
-    phone: "+33 825 595 525"
-    phone_cost: "0,15€/min*"
-    email: "inscription2026@congres-sft.fr"
 
 # ===== FRAIS D'INSCRIPTION =====
 fees:
@@ -319,7 +310,3 @@ accommodation:
       distance_km: 7
       special_rate: 75
 
-legal:
-  phone_disclaimer: "prix depuis ligne fixe opérateur historique, une surtaxe peut être appliquée selon les opérateurs, décompte à la seconde au delà des 45 premières secondes."
-  data_protection: "Conformément à la loi Informatique et Libertés, vous disposez d'un droit d'accès et de rectification aux données personnelles vous concernant en vous adressant à INSIGHT OUTSIDE 26 avenue Jean Kuntzmann - 38330 Montbonnot-Saint-Martin / France."
-  opt_out: "Conformément à la loi pour la Confiance dans l'Economie numérique du 21 juin 2004, vous pouvez également vous opposer à l'utilisation de vos coordonnées, en envoyant un simple courrier à l'adresse ci-dessus."

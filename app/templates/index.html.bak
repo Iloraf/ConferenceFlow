@@ -4,8 +4,8 @@
 
 <div class="jumbotron bg-primary text-white p-5 rounded mb-4">
     <div class="container-fluid">
-        <h1 class="display-4">{{ conference.edition }}<sup>ème</sup> Congrès Français de Thermique</h1>
-        <p class="lead">{{ conference.organizer.name }}</p>
+        <h1 class="display-4">34ème Congrès Français de Thermique</h1>
+        <p class="lead">Société Française de Thermique</p>
         
         {% if not current_user.is_authenticated %}
             <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg me-3">Créer un compte</a>
@@ -22,17 +22,17 @@
 <div class="col-12">
   <!-- Information générale -->
             <div class="content-section">
-                <p class="lead">Le {{ conference.edition }}<sup>ème</sup> congrès français de thermique est organisé par le <strong>{{ conference.organizing_lab.name }} ({{ conference.organizing_lab.short_name }})</strong>, {{ conference.organizing_lab.description }}.</p>
+                <p class="lead">Le 34ème congrès français de thermique est organisé par le <strong>Laboratoire Énergies & Mécanique Théorique et Appliquée (LEMTA)</strong>, unité mixte de recherche de l'Université de Lorraine et du CNRS.</p>
                 
                 <div class="highlight-box text-center">
-                    <h3 class="h4 mb-3"><i class="fas fa-map-marker-alt"></i> {{ conference_location.city }}</h3>
-                    <h2 class="h3 mb-3"><i class="fas fa-calendar-alt"></i> {{ conference_dates.dates }}</h2>
-                    <h4 class="h5">« {{ conference.theme }} »</h4>
+                    <h3 class="h4 mb-3"><i class="fas fa-map-marker-alt"></i> Villers-lès-Nancy</h3>
+                    <h2 class="h3 mb-3"><i class="fas fa-calendar-alt"></i> 2 au 5 juin 2026</h2>
+                    <h4 class="h5">« Thermique & Décarbonation de l'industrie »</h4>
                 </div>
                 
                 <div class="download-link">
                     <p class="mb-2"><i class="fas fa-file-pdf"></i> <strong>Documentation officielle</strong></p>
-                    <a href="./static/content/flyer.pdf" target="_blank" class="btn btn-outline-primary">
+                    <a href="./static/uploads/pdf/Congres_sft2026_flyer.pdf" target="_blank" class="btn btn-outline-primary">
                         <i class="fas fa-download"></i> Télécharger le flyer de présentation
                     </a>
                 </div>
@@ -46,9 +46,11 @@
                 
                 <div class="congress-info">
                     <h5 class="text-success"><i class="fas fa-leaf"></i> Objectif principal</h5>
-                    <p class="mb-3">{{ conference.objectif | safe }}</p>
+                    <p class="mb-3">'objectif du 34ème Congrès de thermique est d'inviter la communauté des thermiciens à éclairer sur les <strong>défis posés par la décarbonation de l'industrie</strong> à moins d'un quart de siècle de l'objectif de neutralité carbone en 2050.</p>
                 </div>
                 
+                <h5 class="mt-4"><i class="fas fa-users"></i> Public cible</h5>
+                <p>Nous invitons également tous les <strong>chercheur.e.s</strong>, <strong>industriel.le.s</strong> et <strong>doctorant.e.s</strong> à venir échanger sur leurs travaux récents dans le domaine de la thermique et de ses applications.</p>
                 
                 <h5 class="mt-4"><i class="fas fa-clipboard-list"></i> Format des présentations</h5>
                 <div class="row">
@@ -80,16 +82,16 @@
 <div class="container-fluid p-0">
     <div class="row no-gutters">
         <div class="col-12">
-            <img src="{{ url_for('static', filename='images/sft_nancy.png') }}" class="img-fluid w-100" alt="Ville de {{ conference_location.city }}">
+            <img src="{{ url_for('static', filename='images/sft_nancy.png') }}" class="img-fluid w-100" alt="Ville de Nancy">
         </div>
         <div class="col-12 bg-light p-5">
             <div class="container">
-                <h2 class="text-center mb-4">{{ conference_location.venue }} et la Ville de {{ conference_location.city }}</h2>
+                <h2 class="text-center mb-4">Domaine de l'Asnée et la Ville de Nancy</h2>
                 <p class="lead text-center">
-		  {{ conference_location.city_description | safe }}
+                    Le Domaine de l'Asnée est un lieu emblématique situé à proximité de Nancy, une ville riche en histoire et en culture. Nancy est célèbre pour sa place Stanislas, classée au patrimoine mondial de l'UNESCO, et son architecture élégante du XVIIIe siècle.
                 </p>
                 <p class="text-center">
-		  {{ conference_location.place_description | safe }}
+                    Le Domaine de l'Asnée offre un cadre paisible et verdoyant, idéal pour des événements tels que des congrès et des conférences. Avec ses espaces modernes et ses équipements de pointe, il est parfaitement adapté pour accueillir des participants du monde entier.
                 </p>
             </div>
         </div>
@@ -109,19 +111,19 @@
                     <div class="col-md-4 text-center">
                         <div class="p-3">
                             <h5 class="text-primary"><i class="fas fa-university"></i> Lieu</h5>
-                            <p class="mb-0">{{ conference_location.venue }}<br><small class="text-muted">{{ conference_location.city }}</small></p>
+                            <p class="mb-0">Domaine de l'Asnée<br><small class="text-muted">Villiers-lès-Nancy</small></p>
                         </div>
                     </div>
                     <div class="col-md-4 text-center">
                         <div class="p-3">
                             <h5 class="text-primary"><i class="fas fa-calendar-alt"></i> Dates</h5>
-                            <p class="mb-0">{{ conference_dates.dates }}<br><small class="text-muted">4 journées complètes</small></p>
+                            <p class="mb-0">2 au 5 juin 2026<br><small class="text-muted">4 journées complètes</small></p>
                         </div>
                     </div>
                     <div class="col-md-4 text-center">
                         <div class="p-3">
                             <h5 class="text-primary"><i class="fas fa-bullseye"></i> Thème</h5>
-                            <p class="mb-0">{{ conference.theme | safe }}</p>
+                            <p class="mb-0">Thermique & Décarbonation<br><small class="text-muted">de l'industrie</small></p>
                         </div>
                     </div>
                 </div>
@@ -136,8 +138,8 @@
                 <div class="row">
                     <div class="col-md-6">
                         <h6 class="text-primary">Organisateur principal</h6>
-                        <p><strong>{{ conference.organizing_lab.short_name }}</strong><br>
-                        <small>{{ conference.organizing_lab.name }}</small></p>
+                        <p><strong>LEMTA</strong><br>
+                        <small>Laboratoire Énergies & Mécanique Théorique et Appliquée</small></p>
                     </div>
                     <div class="col-md-6">
                         <h6 class="text-primary">Institutions partenaires</h6>
@@ -151,3 +153,4 @@
     </div>
 </div>
 {% endblock %}
+

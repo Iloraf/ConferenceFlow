@@ -158,39 +158,63 @@
       </div>
     </div>
 
-    <!-- Gestion des affiliations -->
-    <div class="col-lg-4 mb-4">
-      <div class="card border-0 shadow-sm h-100 hover-lift">
-        <div class="card-body">
-          <div class="d-flex align-items-center mb-3">
-            <div class="bg-info bg-opacity-10 rounded-circle p-3 me-3">
-              <i class="fas fa-university text-info fa-2x"></i>
-            </div>
-            <div>
-              <h5 class="card-title mb-1">Gestion des affiliations</h5>
-              <p class="text-muted small mb-0">Laboratoires et institutions</p>
-            </div>
-          </div>
-          
-          <div class="mb-3">
+    <!-- Gestion du contenu -->
+<div class="col-lg-4 mb-4">
+  <div class="card border-0 shadow-sm h-100 hover-lift">
+    <div class="card-body">
+      <div class="d-flex align-items-center mb-3">
+        <div class="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+          <i class="fas fa-folder-open text-info fa-2x"></i>
+        </div>
+        <div>
+          <h5 class="card-title mb-1">Gestion du contenu</h5>
+          <p class="text-muted small mb-0">Fichiers CSV et configuration</p>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <div class="row text-center">
+          <div class="col-6">
             <div class="d-flex justify-content-between align-items-center">
-              <span class="text-muted">Affiliations enregistrées</span>
-              <strong class="text-info fs-4">{{ affiliations_count|default(0) }}</strong>
+              <span class="text-muted small">Affiliations</span>
+              <strong class="text-info">{{ affiliations_count|default(0) }}</strong>
             </div>
           </div>
+          <div class="col-6">
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-muted small">Fichiers CSV</span>
+              <strong class="text-info">{{ csv_files_count|default(0) }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('admin.list_affiliations') }}" class="btn btn-info">
-              <i class="fas fa-list me-2"></i>Voir les affiliations
+      <div class="d-grid gap-2">
+        <a href="{{ url_for('admin.manage_content') }}" class="btn btn-info">
+          <i class="fas fa-cog me-2"></i>Gérer le contenu
+        </a>
+        
+        <div class="row g-1">
+          <div class="col-6">
+            <a href="{{ url_for('admin.list_affiliations') }}" class="btn btn-outline-info btn-sm w-100">
+              <i class="fas fa-university me-1"></i>Affiliations
             </a>
-            <a href="{{ url_for('admin.import_affiliations') }}" class="btn btn-outline-info btn-sm">
-              <i class="fas fa-upload me-2"></i>Import affiliations CSV
+          </div>
+          <div class="col-6">
+            <a href="{{ url_for('admin.import_affiliations') }}" class="btn btn-outline-info btn-sm w-100">
+              <i class="fas fa-upload me-1"></i>Import CSV
             </a>
           </div>
         </div>
       </div>
     </div>
+  </div>
+</div>
 
+
+
+
+    
     <!-- Gestion des reviews -->
     <div class="col-lg-4 mb-4">
       <div class="card border-0 shadow-sm h-100 hover-lift">

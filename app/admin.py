@@ -7,6 +7,10 @@ from io import StringIO
 import csv
 import os
 from datetime import datetime, timedelta
+import yaml
+from pathlib import Path
+
+
 
 admin = Blueprint("admin", __name__)
 
@@ -20,13 +24,43 @@ def admin_dashboard():
     
     users = User.query.all()
     affiliations_count = Affiliation.query.count()
-    
     pending_reviews = Communication.query.filter_by(status=CommunicationStatus.ARTICLE_SOUMIS).count()
+    
+    # Compter les fichiers CSV dans le dossier content
+    csv_files_count = 0
+    try:
+        content_dir = Path(current_app.root_path) / "static" / "content"
+        if content_dir.exists():
+            csv_files_count = len(list(content_dir.glob("*.csv")))
+    except Exception as e:
+        current_app.logger.error(f"Erreur comptage fichiers CSV: {e}")
     
     return render_template("admin.html", 
                          users=users,
                          affiliations_count=affiliations_count,
-                         pending_reviews=pending_reviews)
+                         pending_reviews=pending_reviews,
+                         csv_files_count=csv_files_count)
+
+
+##########################################################################################################
+# @admin.route("/dashboard")                                                                             #
+# @login_required                                                                                        #
+# def admin_dashboard():                                                                                 #
+#     """Dashboard principal d'administration."""                                                        #
+#     if not current_user.is_admin:                                                                      #
+#         flash("Accès réservé aux administrateurs.", "danger")                                          #
+#         return redirect(url_for("main.index"))                                                         #
+#                                                                                                        #
+#     users = User.query.all()                                                                           #
+#     affiliations_count = Affiliation.query.count()                                                     #
+#                                                                                                        #
+#     pending_reviews = Communication.query.filter_by(status=CommunicationStatus.ARTICLE_SOUMIS).count() #
+#                                                                                                        #
+#     return render_template("admin.html",                                                               #
+#                          users=users,                                                                  #
+#                          affiliations_count=affiliations_count,                                        #
+#                          pending_reviews=pending_reviews)                                              #
+##########################################################################################################
 
 @admin.route("/users")
 @login_required
@@ -3300,3 +3334,441 @@ def send_individual_email():
     
     return redirect(url_for('admin.communications_dashboard'))
 
+
+
+@admin.route("/content")
+@login_required
+def manage_content():
+    """Page de gestion du contenu du site."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    # Chemin du dossier de contenu
+    content_dir = Path(current_app.root_path) / "static" / "content"
+    
+    # Lister les fichiers CSV disponibles
+    csv_files = []
+    if content_dir.exists():
+        for file_path in content_dir.glob("*.csv"):
+            csv_files.append({
+                'name': file_path.name,
+                'size': os.path.getsize(file_path),
+                'modified': os.path.getmtime(file_path)
+            })
+    
+    # Vérifier l'existence du fichier conference.yml
+    conference_file = content_dir / "conference.yml"
+    conference_exists = conference_file.exists()
+    conference_info = None
+    
+    if conference_exists:
+        conference_info = {
+            'size': os.path.getsize(conference_file),
+            'modified': os.path.getmtime(conference_file)
+        }
+    
+    return render_template('admin/manage_content.html',
+                         csv_files=csv_files,
+                         conference_exists=conference_exists,
+                         conference_info=conference_info)
+
+@admin.route("/content/upload-csv", methods=["POST"])
+@login_required
+def upload_csv():
+    """Upload/remplacement d'un fichier CSV."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'Nom de fichier vide'}), 400
+    
+    if not file.filename.lower().endswith('.csv'):
+        return jsonify({'success': False, 'message': 'Seuls les fichiers CSV sont autorisés'}), 400
+    
+    try:
+        # Sécuriser le nom de fichier
+        filename = secure_filename(file.filename)
+        
+        # Chemin de destination
+        content_dir = Path(current_app.root_path) / "static" / "content"
+        content_dir.mkdir(parents=True, exist_ok=True)
+        file_path = content_dir / filename
+        
+        # Sauvegarder l'ancien fichier s'il existe
+        if file_path.exists():
+            backup_path = content_dir / f"{filename}.backup"
+            os.rename(file_path, backup_path)
+        
+        # Sauvegarder le nouveau fichier
+        file.save(file_path)
+        
+        # Valider le format CSV
+        with open(file_path, 'r', encoding='utf-8') as csvfile:
+            csv.reader(csvfile, delimiter=';')  # Test de lecture
+        
+        current_app.logger.info(f"Fichier CSV uploadé par {current_user.email}: {filename}")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Fichier {filename} uploadé avec succès'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur upload CSV: {e}")
+        return jsonify({
+            'success': False, 
+            'message': f'Erreur lors de l\'upload: {str(e)}'
+        }), 500
+
+
+@admin.route("/content/download-csv/<filename>")
+@login_required
+def download_csv(filename):
+    """Télécharger un fichier CSV."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    # Sécuriser le nom de fichier
+    filename = secure_filename(filename)
+    if not filename.endswith('.csv'):
+        flash("Fichier non autorisé.", "danger")
+        return redirect(url_for("admin.manage_content"))
+    
+    content_dir = Path(current_app.root_path) / "static" / "content"
+    file_path = content_dir / filename
+    
+    if not file_path.exists():
+        flash("Fichier non trouvé.", "danger")
+        return redirect(url_for("admin.manage_content"))
+    
+    return send_file(file_path, as_attachment=True, download_name=filename)
+
+@admin.route("/content/preview-csv/<filename>")
+@login_required
+def preview_csv(filename):
+    """Prévisualiser le contenu d'un fichier CSV."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    # Sécuriser le nom de fichier
+    filename = secure_filename(filename)
+    if not filename.endswith('.csv'):
+        return jsonify({'success': False, 'message': 'Fichier non autorisé'}), 400
+    
+    content_dir = Path(current_app.root_path) / "static" / "content"
+    file_path = content_dir / filename
+    
+    if not file_path.exists():
+        return jsonify({'success': False, 'message': 'Fichier non trouvé'}), 404
+    
+    try:
+        # Lire le CSV et créer un aperçu HTML
+        rows = []
+        with open(file_path, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=';')
+            headers = reader.fieldnames
+            
+            # Limiter à 10 lignes pour l'aperçu
+            for i, row in enumerate(reader):
+                if i >= 10:
+                    break
+                rows.append(row)
+        
+        # Générer le HTML du tableau
+        html = '<div class="table-responsive">'
+        html += '<table class="table table-sm table-bordered">'
+        
+        # En-têtes
+        html += '<thead class="table-dark"><tr>'
+        for header in headers:
+            html += f'<th style="white-space: nowrap;">{header}</th>'
+        html += '</tr></thead>'
+        
+        # Lignes de données
+        html += '<tbody>'
+        for row in rows:
+            html += '<tr>'
+            for header in headers:
+                value = row.get(header, '')[:50]  # Limiter à 50 caractères
+                if len(row.get(header, '')) > 50:
+                    value += '...'
+                html += f'<td style="white-space: nowrap;">{value}</td>'
+            html += '</tr>'
+        html += '</tbody>'
+        
+        html += '</table>'
+        
+        # Information sur le nombre total de lignes
+        with open(file_path, 'r', encoding='utf-8') as csvfile:
+            total_lines = sum(1 for line in csvfile) - 1  # -1 pour l'en-tête
+        
+        if total_lines > 10:
+            html += f'<div class="text-muted mt-2">Aperçu des 10 premières lignes sur {total_lines} au total.</div>'
+        
+        html += '</div>'
+        
+        return jsonify({'success': True, 'html': html})
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur prévisualisation CSV {filename}: {e}")
+        return jsonify({'success': False, 'message': f'Erreur de lecture: {str(e)}'}), 500
+
+@admin.route("/content/download-yaml")
+@login_required
+def download_yaml():
+    """Télécharger le fichier conference.yml."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    content_dir = Path(current_app.root_path) / "static" / "content"
+    file_path = content_dir / "conference.yml"
+    
+    if not file_path.exists():
+        flash("Fichier conference.yml non trouvé.", "danger")
+        return redirect(url_for("admin.manage_content"))
+    
+    return send_file(file_path, as_attachment=True, download_name="conference.yml")
+
+@admin.route("/content/get-yaml")
+@login_required
+def get_yaml_content():
+    """Récupérer le contenu du fichier YAML pour l'édition."""
+    if not current_user.is_admin:
+        return "Accès refusé", 403
+    
+    content_dir = Path(current_app.root_path) / "static" / "content"
+    file_path = content_dir / "conference.yml"
+    
+    if not file_path.exists():
+        return "Fichier non trouvé", 404
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return content
+    except Exception as e:
+        current_app.logger.error(f"Erreur lecture YAML: {e}")
+        return "Erreur de lecture", 500
+
+
+@admin.route("/content/save-yaml", methods=["POST"])
+@login_required
+def save_yaml():
+    """Sauvegarder le contenu du fichier YAML après édition."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    try:
+        data = request.get_json()
+        content = data.get('content', '')
+        
+        if not content:
+            return jsonify({'success': False, 'message': 'Contenu vide'}), 400
+        
+        # Valider la syntaxe YAML
+        try:
+            yaml.safe_load(content)
+        except yaml.YAMLError as e:
+            return jsonify({
+                'success': False, 
+                'message': f'Erreur de syntaxe YAML: {str(e)}'
+            }), 400
+        
+        content_dir = Path(current_app.root_path) / "static" / "content"
+        content_dir.mkdir(parents=True, exist_ok=True)
+        file_path = content_dir / "conference.yml"
+        
+        # Sauvegarder l'ancien fichier s'il existe
+        if file_path.exists():
+            backup_path = content_dir / f"conference.yml.backup.{int(datetime.now().timestamp())}"
+            os.rename(file_path, backup_path)
+        
+        # Écrire le nouveau contenu
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        current_app.logger.info(f"Fichier conference.yml modifié par {current_user.email}")
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Fichier sauvegardé avec succès'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur sauvegarde YAML: {e}")
+        return jsonify({
+            'success': False, 
+            'message': f'Erreur lors de la sauvegarde: {str(e)}'
+        }), 500
+
+@admin.route("/content/validate-yaml", methods=["POST"])
+@login_required
+def validate_yaml():
+    """Valider la syntaxe d'un contenu YAML."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    try:
+        data = request.get_json()
+        content = data.get('content', '')
+        
+        if not content:
+            return jsonify({'success': False, 'message': 'Contenu vide'}), 400
+        
+        # Tenter de parser le YAML
+        parsed = yaml.safe_load(content)
+        
+        # Compter les éléments principaux
+        sections = []
+        if isinstance(parsed, dict):
+            sections = list(parsed.keys())
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Syntaxe YAML valide. {len(sections)} sections trouvées: {", ".join(sections[:5])}{"..." if len(sections) > 5 else ""}'
+        })
+        
+    except yaml.YAMLError as e:
+        return jsonify({
+            'success': False, 
+            'message': f'Erreur de syntaxe YAML: {str(e)}'
+        }), 400
+    except Exception as e:
+        return jsonify({
+            'success': False, 
+            'message': f'Erreur de validation: {str(e)}'
+        }), 500
+
+@admin.route("/content/upload-yaml", methods=["POST"])
+@login_required
+def upload_yaml():
+    """Upload/remplacement du fichier conference.yml."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'Nom de fichier vide'}), 400
+    
+    if not file.filename.lower().endswith(('.yml', '.yaml')):
+        return jsonify({'success': False, 'message': 'Seuls les fichiers YAML sont autorisés'}), 400
+    
+    try:
+        # Lire et valider le contenu
+        content = file.read().decode('utf-8')
+        
+        # Valider la syntaxe YAML
+        try:
+            yaml.safe_load(content)
+        except yaml.YAMLError as e:
+            return jsonify({
+                'success': False, 
+                'message': f'Fichier YAML invalide: {str(e)}'
+            }), 400
+        
+        content_dir = Path(current_app.root_path) / "static" / "content"
+        content_dir.mkdir(parents=True, exist_ok=True)
+        file_path = content_dir / "conference.yml"
+        
+        # Sauvegarder l'ancien fichier s'il existe
+        if file_path.exists():
+            backup_path = content_dir / f"conference.yml.backup.{int(datetime.now().timestamp())}"
+            os.rename(file_path, backup_path)
+        
+        # Sauvegarder le nouveau fichier
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        current_app.logger.info(f"Fichier conference.yml uploadé par {current_user.email}")
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Fichier conference.yml uploadé avec succès'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur upload YAML: {e}")
+        return jsonify({
+            'success': False, 
+            'message': f'Erreur lors de l\'upload: {str(e)}'
+        }), 500
+
+@admin.route("/content/reload-config", methods=["POST"])
+@login_required
+def reload_config():
+    """Recharge la configuration de l'application à chaud."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    try:
+        from app.config_loader import ConfigLoader
+        
+        # Créer une nouvelle instance du loader
+        config_loader = ConfigLoader()
+        
+        # Recharger toutes les configurations
+        result = config_loader.reload_all_configs()
+        
+        if result['success']:
+            # Mettre à jour la configuration de l'application
+            current_app.conference_config = config_loader.load_conference_config()
+            current_app.themes_config = config_loader.load_themes()
+            current_app.email_config = config_loader.load_email_config()
+            
+            # Log de l'action
+            current_app.logger.info(f"Configuration rechargée par {current_user.email}")
+            current_app.logger.info(f"Détails: {result['details']}")
+            
+            return jsonify({
+                'success': True,
+                'message': result['message'],
+                'details': result['details'],
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify(result), 500
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur rechargement config: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Erreur lors du rechargement: {str(e)}'
+        }), 500
+
+@admin.route("/content/config-status")
+@login_required
+def config_status():
+    """Retourne le statut actuel de la configuration."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    try:
+        from app.config_loader import ConfigLoader
+        config_loader = ConfigLoader()
+        status = config_loader.get_config_status()
+        
+        return jsonify({
+            'success': True,
+            'status': status,
+            'app_config': {
+                'conference_loaded': hasattr(current_app, 'conference_config'),
+                'themes_count': len(current_app.themes_config) if hasattr(current_app, 'themes_config') else 0,
+                'email_loaded': hasattr(current_app, 'email_config')
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }), 500

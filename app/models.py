@@ -40,6 +40,9 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(50), nullable=True)
     last_name = db.Column(db.String(50), nullable=True)
 
+    
+
+    
     # Identifiants chercheur - NOUVEAUX CHAMPS
     idhal = db.Column(db.String(50), nullable=True)
     orcid = db.Column(db.String(19), nullable=True)  # Format: 0000-0000-0000-0000
@@ -68,6 +71,9 @@ class User(UserMixin, db.Model):
     activation_token = db.Column(db.String(100), nullable=True, unique=True)
     is_activated = db.Column(db.Boolean, default=False)
     activation_sent_at = db.Column(db.DateTime, nullable=True)
+    reset_password_token = db.Column(db.String(100), nullable=True)
+    reset_password_expires = db.Column(db.DateTime, nullable=True)
+
     
     def generate_activation_token(self):
         """Génère un token d'activation unique."""
@@ -101,7 +107,37 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         """Vérifie le mot de passe."""
         return check_password_hash(self.password_hash, password)
+    
+    def generate_reset_password_token(self):
+        """Génère un token de réinitialisation du mot de passe."""
+        import secrets
+        from datetime import timedelta
+        
+        self.reset_password_token = secrets.token_urlsafe(32)
+        self.reset_password_expires = datetime.utcnow() + timedelta(hours=1)  # Expire dans 1 heure
+        return self.reset_password_token
+    
+    def is_reset_password_token_valid(self, token):
+        """Vérifie si le token de réinitialisation est valide."""
+        if not self.reset_password_token or self.reset_password_token != token:
+            return False
+        
+        if not self.reset_password_expires:
+            return False
+            
+        return datetime.utcnow() <= self.reset_password_expires
+    
+    def reset_password_with_token(self, token, new_password):
+        """Réinitialise le mot de passe avec le token."""
+        if not self.is_reset_password_token_valid(token):
+            return False
+        
+        self.set_password(new_password)
+        self.reset_password_token = None
+        self.reset_password_expires = None
+        return True
 
+    
     @property
     def specialites(self):
         """Retourne les objets thématiques des spécialités."""

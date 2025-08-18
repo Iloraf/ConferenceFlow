@@ -151,32 +151,99 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <footer class="mt-5 py-4">
+    <footer class="bg-dark text-white mt-5 py-4">
         <div class="container">
             <div class="row">
+                <!-- Informations du congrès -->
                 <div class="col-md-4 mb-3">
-                    <h5><i class="fas fa-fire-flame-curved me-2"></i>SFT 2026</h5>
-                    <p class="mb-0">Congrès Français de Thermique</p>
-                    <p>2-5 juin 2026 • Nancy</p>
+                    <h5 class="mb-3">
+                        <i class="fas fa-fire-flame-curved me-2 text-primary"></i>
+                        {{ conference.short_name|default('SFT 2026') }}
+                    </h5>
+                    <p class="mb-1">{{ conference.name|default('Congrès Français de Thermique') }}</p>
+                    <p class="mb-1">
+                        <i class="fas fa-calendar me-2"></i>{{ conference_dates.dates }}
+                    </p>
+                    <p class="mb-1">
+                        <i class="fas fa-map-marker-alt me-2"></i>{{ conference_location.city|default('Nancy') }}
+                    </p>
+                    {% if conference.theme %}
+                    <p class="fst-italic text-muted small">« {{ conference.theme }} »</p>
+                    {% endif %}
                 </div>
+
+                <!-- Contact général -->
                 <div class="col-md-4 mb-3">
-                    <h5>Liens rapides</h5>
-                    <ul class="list-unstyled">
-                        <li><a href="{{ url_for('conference.programme') }}" class="text-white-50">Programme</a></li>
-                        <li><a href="{{ url_for('conference.inscription_conference') }}" class="text-white-50">Inscription</a></li>
-                        <li><a href="{{ url_for('conference.contact') }}" class="text-white-50">Contact</a></li>
-                    </ul>
+                    <h6 class="mb-3">Contact général</h6>
+                    {% if conference_contacts.general %}
+                    <p class="mb-1">
+                        <i class="fas fa-envelope me-2"></i>
+                        <a href="mailto:{{ conference_contacts.general.email }}" class="text-white-50 text-decoration-none">
+                            {{ conference_contacts.general.email }}
+                        </a>
+                    </p>
+                    {% if conference_contacts.general.phone %}
+                    <p class="mb-2">
+                        <i class="fas fa-phone me-2"></i>{{ conference_contacts.general.phone }}
+                    </p>
+                    {% endif %}
+                    {% endif %}
                 </div>
+
+                <!-- Prestataire inscription -->
                 <div class="col-md-4 mb-3">
-                    <h5>Contact</h5>
-                    <p class="mb-0"><i class="fas fa-envelope me-2"></i>congres-sft2026@univ-lorraine.fr</p>
-                    <!-- <p><i class="fas fa-phone me-2"></i>+33 3 83 00 00 00</p> -->
+                    <h6 class="mb-3">Inscriptions</h6>
+                    {% if conference_contacts.registration_provider %}
+                    <p class="mb-1"><strong>{{ conference_contacts.registration_provider.company }}</strong></p>
+                    <p class="mb-1 small text-muted">
+                        {{ conference_contacts.registration_provider.address }}<br>
+                        {{ conference_contacts.registration_provider.postal_code }} {{ conference_contacts.registration_provider.city }}
+                    </p>
+                    <p class="mb-1">
+                        <i class="fas fa-phone me-2"></i>{{ conference_contacts.registration_provider.phone }}
+                        <small class="text-muted">({{ conference_contacts.registration_provider.phone_cost }})</small>
+                    </p>
+                    <p class="mb-1">
+                        <i class="fas fa-envelope me-2"></i>
+                        <a href="mailto:{{ conference_contacts.registration_provider.email }}" class="text-white-50 text-decoration-none">
+                            {{ conference_contacts.registration_provider.email }}
+                        </a>
+                    </p>
+                    {% endif %}
                 </div>
             </div>
-            <hr class="my-3 bg-white-50">
+
+            <!-- Organisateurs -->
+            <hr class="my-3 bg-white opacity-25">
             <div class="text-center">
-                <p class="mb-0">© 2026 Société Française de Thermique - Tous droits réservés</p>
+                <p class="mb-2">
+                    <strong>{{ conference.organizer.name|default('Société Française de Thermique') }}</strong>
+                    {% if conference.organizing_lab %}
+                    - Organisé par {{ conference.organizing_lab.short_name|default('LEMTA') }}
+                    {% endif %}
+                </p>
+            </div>
+
+            <!-- Copyright et mentions légales -->
+            <div class="text-center mt-3 pt-3 border-top border-white-25">
+                <p class="mb-2 small text-muted">
+                    © {{ conference.year|default('2026') }} {{ conference.organizer.name|default('Société Française de Thermique') }} - Tous droits réservés
+                </p>
+                
+                <!-- Mentions légales -->
+                {% if legal %}
+                <div class="mt-2">
+                    <small class="text-muted d-block mb-1">
+                        <strong>*</strong> {{ legal.phone_disclaimer|default('') }}
+                    </small>
+                    <small class="text-muted d-block mb-1">
+                        {{ legal.data_protection|default('') }}
+                    </small>
+                    <small class="text-muted d-block">
+                        {{ legal.opt_out|default('') }}
+                    </small>
+                </div>
+                {% endif %}
             </div>
         </div>
     </footer>

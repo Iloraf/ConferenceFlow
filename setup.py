@@ -82,6 +82,7 @@ def init_database():
         print("❌ Erreur base de données")
         return False
 
+    
 def create_admin():
     """Crée un utilisateur admin."""
     script = """
