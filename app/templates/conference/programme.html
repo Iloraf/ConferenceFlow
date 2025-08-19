@@ -1,8 +1,7 @@
 <!-- templates/conference/programme.html -->
 {% extends 'base.html' %}
 
-{% block title %}Programme - SFT 2026{% endblock %}
-
+{% block title %}Programme - {{ conference.short_name }}{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -39,7 +38,7 @@
             <div class="timeline">
                 {% for session in day_data.sessions %}
                 <div class="timeline-item">
-		  <div class="card session-card session-{{ session.type }}{% if session.is_past %} session-past{% endif %}">
+                    <div class="card session-card session-{{ session.type }}{% if session.is_past %} session-past{% endif %}">
                         <div class="card-body">
                             <div class="row align-items-center">
                                 <div class="col-md-2">
@@ -66,13 +65,15 @@
                                                 <i class="fas fa-users text-teal"></i>
                                             {% elif session.type == 'visit' %}
                                                 <i class="fas fa-map-marker-alt text-primary"></i>
+                                            {% elif session.type == 'biot-fourier' %}
+                                                <i class="fas fa-award" style="color: #8e44ad;"></i>
                                             {% else %}
                                                 <i class="fas fa-calendar text-primary"></i>
                                             {% endif %}
                                         </span>
-					<h4 class="mb-0{% if session.is_past %} text-muted{% endif %}">
-					  {% if session.is_past %}<s>{{ session.title }}</s>{% else %}{{ session.title }}{% endif %}
-					</h4>
+                                        <h4 class="mb-0{% if session.is_past %} text-muted{% endif %}">
+                                            {% if session.is_past %}<s>{{ session.title }}</s>{% else %}{{ session.title }}{% endif %}
+                                        </h4>
                                     </div>
                                     
                                     {% if session.speaker %}
@@ -92,7 +93,7 @@
                                     <!-- Sessions parallèles -->
                                     {% if session.sessions %}
                                     <div class="parallel-sessions">
-                                      <small class="text-success fw-bold"><i class="fas fa-columns me-1"></i>Ateliers :</small>
+                                        <small class="text-success fw-bold"><i class="fas fa-columns me-1"></i>Ateliers :</small>
                                         <div class="row mt-2">
                                             {% for parallel_session in session.sessions %}
                                             <div class="col-md-4 mb-1">
@@ -140,6 +141,8 @@
                                         <span class="badge bg-primary">Visite</span>
                                     {% elif session.type == 'break' %}
                                         <span class="badge bg-secondary">Pause</span>
+                                    {% elif session.type == 'biot-fourier' %}
+                                        <span class="badge" style="background-color: #8e44ad;">Prix Biot-Fourier</span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -157,24 +160,33 @@
         <div class="section-header">
             <h2 class="h5 mb-0"><i class="fas fa-info-circle me-2"></i>Légende des types de sessions</h2>
         </div>
-        <div class="row text-center">
-            <div class="col-md-2 col-6 mb-2">
-                <span class="badge bg-danger me-2">●</span> Conférence plénière
+        <div class="legend-container">
+            <!-- Première ligne : 4 éléments principaux -->
+            <div class="row text-center mb-3">
+                <div class="col-lg-3 col-md-6 col-6 mb-2">
+                    <span class="badge bg-danger me-2">●</span> Conférence plénière
+                </div>
+                <div class="col-lg-3 col-md-6 col-6 mb-2">
+                    <span class="badge bg-success me-2">●</span> Ateliers
+                </div>
+                <div class="col-lg-3 col-md-6 col-6 mb-2">
+                    <span class="badge bg-warning me-2">●</span> Posters
+                </div>
+                <div class="col-lg-3 col-md-6 col-6 mb-2">
+                    <span class="badge me-2" style="background-color: #8e44ad;">●</span> Prix Biot-Fourier
+                </div>
             </div>
-            <div class="col-md-2 col-6 mb-2">
-                <span class="badge bg-success me-2">●</span> Ateliers
-            </div>
-            <div class="col-md-2 col-6 mb-2">
-                <span class="badge bg-warning me-2">●</span> Posters
-            </div>
-            <div class="col-md-2 col-6 mb-2">
-                <span class="badge bg-info me-2">●</span> Événements sociaux
-            </div>
-            <div class="col-md-2 col-6 mb-2">
-                <span class="badge bg-secondary me-2">●</span> Pauses et repas
-            </div>
-            <div class="col-md-2 col-6 mb-2">
-                <span class="badge bg-dark me-2">●</span> Cérémonies
+            <!-- Deuxième ligne : 3 éléments secondaires -->
+            <div class="row text-center">
+                <div class="col-lg-4 col-md-4 col-6 mb-2">
+                    <span class="badge bg-info me-2">●</span> Événements sociaux
+                </div>
+                <div class="col-lg-4 col-md-4 col-6 mb-2">
+                    <span class="badge bg-secondary me-2">●</span> Pauses et repas
+                </div>
+                <div class="col-lg-4 col-md-4 col-6 mb-2">
+                    <span class="badge bg-dark me-2">●</span> Cérémonies
+                </div>
             </div>
         </div>
     </div>
@@ -186,13 +198,13 @@
         </div>
 
         <div class="row">
-          <div class="text-center">
-	    <div class="action-buttons">
-	      <a href="{{ url_for('conference.programme_pdf') }}" class="btn btn-primary btn-lg me-3" target="_blank">
-		<i class="fas fa-download me-2"></i>Télécharger le programme complet (PDF)
-	      </a>
-	    </div>
-          </div>
+            <div class="text-center">
+                <div class="action-buttons">
+                    <a href="{{ url_for('conference.programme_pdf') }}" class="btn btn-primary btn-lg me-3" target="_blank">
+                        <i class="fas fa-download me-2"></i>Télécharger le programme complet (PDF)
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -228,6 +240,29 @@
     .session-past .time-badge {
         background-color: #e9ecef !important;
         color: #6c757d !important;
+    }
+    
+    /* Légende améliorée */
+    .legend-container {
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .legend-container .badge {
+        font-size: 0.9rem;
+    }
+    
+    @media (max-width: 768px) {
+        .legend-container {
+            padding: 1rem;
+        }
+        
+        .legend-container .badge {
+            font-size: 0.8rem;
+        }
     }
 </style>
 {% endblock %}

@@ -7,6 +7,7 @@ conference:
   edition: "34"
   theme: "Thermique & Décarbonation de l'industrie"
   year: 2026
+  
   # Organisateur principal
   organizer:
     name: "Société Française de Thermique"
@@ -20,29 +21,16 @@ conference:
     short_name: "LEMTA"
     description: "Unité mixte de recherche de l'Université de Lorraine et du CNRS"
 
-  objectif: "L'objectif du 34<sup>ème</sup> Congrès de
-thermique est d'inviter la communauté
-des thermiciens à éclairer sur les défis
-posés par la décarbonation de l'industrie à
-moins d'un quart de siècle de l'objectif de
-neutralité carbone en 2050. Nous invitons
-également tous les chercheur.e.s, industriel.le.s
-et doctorant.e.s à venir échanger sur leurs
-travaux récents dans le domaine de la
-thermique et de ses applications. Tous les
-travaux seront présentés sous forme de poster
-lors de sessions dédiées et pourront donner
-lieu à une communication écrite (avec DOI).
-Des ateliers thématiques seront aussi
-programmés en alternance avec des
-conférences plénières."
+  objectif: "L'objectif du 34<sup>ème</sup> Congrès de thermique est d'inviter la communauté des thermiciens à éclairer sur les défis posés par la décarbonation de l'industrie à moins d'un quart de siècle de l'objectif de neutralité carbone en 2050. Nous invitons également tous les chercheur.e.s, industriel.le.s et doctorant.e.s à venir échanger sur leurs travaux récents dans le domaine de la thermique et de ses applications. Tous les travaux seront présentés sous forme de poster lors de sessions dédiées et pourront donner lieu à une communication écrite (avec DOI). Des ateliers thématiques seront aussi programmés en alternance avec des conférences plénières."
 
   # Présidents du congrès
   presidents:
     - name: "Michel Gradeck"
       role: "Président"
+      email: "michel.gradeck@univ-lorraine.fr" 
     - name: "Vincent Schick"
       role: "Président"
+      email: "vincent.schick@univ-lorraine.fr"
   
 # ===== DATES IMPORTANTES =====
 dates:
@@ -55,7 +43,7 @@ dates:
   deadlines:
     abstract_submission: "2025-11-15"
     abstract_notification: "2025-12-01"
-    article_submission: "2026-01-22"
+    article_submission: "2026-01-21"
     article_notification: "2026-03-25"
     final_version: "2026-04-10"
     wip_submission: "2026-04-20"
@@ -88,6 +76,9 @@ location:
   city: "Nancy"
   region: "Grand Est"
   country: "France"
+  description: "Centre de congrès moderne situé dans un cadre verdoyant à proximité de Nancy"
+  image: "images/domaine_asnee.jpg"
+  
   coordinates:
     latitude: 48.674
     longitude: 6.1430
@@ -98,6 +89,74 @@ location:
     parallel_rooms: 3
     poster_area: 100
     exhibition_stands: 20
+    
+  # Informations ville
+  city_description: "Nancy, ancienne capitale des ducs de Lorraine, est une ville d'art et d'histoire classée au patrimoine mondial de l'UNESCO."
+  place_description: "Le Domaine de l'Asnée offre un cadre exceptionnel pour accueillir le congrès dans un environnement calme et moderne."
+
+# ===== TRANSPORTS =====
+transport:
+  train:
+    title: "Train"
+    description: "Gare SNCF Nancy-Ville à 15 min en bus\nLiaisons directes depuis Paris (1h30), Lyon (3h), Strasbourg (1h30)"
+    distance: "8 km"
+    duration: "15 min"
+    
+  car:
+    title: "Voiture"
+    description: "Autoroute A31 - Sortie Nancy Sud\nParking gratuit sur site (200 places)\nVoiturier disponible"
+    parking: "Gratuit - 200 places"
+    
+  plane:
+    title: "Avion"
+    description: "Aéroport Metz-Nancy-Lorraine à 45 min\nNavette aéroport disponible\nLiaisons européennes principales"
+    airport: "Metz-Nancy-Lorraine"
+    distance: "35 km"
+    duration: "45 min"
+    
+  local:
+    title: "Transports locaux"
+    description: "Bus ligne 15 - Arrêt 'Laxou Les Provines'\nBus ligne 13 - Arrêt 'Domaine de l'Asnée'\nTramway T1 + correspondance bus"
+    bus_lines: ["15", "13"]
+    tram_line: "T1"
+
+# ===== HÉBERGEMENT =====
+accommodation:
+  platform:
+    name: "H-Resa"
+    url: "https://insightoutside.h-resa.com/redirect.htm;AT?codeEvent=SFT2026&lang=fr&toAddressName=Nancy%252C%2520France&lat=48.67453211019228&lng=6.143106454972051&startDate=2026-06-01&endDate=2026-06-05&searchRadius=1000&nbAdults_room_1=1"
+    description: "Plateforme officielle de réservation d'hébergement"
+
+# ===== INFORMATIONS VILLE =====
+city_info:
+  attractions:
+    - name: "Place Stanislas"
+      type: "Patrimoine UNESCO"
+      description: "Place du XVIIIe siècle, patrimoine mondial UNESCO"
+      
+    - name: "Musée des Beaux-Arts"
+      type: "Musée"
+      description: "Collections remarquables d'art européen"
+      
+    - name: "Villa Majorelle" 
+      type: "Architecture"
+      description: "Joyau de l'Art Nouveau"
+      
+    - name: "Parc de la Pépinière"
+      type: "Parc"
+      description: "21 hectares de verdure en centre-ville"
+      
+  services:
+    restaurants: "Nombreux restaurants dans un rayon de 500m"
+    cafes: "Cafés et brasseries sur la Place Stanislas"
+    shopping: "Centre commercial Saint-Sébastien"
+    medical: "Pharmacies et services médicaux"
+    
+  weather:
+    month: "juin"
+    temperature_min: 15
+    temperature_max: 23
+    description: "Températures moyennes : 15-23°C • Prévoir des vêtements de mi-saison"
 
 # ===== CONTACTS =====
 contacts:
@@ -105,35 +164,22 @@ contacts:
     title: "Contact général"
     email: "congres-sft2026@univ-lorraine.fr"
     phone: "+33 3 83 00 00 00"
+
+  program:
+    title: "Programme scientifique"
+    description: "Questions sur le contenu scientifique, le programme et l'organisation générale"
     
-  scientific:
-    title: "Communications scientifiques"
+  submissions:
+    title: "Soumissions et communications"
     email: "olivier.farges@univ-lorraine.fr"
     person: "Olivier Farges"
-    
-  registration:
-    title: "Inscriptions"
-    email: "congres-sft2026@univ-lorraine.fr"
-    person: "Virginie Grandemange"
+    description: "Questions techniques sur les soumissions, reviews et communications"
     
   communication:
-    title: "Communication"
-    email: "congres-sft2026@univ-lorraine.fr"
+    title: "Communication et médias"
+    email: "christelle.moine@univ-lorraine.fr"
     person: "Christelle Moine"
-    
-  website:
-    title: "Site web"
-    email: "congres-sft2026@univ-lorraine.fr"
-    person: "Ludovic Buhler"
-
-  registration_provider:
-    company: "INSIGHT OUTSIDE"
-    address: "26 avenue Jean Kuntzmann"
-    postal_code: "38330"
-    city: "Montbonnot-Saint-Martin"
-    phone: "+33 825 595 525"
-    phone_cost: "0,15€/min*"
-    email: "inscription2026@congres-sft.fr"
+    description: "Relations presse, communication externe et partenariats"
 
 # ===== FRAIS D'INSCRIPTION =====
 fees:
@@ -208,7 +254,26 @@ submissions:
   file_formats:
     accepted: ["pdf", "doc", "docx"]
     max_size_mb: 10
-    
+
+# ===== RÉSEAUX SOCIAUX =====
+social_media:
+  twitter: "@SFTThermique"
+  linkedin: "societe-francaise-thermique"
+  youtube: "SFTThermique"
+
+# ===== DONNÉES STATISTIQUES =====
+statistics:
+  expected_participants: 400
+  expected_papers: 200
+  expected_countries: 15
+  previous_editions:
+    - year: 2025
+      location: "Chambéry"
+      participants: 380
+    - year: 2024
+      location: "Reims"
+      participants: 350
+
 # ===== CONFIGURATION TECHNIQUE =====
 technical:
   # Base de données
@@ -234,7 +299,7 @@ technical:
     session_timeout_minutes: 120
     password_min_length: 8
     max_login_attempts: 5
-    
+
 # ===== INTÉGRATIONS =====
 integrations:
   # HAL (Hyper Articles en Ligne)
@@ -252,79 +317,3 @@ integrations:
   doi:
     enabled: false
     prefix: "10.1000"
-    
-# ===== RÉSEAUX SOCIAUX =====
-social_media:
-  twitter: "@SFTThermique"
-  linkedin: "societe-francaise-thermique"
-  youtube: "SFTThermique"
-  
-# ===== SPONSORS ET PARTENAIRES =====
-sponsorship:
-  levels:
-    - name: "Platine"
-      price: 5000
-      benefits: ["Logo sur tous supports", "Stand premium", "4 inscriptions"]
-      
-    - name: "Or"
-      price: 3000
-      benefits: ["Logo programme", "Stand standard", "2 inscriptions"]
-      
-    - name: "Argent"
-      price: 1500
-      benefits: ["Logo site web", "1 inscription"]
-      
-    - name: "Bronze"
-      price: 500
-      benefits: ["Mention remerciements"]
-
-# ===== DONNÉES STATISTIQUES =====
-statistics:
-  expected_participants: 400
-  expected_papers: 200
-  expected_countries: 1
-  previous_editions:
-    - year: 2025
-      location: "Chambéry"
-      participants: 380
-    - year: 2024
-      location: "Reims"
-      participants: 350
-
-# ===== TRANSPORT ET HÉBERGEMENT =====
-transport:
-  airports:
-    - name: "Aéroport Metz-Nancy-Lorraine"
-      distance_km: 45
-      shuttle_available: true
-      
-  train_stations:
-    - name: "Gare de Nancy"
-      distance_km: 8
-      direct_connection: "TGV Paris (1h30)"
-      
-  parking:
-    spaces: 200
-    free: true
-    
-accommodation:
-  partner_hotels:
-    - name: "Grand Hôtel de la Reine"
-      stars: 4
-      distance_km: 5
-      special_rate: 120
-      
-    - name: "Mercure Nancy Centre"
-      stars: 4
-      distance_km: 6
-      special_rate: 95
-      
-    - name: "Ibis Nancy Centre"
-      stars: 3
-      distance_km: 7
-      special_rate: 75
-
-legal:
-  phone_disclaimer: "prix depuis ligne fixe opérateur historique, une surtaxe peut être appliquée selon les opérateurs, décompte à la seconde au delà des 45 premières secondes."
-  data_protection: "Conformément à la loi Informatique et Libertés, vous disposez d'un droit d'accès et de rectification aux données personnelles vous concernant en vous adressant à INSIGHT OUTSIDE 26 avenue Jean Kuntzmann - 38330 Montbonnot-Saint-Martin / France."
-  opt_out: "Conformément à la loi pour la Confiance dans l'Economie numérique du 21 juin 2004, vous pouvez également vous opposer à l'utilisation de vos coordonnées, en envoyant un simple courrier à l'adresse ci-dessus."

@@ -1,7 +1,7 @@
 <!-- templates/conference/contact.html -->
 {% extends 'base.html' %}
 
-{% block title %}Contact - SFT 2026{% endblock %}
+{% block title %}Contact - {{ conference.short_name }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -24,6 +24,69 @@
         border-color: #667eea;
         box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
     }
+    
+    .contact-description {
+        font-size: 0.9rem;
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .president-info {
+        padding: 0.5rem;
+        background-color: rgba(40, 167, 69, 0.1);
+        border-radius: 6px;
+        border-left: 3px solid #28a745;
+    }
+    
+    .president-info:last-child {
+        margin-bottom: 0 !important;
+    }
+    
+    /* Styles pour toutes les boîtes de contact */
+    .contact-person-info {
+        padding: 0.75rem;
+        border-radius: 8px;
+        border-left: 4px solid;
+        transition: all 0.3s ease;
+    }
+    
+    .contact-person-info:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    /* Styles spécifiques par type de contact */
+    .program-style {
+        background-color: rgba(40, 167, 69, 0.1);
+        border-left-color: #28a745;
+    }
+    
+    .general-style {
+        background-color: rgba(0, 123, 255, 0.1);
+        border-left-color: #007bff;
+    }
+    
+    .submissions-style {
+        background-color: rgba(255, 193, 7, 0.1);
+        border-left-color: #ffc107;
+    }
+    
+    .communication-style {
+        background-color: rgba(23, 162, 184, 0.1);
+        border-left-color: #17a2b8;
+    }
+    
+    .contact-btn {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .contact-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
 </style>
 {% endblock %}
 
@@ -41,24 +104,72 @@
                         <div class="contact-icon">
                             {% if key == 'general' %}
                                 <i class="fas fa-info-circle text-primary"></i>
-                            {% elif key == 'scientific' %}
-                                <i class="fas fa-flask text-success"></i>
-                            {% elif key == 'registration' %}
-                                <i class="fas fa-ticket text-warning"></i>
+                            {% elif key == 'program' %}
+                                <i class="fas fa-users-cog text-success"></i>
+                            {% elif key == 'submissions' %}
+                                <i class="fas fa-file-upload text-warning"></i>
                             {% elif key == 'communication' %}
-                                <i class="fas fa-graduation-cap text-info"></i>
+                                <i class="fas fa-bullhorn text-info"></i>
                             {% endif %}
                         </div>
                         <h5>{{ contact.title }}</h5>
-                        {% if contact.person %}
-                        <p class="mb-1"><strong>{{ contact.person }}</strong></p>
+                        
+                        <!-- Affichage spécial pour les présidents -->
+                        {% if key == 'program' and contact.has_presidents and contact.presidents %}
+                            <!-- DEBUG: Afficher ce qui est reçu -->
+                            <!-- DEBUG: contact.presidents = {{ contact.presidents }} -->
+                            {% for president in contact.presidents %}
+                            <!-- DEBUG: president = {{ president }} -->
+                            <div class="contact-person-info mb-2 program-style">
+                                <p class="mb-1"><strong><i class="fas fa-user me-1"></i>{{ president.name }}</strong></p>
+                                {% if president.role %}
+                                <p class="mb-1"><small class="text-muted"><i class="fas fa-star me-1"></i>{{ president.role }}</small></p>
+                                {% endif %}
+                                {% if president.email or president.mail %}
+                                <div class="d-flex gap-2 align-items-center">
+                                    <small class="text-muted flex-grow-1">
+                                        <i class="fas fa-envelope me-1"></i>{{ president.email or president.mail }}
+                                    </small>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-success contact-btn"
+                                            onclick="contactPerson('{{ president.email or president.mail }}', '{{ president.name }}', 'program')">
+                                        <i class="fas fa-paper-plane me-1"></i>Contacter
+                                    </button>
+                                </div>
+                                {% else %}
+                                <p class="mb-1"><small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Email à définir - DEBUG: email="{{ president.email }}", mail="{{ president.mail }}"</small></p>
+                                {% endif %}
+                            </div>
+                            {% if not loop.last %}<hr class="my-2">{% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <!-- Affichage standard pour les autres contacts -->
+                            <div class="contact-person-info mb-2 {{ key }}-style">
+                                {% if contact.person %}
+                                <p class="mb-1"><strong><i class="fas fa-user me-1"></i>{{ contact.person }}</strong></p>
+                                {% endif %}
+                                {% if contact.email %}
+                                <div class="d-flex gap-2 align-items-center">
+                                    <small class="text-muted flex-grow-1">
+                                        <i class="fas fa-envelope me-1"></i>{{ contact.email }}
+                                    </small>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-{% if key == 'general' %}primary{% elif key == 'submissions' %}warning{% elif key == 'communication' %}info{% else %}secondary{% endif %} contact-btn"
+                                            onclick="contactPerson('{{ contact.email }}', '{{ contact.person or contact.title }}', '{{ key }}')">
+                                        <i class="fas fa-paper-plane me-1"></i>Contacter
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
                         {% endif %}
-                        <p class="mb-1">
-                            <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                        {% if contact.phone %}
+                        <p class="mb-2">
+                            <i class="fas fa-phone me-1"></i>{{ contact.phone }}
                         </p>
-                        <!-- {% if contact.phone %} -->
-                        <!-- <p class="mb-0">{{ contact.phone }}</p> -->
-                        <!-- {% endif %} -->
+                        {% endif %}
+                        {% if contact.description %}
+                        <p class="contact-description mb-0">{{ contact.description }}</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -94,10 +205,9 @@
                                 <select class="form-select" id="subject" name="subject" required>
                                     <option value="">Choisir un sujet...</option>
                                     <option value="general">Question générale</option>
+                                    <option value="program">Programme scientifique</option>
                                     <option value="submission">Soumission de communication</option>
-                                    <option value="registration">Inscription au congrès</option>
-                                    <option value="accommodation">Hébergement</option>
-                                    <option value="sponsorship">Partenariat / Sponsoring</option>
+                                    <option value="communication">Communication et médias</option>
                                     <option value="other">Autre</option>
                                 </select>
                             </div>
@@ -105,17 +215,10 @@
                             <div class="mb-3">
                                 <label for="message" class="form-label">Message *</label>
                                 <textarea class="form-control" id="message" name="message" rows="6" required 
-                                          placeholder="Votre message..."></textarea>
+                                          placeholder="Décrivez votre question ou demande..."></textarea>
                             </div>
                             
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="copy" name="copy">
-                                <label class="form-check-label" for="copy">
-                                    Recevoir une copie de ce message
-                                </label>
-                            </div>
-                            
-                            <div class="d-grid">
+                            <div class="text-end">
                                 <button type="submit" class="btn btn-primary btn-lg">
                                     <i class="fas fa-paper-plane me-2"></i>Envoyer le message
                                 </button>
@@ -126,98 +229,121 @@
             </div>
         </div>
         
-        <!-- Informations complémentaires -->
+        <!-- Informations supplémentaires -->
         <div class="row mt-5">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5><i class="fas fa-building me-2"></i>Adresse postale</h5>
-                        <address>
-                            <strong>Congrès SFT 2026</strong><br>
-                            LEMTA - Université de Lorraine<br>
-                            2 Avenue de la Forêt de Haye<br>
-                            54500 Vandœuvre-lès-Nancy<br>
-                            France
-                        </address>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5><i class="fas fa-clock me-2"></i>Horaires du secrétariat</h5>
-                        <p>Du lundi au vendredi : 9h00 - 12h00 et 14h00 - 17h00</p>
-                        <p class="mb-0">Fermé les weekends et jours fériés</p>
-                        <hr>
-                        <h5><i class="fas fa-share-alt me-2"></i>Réseaux sociaux</h5>
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-outline-primary">
-                                <i class="fab fa-twitter"></i>
-                            </button>
-                            <button class="btn btn-outline-primary">
-                                <i class="fab fa-linkedin"></i>
-                            </button>
-                            <button class="btn btn-outline-primary">
-                                <i class="fab fa-youtube"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- FAQ rapide -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Questions fréquentes</h5>
-            </div>
-            <div class="card-body">
-                <div class="accordion" id="faqAccordion">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-                                Comment soumettre une communication ?
-                            </button>
-                        </h2>
-                        <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                            <div class="accordion-body">
-                                Créez d'abord un compte sur la plateforme, puis accédez à la section 
-                                "Communication > Soumettre" pour déposer votre résumé.
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-                                Quels sont les moyens de transport pour venir à Nancy ?
-                            </button>
-                        </h2>
-                        <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                            <div class="accordion-body">
-                                Nancy est accessible en TGV (1h30 de Paris), par l'autoroute A31, 
-                                ou via l'aéroport Metz-Nancy-Lorraine avec navette.
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
-                                Le dîner de gala est-il inclus dans l'inscription ?
-                            </button>
-                        </h2>
-                        <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                            <div class="accordion-body">
-                                Oui, le dîner de gala est inclus dans l'inscription. 
-                                Il aura lieu le jeudi 4 juin à la Mairie de Nancy.
-                            </div>
-                        </div>
-                    </div>
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <h5><i class="fas fa-info-circle me-2"></i>Informations importantes</h5>
+                    <ul class="mb-0">
+                        <li>Les réponses aux questions techniques sont généralement envoyées sous 48h</li>
+                        <li>Pour les questions urgentes, privilégiez le contact téléphonique</li>
+                        <li>Les demandes de partenariats doivent être adressées au service communication</li>
+                        <li>Consultez d'abord la <a href="{{ url_for('conference.communication_info') }}">page des communications</a> pour les questions sur les soumissions</li>
+                    </ul>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+// Fonction universelle pour contacter une personne
+function contactPerson(email, person, contactType) {
+    // Faire défiler vers le formulaire
+    document.querySelector('.card.shadow').scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+    });
+    
+    // Pré-remplir le formulaire
+    setTimeout(() => {
+        // Sujet
+        const subjectSelect = document.getElementById('subject');
+        subjectSelect.value = contactType;
+        
+        // Message avec mention de la personne
+        const messageArea = document.getElementById('message');
+        messageArea.value = `Bonjour${person ? ' ' + person : ''},\n\n`;
+        messageArea.focus();
+        
+        // Mettre en évidence le formulaire selon le type
+        const formCard = document.querySelector('.card.shadow');
+        const isPresident = contactType === 'program';
+        const borderClass = isPresident ? 'border-success' : 'border-primary';
+        const shadowColor = isPresident ? 'rgba(40, 167, 69, 0.3)' : 'rgba(0, 123, 255, 0.3)';
+        
+        formCard.classList.add(borderClass);
+        formCard.style.boxShadow = `0 0 20px ${shadowColor}`;
+        
+        // Afficher une notification
+        const contactTypeNames = {
+            'general': 'Contact général',
+            'program': 'Programme scientifique',
+            'submissions': 'Soumissions et communications',
+            'communication': 'Communication et médias'
+        };
+        
+        const displayName = contactTypeNames[contactType] || contactType;
+        showNotification(`Formulaire pré-rempli pour ${displayName}${person ? ' (' + person + ')' : ''}`, isPresident ? 'success' : 'info');
+        
+        // Retirer la mise en évidence après 3 secondes
+        setTimeout(() => {
+            formCard.classList.remove(borderClass);
+            formCard.style.boxShadow = '';
+        }, 3000);
+    }, 500);
+}
+
+// Fonction pour afficher une notification
+function showNotification(message, type = 'info') {
+    // Créer l'élément notification
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = `
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    `;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Ajouter au DOM
+    document.body.appendChild(notification);
+    
+    // Retirer automatiquement après 4 secondes
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 4000);
+}
+
+// Animation d'entrée pour les cartes de contact
+document.addEventListener('DOMContentLoaded', function() {
+    const contactCards = document.querySelectorAll('.contact-card');
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry, index) => {
+            if (entry.isIntersecting) {
+                setTimeout(() => {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }, index * 100);
+            }
+        });
+    });
+    
+    contactCards.forEach(card => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        card.style.transition = 'all 0.6s ease';
+        observer.observe(card);
+    });
+});
+</script>
 {% endblock %}

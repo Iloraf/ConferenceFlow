@@ -611,39 +611,55 @@ def programme_preview():
 @conference.route("/localisation")
 def localisation():
     """Affiche les informations de localisation."""
+    from flask import current_app
+    
+    # Récupérer les données depuis conference.yml
+    conference_config = current_app.conference_config
+    location_info = conference_config.get('location', {})
+    transport_info = conference_config.get('transport', {})
+    accommodation_info = conference_config.get('accommodation', {})
+    city_info = conference_config.get('city_info', {})
+    
+    # Structurer les données pour le template
     venues = {
         'main': {
-            'name': 'Domaine de l\'Asnée',
-            'address': '11 Rue de Laxou, 54600 Villers-lès-Nancy',
-            'description': 'Lieu principal de la conférence',
-            'lat': 48.674,
-            'lng': 6.1430,
-            'image': 'content/site.png'
+            'name': location_info.get('venue', 'Centre de congrès'),
+            'address': location_info.get('address', 'Adresse à définir'),
+            'description': location_info.get('description', 'Description à compléter'),
+            'image': location_info.get('image', 'images/venue_default.jpg'),
+            'lat': location_info.get('coordinates', {}).get('latitude', 48.674),
+            'lng': location_info.get('coordinates', {}).get('longitude', 6.143)
         },
-        'transport': {
-            'train': {
-                'title': 'En train',
-                'info': 'Gare de Nancy à 15 min en bus du centre de congrès. TGV direct depuis Paris (1h30).'
-            },
-            'car': {
-                'title': 'En voiture',
-                'info': 'A31 sortie« Nancy-Centre/Laxou » '
-            },
-            'plane': {
-                'title': 'En avion',
-                'info': 'Aéroport Metz-Nancy-Lorraine (45 min). Navette toutes les heures.'
-            },
-            'local': {
-                'title': 'Transports locaux',
-                'info': 'Bus ligne 15 - Arrêt "Laxou Les Provines" \n Bus ligne 13 - Arrêt "Domaine de l\'Asnée"'
-            }
+        'transport': _format_transport_data(transport_info),
+        'accommodation': accommodation_info  # Passer directement les données accommodation
+    }
+    
+    return render_template("conference/localisation.html", 
+                         venues=venues, 
+                         city_info=city_info)
+
+def _format_transport_data(transport_info):
+    """Formate les données de transport pour le template."""
+    transport_mapping = {
+        'train': {
+            'title': 'Train',
+            'info': transport_info.get('train', {}).get('description', 'Informations à venir')
+        },
+        'car': {
+            'title': 'Voiture',
+            'info': transport_info.get('car', {}).get('description', 'Informations à venir')
+        },
+        'plane': {
+            'title': 'Avion',
+            'info': transport_info.get('plane', {}).get('description', 'Informations à venir')
+        },
+        'local': {
+            'title': 'Transports locaux',
+            'info': transport_info.get('local', {}).get('description', 'Informations à venir')
         }
     }
-    return render_template("conference/localisation.html", venues=venues)
-
-
-# Fonction organisation() complète pour conference_routes.py
-# À remplacer dans le fichier app/conference_routes.py
+    
+    return transport_mapping
 
 @conference.route("/organisation")
 def organisation():
@@ -863,66 +879,258 @@ def inscription_conference():
     return render_template("conference/inscription_conference.html", fees=fees)
 
 
-
-# Route Communication (présentation générale, différent de "mes communications")
 @conference.route("/communication-info")
 def communication_info():
     """Affiche les informations générales sur les communications."""
+    from flask import current_app
+    import os
+    
+    # Récupérer les données depuis les configurations déjà chargées dans l'app
+    conference_config = current_app.conference_config
+    themes_config = current_app.themes_config
+    
+    # Extraire les informations pertinentes
+    submissions_info = conference_config.get('submissions', {})
+    dates_info = conference_config.get('dates', {})
+    deadlines = dates_info.get('deadlines', {})
+    
+    # Convertir les types de soumission du YAML vers le format attendu par le template
+    submission_types = submissions_info.get('types', [])
+    formatted_types = []
+    
+    for sub_type in submission_types:
+        formatted_type = {
+            'name': sub_type.get('name', ''),
+            'description': sub_type.get('description', ''),
+            'deadline': None,
+            'pages': None,
+            'format': None
+        }
+        
+        # Définir le format selon le type
+        if sub_type.get('max_pages'):
+            formatted_type['pages'] = f"{sub_type['max_pages']} pages max"
+        elif sub_type.get('format'):
+            formatted_type['format'] = sub_type['format']
+            
+        # Assigner les deadlines selon le type
+        type_code = sub_type.get('code', '').lower()
+        if type_code == 'article':
+            if deadlines.get('article_submission'):
+                formatted_type['deadline'] = _format_date(deadlines['article_submission'])
+        elif type_code == 'wip':
+            if deadlines.get('wip_submission'):
+                formatted_type['deadline'] = _format_date(deadlines['wip_submission'])
+        elif type_code == 'poster':
+            if deadlines.get('wip_submission'):
+                formatted_type['deadline'] = _format_date(deadlines['wip_submission'])
+                
+        # Deadline par défaut si pas trouvée
+        if not formatted_type['deadline']:
+            formatted_type['deadline'] = "À définir"
+            
+        formatted_types.append(formatted_type)
+    
+    # Trier les thématiques par ordre si disponible, sinon par nom
+    sorted_themes = sorted(themes_config, key=lambda x: x.get('ordre', 999))
+    # Filtrer seulement les thématiques actives
+    active_themes = [theme for theme in sorted_themes if theme.get('actif', True)]
+    
+    # Nouveau : Lister les templates disponibles
+    templates_dir = os.path.join(current_app.root_path, 'static', 'templates')
+    available_templates = []
+    
+    if os.path.exists(templates_dir):
+        for filename in os.listdir(templates_dir):
+            if os.path.isfile(os.path.join(templates_dir, filename)):
+                template_info = _get_template_info(filename)
+                if template_info:
+                    available_templates.append(template_info)
+    
+    # Trier les templates par type et langue
+    available_templates.sort(key=lambda x: (x['type'], x['language']))
+    
+    # Préparer les données pour le template
     guidelines = {
-        'types': [
+        'types': formatted_types,
+        'themes': active_themes,  # Utiliser les vraies thématiques avec toutes leurs propriétés
+        'calendar': [],
+        'abstract_info': {
+            'deadline': _format_date(deadlines.get('abstract_submission', '2025-11-15')),
+            'notification': _format_date(deadlines.get('abstract_notification', '2025-12-01')),
+            'required_for_articles': True,
+            'format': {
+                'max_pages': 1,
+                'file_format': 'PDF',
+                'required_elements': [
+                    'Titre et auteurs',
+                    'Affiliations complètes', 
+                    'Résumé structuré (objectifs, méthodes, résultats)',
+                    'Mots-clés (3-5)'
+                ]
+            }
+        }
+    }
+    
+    # Construire le calendrier complet depuis les dates importantes
+    deadline_mapping = [
+        ('abstract_submission', 'Date limite soumission résumés'),
+        ('abstract_notification', 'Notifications d\'acceptation des résumés'),
+        ('article_submission', 'Date limite articles complets'),
+        ('article_notification', 'Retour des expertises'),
+        ('final_version', 'Dépôt des versions définitives'),
+        ('wip_submission', 'Date limite posters/WIP')
+    ]
+    
+    for deadline_key, event_name in deadline_mapping:
+        if deadlines.get(deadline_key):
+            guidelines['calendar'].append({
+                'date': _format_date(deadlines[deadline_key]),
+                'event': event_name
+            })
+    
+    # Ajouter les dates de la conférence
+    if dates_info.get('dates'):
+        guidelines['calendar'].append({
+            'date': dates_info['dates'], 
+            'event': 'Conférence'
+        })
+    
+    # Si le calendrier est vide, ajouter des données par défaut
+    if not guidelines['calendar']:
+        guidelines['calendar'] = [
+            {'date': '15/11/2025', 'event': 'Date limite soumission résumés'},
+            {'date': '01/12/2025', 'event': 'Notifications d\'acceptation des résumés'},
+            {'date': '22/01/2026', 'event': 'Date limite articles complets'},
+            {'date': '25/03/2026', 'event': 'Retour des expertises'},
+            {'date': '10/04/2026', 'event': 'Dépôt des versions définitives'},
+            {'date': '20/04/2026', 'event': 'Date limite posters/WIP'},
+            {'date': '2-5 juin 2026', 'event': 'Conférence'}
+        ]
+    
+    # Si pas de types définis, utiliser les types par défaut
+    if not guidelines['types']:
+        guidelines['types'] = [
             {
                 'name': 'Article complet',
-                'pages': '6-8 pages',
-                'deadline': '15 mai 2026',
-                'description': 'Travaux aboutis avec résultats complets'
+                'pages': '6 pages max',
+                'deadline': _format_date(deadlines.get('article_submission', '2026-01-22')),
+                'description': 'Travaux aboutis avec résultats complets (nécessite un résumé accepté)'
             },
             {
                 'name': 'Work in Progress',
-                'pages': '2-4 pages',
-                'deadline': '15 mai 2026',
+                'pages': '4 pages max', 
+                'deadline': _format_date(deadlines.get('wip_submission', '2026-04-20')),
                 'description': 'Travaux en cours avec résultats préliminaires'
             },
             {
                 'name': 'Poster',
                 'format': 'A0 portrait',
-                'deadline': '20 mai 2026',
+                'deadline': _format_date(deadlines.get('wip_submission', '2026-04-20')),
                 'description': 'Présentation visuelle avec QR code'
             }
-        ],
-        'themes': [
-            'Conduction, convection, rayonnement',
-            'Changement de phase et transferts multiphasiques',
-            'Transferts en milieux poreux',
-            'Micro et nanothermique',
-            'Thermique du vivant',
-            'Énergétique des systèmes',
-            'Combustion et flammes',
-            'Machines thermiques et frigorifiques',
-            'Échangeurs de chaleur',
-            'Stockage thermique',
-            'Énergies renouvelables',
-            'Thermique du bâtiment',
-            'Thermique industrielle',
-            'Métrologie et techniques inverses',
-            'Modélisation et simulation numérique'
-        ],
-        'calendar': [
-            {'date': '1er novembre 2025', 'event': 'Ouverture des soumissions'},
-            {'date': '21 novembre 2025', 'event': 'Date limite soumission résumés'},
-            {'date': '1er décembre 2025', 'event': 'Notifications d\'acceptation'},
-            {'date': '31 janvier 2026', 'event': 'Date limite articles complets'},
-            {'date': '25 mars 2026', 'event': 'Retour des expertises'},
-            {'date': '10 avril 2026', 'event': 'Dépot des versions définitives'},
-            {'date': '30 mai 2026', 'event': 'Date limite posters pour dépot sur HAL automatisé'},
-            {'date': '2-5 juin 2026', 'event': 'Conférence'}
         ]
-    }
-    return render_template("conference/communication_info.html", guidelines=guidelines)
+    
+    return render_template("conference/communication_info.html", 
+                         guidelines=guidelines,
+                         available_templates=available_templates)
 
-# Route Contact
+def _format_date(date_str):
+    """Convertit une date YYYY-MM-DD en format français."""
+    if not date_str:
+        return "À définir"
+    
+    try:
+        from datetime import datetime
+        if isinstance(date_str, str) and len(date_str) == 10:  # Format YYYY-MM-DD
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            return date_obj.strftime('%d/%m/%Y')
+        else:
+            return str(date_str)
+    except:
+        return str(date_str)
+
+def _get_template_info(filename):
+    """Analyse un nom de fichier pour extraire les informations du template."""
+    import os
+    
+    # Extensions supportées et leurs informations
+    extension_info = {
+        '.docx': {'icon': 'fas fa-file-word', 'color': 'primary', 'type_name': 'Word'},
+        '.doc': {'icon': 'fas fa-file-word', 'color': 'primary', 'type_name': 'Word'},
+        '.zip': {'icon': 'fas fa-file-archive', 'color': 'secondary', 'type_name': 'LaTeX'},
+        '.tex': {'icon': 'fas fa-file-alt', 'color': 'secondary', 'type_name': 'LaTeX'},
+        '.pptx': {'icon': 'fas fa-file-powerpoint', 'color': 'warning', 'type_name': 'PowerPoint'},
+        '.ppt': {'icon': 'fas fa-file-powerpoint', 'color': 'warning', 'type_name': 'PowerPoint'}
+    }
+    
+    # Obtenir l'extension
+    name, ext = os.path.splitext(filename)
+    ext_lower = ext.lower()
+    
+    if ext_lower not in extension_info:
+        return None
+    
+    # Analyser le nom pour détecter la langue et le type
+    name_lower = name.lower()
+    
+    # Détecter la langue
+    if 'fr' in name_lower or 'french' in name_lower or 'francais' in name_lower:
+        language = 'Français'
+        lang_code = 'fr'
+    elif 'en' in name_lower or 'english' in name_lower or 'us' in name_lower or 'anglais' in name_lower:
+        language = 'English'
+        lang_code = 'en'
+    else:
+        language = 'Multilingue'
+        lang_code = 'multi'
+    
+    # Détecter le type de document
+    if 'poster' in name_lower:
+        doc_type = 'poster'
+        type_display = 'Poster'
+    elif 'article' in name_lower:
+        doc_type = 'article'
+        type_display = 'Article'
+    elif 'resume' in name_lower or 'abstract' in name_lower:
+        doc_type = 'resume'
+        type_display = 'Résumé'
+    elif 'latex' in name_lower or ext_lower == '.zip':
+        doc_type = 'article'
+        type_display = 'Article'
+    else:
+        doc_type = 'article'
+        type_display = 'Article'
+    
+    return {
+        'filename': filename,
+        'display_name': f"{type_display} - {extension_info[ext_lower]['type_name']} ({language})",
+        'icon': extension_info[ext_lower]['icon'],
+        'color': extension_info[ext_lower]['color'],
+        'type': doc_type,
+        'language': language,
+        'lang_code': lang_code,
+        'download_url': f"/static/templates/{filename}",
+        'file_size': _get_file_size(os.path.join('app/static/templates', filename))
+    }
+
+def _get_file_size(filepath):
+    """Retourne la taille du fichier en format lisible."""
+    try:
+        size = os.path.getsize(filepath)
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        return f"{size:.1f} TB"
+    except:
+        return "N/A"
+
 @conference.route("/contact", methods=["GET", "POST"])
 def contact():
     """Page de contact."""
+    from flask import current_app
+    
     if request.method == "POST":
         name = request.form.get("name")
         email = request.form.get("email")
@@ -933,27 +1141,70 @@ def contact():
         flash("Votre message a été envoyé avec succès.", "success")
         return redirect(url_for("conference.contact"))
     
-    contacts = {
-        'general': {
-            'title': 'Contact général',
-            'email': 'congres-sft2026@univ-lorraine.fr',
-            'phone': '+33 3 83 00 00 00'
-        },
-        'scientific': {
-            'title': 'Questions scientifiques',
-            'email': 'michel.gradeck@univ-lorraine.fr',
-            'person': 'Michel Gradeck'
-        },
-        'registration': {
-            'title': 'Inscriptions',
-            'email': 'vincent.schick@univ-lorraine.fr',
-            'person': 'Vincent Schick'
-        },
-        'communication': {
-            'title': 'Communication',
-            'email': 'olivier.farges@univ-lorraine.fr',
-            'person': 'Olivier Farges'
-        }
+    # Récupérer les contacts depuis conference.yml
+    conference_config = current_app.conference_config
+    contacts_config = conference_config.get('contacts', {})
+    conference_info = conference_config.get('conference', {})
+    
+    # Restructurer les contacts pour le template
+    contacts = {}
+    
+    # Mapping des clés entre conference.yml et le format attendu par le template
+    contact_mapping = {
+        'general': 'general',
+        'program': 'program',
+        'submissions': 'submissions',
+        'communication': 'communication'
     }
+    
+    for template_key, config_key in contact_mapping.items():
+        if config_key in contacts_config:
+            contact_data = contacts_config[config_key]
+            
+            # Traitement spécial pour le programme scientifique (présidents)
+            if template_key == 'program':
+                # Récupérer les présidents depuis conference.presidents
+                presidents = conference_info.get('presidents', [])
+                
+                # Debug pour voir ce qui est récupéré
+                current_app.logger.info(f"DEBUG - Présidents récupérés: {presidents}")
+                current_app.logger.info(f"DEBUG - Contact program data: {contact_data}")
+                
+                # Si on a des présidents, on les utilise directement
+                if presidents:
+                    # Vérifier si on a des emails dans les présidents
+                    presidents_with_emails = []
+                    for president in presidents:
+                        president_copy = president.copy()
+                        # Si pas d'email dans president, essayer de le récupérer depuis contact_data
+                        if not president_copy.get('email') and contact_data.get('email'):
+                            current_app.logger.info(f"DEBUG - Ajout email de fallback pour {president.get('name')}: {contact_data.get('email')}")
+                            president_copy['email'] = contact_data.get('email')
+                        presidents_with_emails.append(president_copy)
+                    
+                    contacts[template_key] = {
+                        'title': contact_data.get('title', ''),
+                        'description': contact_data.get('description', ''),
+                        'presidents': presidents_with_emails,
+                        'has_presidents': True
+                    }
+                else:
+                    # Fallback sur les données contact classiques
+                    contacts[template_key] = {
+                        'title': contact_data.get('title', ''),
+                        'email': contact_data.get('email', ''),
+                        'phone': contact_data.get('phone', ''),
+                        'person': contact_data.get('person', ''),
+                        'description': contact_data.get('description', ''),
+                        'has_presidents': False
+                    }
+            else:
+                contacts[template_key] = {
+                    'title': contact_data.get('title', ''),
+                    'email': contact_data.get('email', ''),
+                    'phone': contact_data.get('phone', ''),
+                    'person': contact_data.get('person', ''),
+                    'description': contact_data.get('description', '')
+                }
+    
     return render_template("conference/contact.html", contacts=contacts)
-
