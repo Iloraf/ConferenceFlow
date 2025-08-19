@@ -73,29 +73,28 @@ def create_app():
             app.themes_config = []
             app.email_config = {}
 
-    @app.context_processor
-    def inject_conference_config():
-        """Injecte la configuration dans tous les templates."""
-        conference_info = app.conference_config.get('conference', {})
-        dates_info = app.conference_config.get('dates', {})
-        location_info = app.conference_config.get('location', {})
-        contacts_info = app.conference_config.get('contacts', {})
-        fees_info = app.conference_config.get('fees', {})
-        transport_info = app.conference_config.get('transport', {})
-        accommodation_info = app.conference_config.get('accommodation', {})
-        legal_info = app.conference_config.get('legal', {})  # ← Ajout de cette ligne
+        @app.context_processor
+        def inject_conference_config():
+            """Injecte la configuration dans tous les templates."""
+            conference_info = app.conference_config.get('conference', {})
+            dates_info = app.conference_config.get('dates', {})
+            location_info = app.conference_config.get('location', {})
+            contacts_info = app.conference_config.get('contacts', {})
+            fees_info = app.conference_config.get('fees', {})
+            transport_info = app.conference_config.get('transport', {})
+            accommodation_info = app.conference_config.get('accommodation', {})
+            
+            return {
+                'conference': conference_info,  # ← CHANGEMENT : on passe directement conference_info au lieu d'une structure modifiée
+                'conference_dates': dates_info,
+                'conference_location': location_info,
+                'conference_contacts': contacts_info,
+                'conference_fees': fees_info,
+                'conference_transport': transport_info,
+                'conference_accommodation': accommodation_info,
+                'themes_available': len(app.themes_config)
+            }
 
-        return {
-            'conference': conference_info,
-            'conference_dates': dates_info,
-            'conference_location': location_info,
-            'conference_contacts': contacts_info,
-            'conference_fees': fees_info,
-            'conference_transport': transport_info,
-            'conference_accommodation': accommodation_info,
-            'legal': legal_info,  # ← Ajout de cette ligne
-            'themes_available': len(app.themes_config)
-        }
             
     
     from .models import User

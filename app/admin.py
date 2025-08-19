@@ -35,32 +35,33 @@ def admin_dashboard():
     except Exception as e:
         current_app.logger.error(f"Erreur comptage fichiers CSV: {e}")
     
+    # AJOUTER : Statistiques pour les livres
+    stats = {
+        'articles_count': Communication.query.filter(
+            Communication.type == 'article',
+            Communication.status == CommunicationStatus.ACCEPTE
+        ).count(),
+        'resumes_count': Communication.query.filter(
+            Communication.type == 'article',
+            Communication.status.in_([
+                CommunicationStatus.RESUME_SOUMIS,
+                CommunicationStatus.ARTICLE_SOUMIS,
+                CommunicationStatus.EN_REVIEW,
+                CommunicationStatus.ACCEPTE
+            ])
+        ).count(),
+        'wips_count': Communication.query.filter(
+            Communication.type == 'wip',
+            Communication.status == CommunicationStatus.WIP_SOUMIS
+        ).count()
+    }
+    
     return render_template("admin.html", 
                          users=users,
                          affiliations_count=affiliations_count,
                          pending_reviews=pending_reviews,
-                         csv_files_count=csv_files_count)
-
-
-##########################################################################################################
-# @admin.route("/dashboard")                                                                             #
-# @login_required                                                                                        #
-# def admin_dashboard():                                                                                 #
-#     """Dashboard principal d'administration."""                                                        #
-#     if not current_user.is_admin:                                                                      #
-#         flash("Accès réservé aux administrateurs.", "danger")                                          #
-#         return redirect(url_for("main.index"))                                                         #
-#                                                                                                        #
-#     users = User.query.all()                                                                           #
-#     affiliations_count = Affiliation.query.count()                                                     #
-#                                                                                                        #
-#     pending_reviews = Communication.query.filter_by(status=CommunicationStatus.ARTICLE_SOUMIS).count() #
-#                                                                                                        #
-#     return render_template("admin.html",                                                               #
-#                          users=users,                                                                  #
-#                          affiliations_count=affiliations_count,                                        #
-#                          pending_reviews=pending_reviews)                                              #
-##########################################################################################################
+                         csv_files_count=csv_files_count,
+                         stats=stats)
 
 @admin.route("/users")
 @login_required
@@ -170,8 +171,6 @@ def manage_reviews():
         flash("Accès refusé.", "danger")
         return redirect(url_for("main.index"))
     
-    # Adaptez selon votre modèle de Communication/Review
-    # communications = Communication.query.all()
     reviewers = User.query.filter_by(is_reviewer=True).all()
     
     return render_template('admin/manage_reviews.html', 
@@ -186,8 +185,6 @@ def notify_reviewers():
         return redirect(url_for("main.index"))
         
     if request.method == 'POST':
-        # Logique de notification
-        # Par exemple : envoyer des emails, créer des notifications, etc.
         
         flash('Notifications envoyées avec succès !', 'success')
         return redirect(url_for('admin.manage_reviews'))
@@ -233,7 +230,7 @@ def import_affiliations():
                 flash(f"{import_results['updated']} affiliations mises à jour.", 'info')
             
             if import_results['errors']:
-                for error in import_results['errors'][:5]:  # Limite à 5 erreurs affichées
+                for error in import_results['errors'][:5]: 
                     flash(f"Erreur ligne {error['line']}: {error['message']}", 'warning')
                 
                 if len(import_results['errors']) > 5:

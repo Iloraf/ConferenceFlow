@@ -780,38 +780,89 @@ def organisation():
                          contact_info=contact_info,
                          stats=stats)
 
-
-
-# Route Inscription conférence (différent de l'inscription utilisateur)
 @conference.route("/inscription-conference")
 def inscription_conference():
     """Affiche les informations d'inscription à la conférence."""
-    fees = {
-        'early': {
-            'date': 'Avant le 15 avril 2026',
-            'student': 310,
-            'member_indiv': 400,
-            'member_collec': 460,
-            'not_member': 510,
-        },
-        'regular': {
-            'date': 'Après le 15 avril 2026',
-            'student': 460,
-            'member_indiv': 550,
-            'member_collec': 610,
-            'not_member': 660,
-        },
-        'included': [
-            'Accès à toutes les sessions',
-            'Documents de la conférence',
-            'Pauses café et déjeuners',
-            'Cocktail de bienvenue',
-        ],
-        'optional': [
-            {'item': 'Accompagnant', 'price': 150}
-        ]
-    }
+    
+    # Récupérer la configuration des prix depuis le fichier YAML
+    fees_config = current_app.conference_config.get('fees', {})
+    
+    # Si la configuration n'est pas disponible, utiliser des valeurs par défaut
+    if not fees_config:
+        fees = {
+            'early': {
+                'date': '15 avril 2026',
+                'student': 310,
+                'member_indiv': 400,
+                'member_collec': 460,
+                'not_member': 510,
+            },
+            'regular': {
+                'date': 'Après le 15 avril 2026',
+                'student': 460,
+                'member_indiv': 550,
+                'member_collec': 610,
+                'not_member': 660,
+            },
+            'included': [
+                'Accès à toutes les sessions',
+                'Documents de la conférence',
+                'Pauses café et déjeuners',
+                'Cocktail de bienvenue',
+            ],
+            'optional': [
+                {'item': 'Accompagnant', 'price': 150}
+            ]
+        }
+    else:
+        # Convertir les dates du format YAML vers français
+        from datetime import datetime
+        
+        # Date early bird
+        early_deadline = fees_config.get('early_bird', {}).get('deadline', '2026-04-15')
+        try:
+            date_obj = datetime.strptime(early_deadline, '%Y-%m-%d')
+            formatted_early_date = date_obj.strftime('%d %B %Y').replace('April', 'avril').replace('March', 'mars').replace('May', 'mai').replace('June', 'juin')
+        except:
+            formatted_early_date = '15 avril 2026'
+        
+        # Date regular (même date de référence)
+        try:
+            date_obj = datetime.strptime(early_deadline, '%Y-%m-%d')
+            formatted_regular_date = date_obj.strftime('%d %B %Y').replace('April', 'avril').replace('March', 'mars').replace('May', 'mai').replace('June', 'juin')
+        except:
+            formatted_regular_date = '15 avril 2026'
+        
+        # Utiliser la configuration du fichier YAML
+        fees = {
+            'early': {
+                'date': f"{formatted_early_date}",
+                'student': fees_config.get('early_bird', {}).get('student', 310),
+                'member_indiv': fees_config.get('early_bird', {}).get('member_individual', 400),
+                'member_collec': fees_config.get('early_bird', {}).get('member_collective', 460),
+                'not_member': fees_config.get('early_bird', {}).get('non_member', 510),
+            },
+            'regular': {
+                'date': f"{formatted_regular_date}",
+                'student': fees_config.get('regular', {}).get('student', 460),
+                'member_indiv': fees_config.get('regular', {}).get('member_individual', 550),
+                'member_collec': fees_config.get('regular', {}).get('member_collective', 610),
+                'not_member': fees_config.get('regular', {}).get('non_member', 660),
+            },
+            'included': fees_config.get('included', [
+                'Accès à toutes les sessions',
+                'Documents de la conférence',
+                'Pauses café et déjeuners',
+                'Cocktail de bienvenue',
+            ]),
+            'optional': fees_config.get('optional', [
+                {'item': 'Accompagnant', 'price': 150}
+            ])
+        }
+    
     return render_template("conference/inscription_conference.html", fees=fees)
+
+
 
 # Route Communication (présentation générale, différent de "mes communications")
 @conference.route("/communication-info")

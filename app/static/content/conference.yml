@@ -30,7 +30,7 @@ neutralité carbone en 2050. Nous invitons
 et doctorant.e.s à venir échanger sur leurs
 travaux récents dans le domaine de la
 thermique et de ses applications. Tous les
-travaux seront présentés sous forme d’affiche
+travaux seront présentés sous forme de poster
 lors de sessions dédiées et pourront donner
 lieu à une communication écrite (avec DOI).
 Des ateliers thématiques seront aussi
@@ -162,10 +162,15 @@ fees:
     
   # Services inclus
   included:
-    - "Accès aux différentes séances (conférences, affiches, atelier-débats)"
+    - "Accès aux différentes séances (conférences, posters, atelier-débats)"
     - "Les pauses et déjeuners"
     - "Le dîner de gala"
     - "Les actes sous format numérique"
+    
+  # Options supplémentaires  
+  optional:
+    - item: "Accompagnant"
+      price: 150
 
 # ===== SOUMISSIONS =====
 submissions:
@@ -184,7 +189,7 @@ submissions:
       
     - name: "Poster"
       code: "poster"
-      description: "Présentation sous forme d'affiche"
+      description: "Présentation sous forme de poster"
       format: "A0 portrait"
       review_type: "editorial"
       
@@ -277,13 +282,13 @@ sponsorship:
 statistics:
   expected_participants: 400
   expected_papers: 200
-  expected_countries: 15
+  expected_countries: 1
   previous_editions:
+    - year: 2025
+      location: "Chambéry"
+      participants: 380
     - year: 2024
       location: "Reims"
-      participants: 380
-    - year: 2022
-      location: "Belfort"
       participants: 350
 
 # ===== TRANSPORT ET HÉBERGEMENT =====
