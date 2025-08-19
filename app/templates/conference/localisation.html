@@ -20,19 +20,11 @@
                         <p><i class="fas fa-map-pin me-2"></i>{{ venues.main.address }}</p>
                         <p class="text-muted">{{ venues.main.description }}</p>
 
-                        <img src="{{ url_for('static', filename=venues.main.image) }}" alt="{{ venues.main.name }}" class="img-fluid mt-3 mb-3">
+                        <img src="{{ url_for('static', filename='content/site.png') }}" alt="{{ venues.main.name }}" class="img-fluid mt-3 mb-3">
 
-                        <div class="alert alert-info mt-3">
-                            <h6>Accès :</h6>
-                            <ul class="mb-0">
-                                <li>Bus ligne 15 - Arrêt "Laxou Les Provines"</li>
-                                <li>Bus ligne 13 - Arrêt "Domaine de l'Asnée"</li>
-                                <li>Parking disponible sur place</li>
-                            </ul>
-                        </div>
                     </div>
                     <div class="col-md-6">
-                        <div id="map"></div>
+                        <div id="map" style="border-radius: 8px;"></div>
                     </div>
                 </div>
             </div>
@@ -54,15 +46,15 @@
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-8">
-                                <h5 class="text-primary">{{ venues.accommodation.platform.description }}</h5>
+                                <h5 class="text-primary">{{ venues.accommodation.platform.description if venues.accommodation and venues.accommodation.platform else "Plateforme de réservation" }}</h5>
                                 <p class="text-muted mb-3">
-                                    Trouvez et réservez facilement votre hébergement à {{ conference_location.city }} pour les dates du congrès.
+                                    Trouvez et réservez facilement votre hébergement à {{ conference_location.city if conference_location else 'Nancy' }} pour les dates du congrès.
                                     La plateforme vous proposera une sélection d'hôtels adaptés à vos besoins et budget.
                                 </p>
                                 <p class="text-muted mb-0">
                                     <small>
                                         <i class="fas fa-calendar-alt me-1"></i>
-                                        Dates pré-remplies : {{ conference_dates.dates }}
+                                        Dates pré-remplies : {{ conference_dates.dates if conference_dates else '2-5 juin 2026' }}
                                     </small>
                                 </p>
                             </div>
@@ -98,7 +90,7 @@
                                 <i class="fas fa-calendar text-primary me-2"></i>
                                 <strong>Dates du congrès</strong>
                             </div>
-                            <small class="text-muted">{{ conference_dates.dates }}</small>
+                            <small class="text-muted">{{ conference_dates.dates if conference_dates else '2-5 juin 2026' }}</small>
                         </div>
                         
                         <div class="info-item mb-3">
@@ -106,7 +98,7 @@
                                 <i class="fas fa-map-marker-alt text-primary me-2"></i>
                                 <strong>Lieu</strong>
                             </div>
-                            <small class="text-muted">{{ conference_location.city }}, {{ conference_location.region }}</small>
+                            <small class="text-muted">{{ conference_location.city if conference_location else 'Nancy' }}, {{ conference_location.region if conference_location else 'Grand Est' }}</small>
                         </div>
                         
                         <div class="alert alert-warning p-2 mb-0">
@@ -121,6 +113,8 @@
             </div>
         </div>
 
+        <!-- DEBUG - Section temporaire à supprimer après correction -->
+        <!-- Supprimé car problème résolu -->
 
         <!-- Modal pour la réservation H-Resa -->
         <div class="modal fade" id="hotelModal" tabindex="-1" aria-labelledby="hotelModalLabel" aria-hidden="true">
@@ -133,7 +127,7 @@
                             </div>
                             <div class="flex-grow-1">
                                 <h5 class="modal-title mb-0" id="hotelModalLabel">
-                                    Réservation d'hébergement - {{ conference.short_name }}
+                                    Réservation d'hébergement - {{ conference.short_name if conference else 'SFT 2026' }}
                                 </h5>
                                 <small class="opacity-75">Plateforme officielle de réservation</small>
                             </div>
@@ -159,13 +153,13 @@
                         <iframe id="hotelIframe" 
                                 style="width: 100%; height: 80vh; border: none;" 
                                 src="" 
-                                title="Réservation hôtel {{ venues.accommodation.platform.name }}">
+                                title="Réservation hôtel {{ venues.accommodation.platform.name if venues.accommodation and venues.accommodation.platform else 'H-Resa' }}">
                         </iframe>
                     </div>
                     <div class="modal-footer" style="background-color: #f8f9fa;">
                         <small class="text-muted me-auto">
                             <i class="fas fa-info-circle me-1"></i>
-                            Plateforme officielle de réservation {{ conference.short_name }}
+                            Plateforme officielle de réservation {{ conference.short_name if conference else 'SFT 2026' }}
                         </small>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="fas fa-times me-1"></i>Fermer
@@ -204,49 +198,74 @@
         </div>
         
         <!-- Transports -->
-        <h2 class="mb-4"><i class="fas fa-route me-2"></i>Comment venir</h2>
+        <h2 class="mb-4"><i class="fas fa-plane me-2"></i>Comment venir</h2>
+        
         <div class="row">
-            {% for key, transport in venues.transport.items() %}
-            <div class="col-md-6 col-lg-3 mb-4">
-                <div class="card h-100 text-center venue-card">
-                    <div class="card-body">
-                        <div class="transport-icon">
-                            {% if key == 'train' %}
-                                <i class="fas fa-train text-primary"></i>
-                            {% elif key == 'car' %}
-                                <i class="fas fa-car text-success"></i>
-                            {% elif key == 'plane' %}
-                                <i class="fas fa-plane text-info"></i>
-                            {% elif key == 'local' %}
-                                <i class="fas fa-bus text-warning"></i>
-                            {% endif %}
+            {% if venues.transport %}
+                {% for transport_key, transport in venues.transport.items() %}
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="card venue-card h-100 text-center shadow-sm">
+                        <div class="card-body">
+                            <div class="transport-icon text-primary mb-3">
+                                {% if transport_key == 'train' %}
+                                    <i class="fas fa-train"></i>
+                                {% elif transport_key == 'car' %}
+                                    <i class="fas fa-car"></i>
+                                {% elif transport_key == 'plane' %}
+                                    <i class="fas fa-plane"></i>
+                                {% else %}
+                                    <i class="fas fa-bus"></i>
+                                {% endif %}
+                            </div>
+                            <h5 class="card-title">{{ transport.title }}</h5>
+                            <p class="card-text text-muted">{{ transport.info }}</p>
                         </div>
-                        <h5>{{ transport.title }}</h5>
-                        <p class="text-muted">{{ transport.info | replace('\n', '<br>') | safe}}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Informations de transport à venir
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Informations ville -->
+        {% if city_info %}
+        <h2 class="mb-4"><i class="fas fa-city me-2"></i>Découvrir la ville</h2>
+        
+        <div class="row">
+            <!-- Attractions -->
+            {% if city_info.attractions %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-camera me-2"></i>À voir</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for attraction in city_info.attractions %}
+                        <div class="mb-3">
+                            <h6>{{ attraction.name }}</h6>
+                            <span class="badge bg-primary">{{ attraction.type }}</span>
+                            <p class="text-muted small mt-1">{{ attraction.description }}</p>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
-            {% endfor %}
-        </div>
-        
-        <!-- Informations pratiques -->
-        <div class="card mt-5">
-            <div class="card-header bg-info text-white">
-                <h3 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations pratiques</h3>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h5>{{ conference_location.city }}, ville d'Art et d'Histoire</h5>
-                        <p>Profitez de votre séjour pour découvrir :</p>
-                        <ul>
-                            {% for attraction in city_info.attractions %}
-                            <li><strong>{{ attraction.name }}</strong> - {{ attraction.description }}</li>
-                            {% endfor %}
-                        </ul>
+            {% endif %}
+            
+            <!-- Services -->
+            {% if city_info.services %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-concierge-bell me-2"></i>Services à proximité</h5>
                     </div>
-                    <div class="col-md-6">
-                        <h5>Services à proximité</h5>
+                    <div class="card-body">
                         <ul>
                             <li><i class="fas fa-utensils me-2"></i>{{ city_info.services.restaurants }}</li>
                             <li><i class="fas fa-coffee me-2"></i>{{ city_info.services.cafes }}</li>
@@ -256,20 +275,25 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
         </div>
         
         <!-- Météo -->
+        {% if city_info.weather %}
         <div class="card mt-4">
             <div class="card-body text-center">
-                <h5><i class="fas fa-cloud-sun me-2"></i>Météo en {{ city_info.weather.month }} à {{ conference_location.city }}</h5>
+                <h5><i class="fas fa-cloud-sun me-2"></i>Météo en {{ city_info.weather.month }} à {{ conference_location.city if conference_location else 'Nancy' }}</h5>
                 <p class="mb-0">{{ city_info.weather.description }}</p>
             </div>
         </div>
+        {% endif %}
+        {% endif %}
     </div>
 </div>
+{% endblock %}
 
-<!-- Script pour la carte (utilise OpenStreetMap/Leaflet) -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% block extra_css %}
+<!-- Leaflet CSS pour la carte -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
 <style>
@@ -313,13 +337,55 @@
 .venue-card:hover {
     transform: translateY(-5px);
 }
+
+#map {
+    height: 400px;
+    min-height: 350px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+@media (max-width: 768px) {
+    #map {
+        height: 300px;
+    }
+}
+
+@media (min-width: 1200px) {
+    #map {
+        height: 450px;
+    }
+}
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Leaflet JS pour la carte -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-// URL de la plateforme H-Resa (récupérée depuis la config)
-const urlHResa = '{{ venues.accommodation.platform.url }}';
+// DEBUG - Voir ce qui arrive dans le template
+console.log('=== DEBUG TEMPLATE ===');
+console.log('venues object:', {{ venues | tojson }});
+console.log('accommodation:', {{ venues.accommodation | tojson if venues.accommodation else '{}' }});
+
+// URL H-Resa avec filtre safe pour éviter l'échappement des caractères
+const urlHResa = '{{ (venues.accommodation.platform.url if venues.accommodation and venues.accommodation.platform else "") | safe }}';
+
+console.log('URL H-Resa finale:', urlHResa);
+console.log('URL length:', urlHResa.length);
+console.log('======================');
 
 function ouvrirReservationHotel() {
+    // Vérifier que l'URL est disponible
+    if (!urlHResa || urlHResa.trim() === '') {
+        alert('URL de réservation non configurée.');
+        console.error('URL H-Resa vide:', urlHResa);
+        return;
+    }
+    
+    console.log('Ouverture H-Resa avec URL:', urlHResa);
+    
     // Afficher l'overlay de chargement
     document.getElementById('hotelLoadingOverlay').style.display = 'flex';
     
@@ -349,7 +415,7 @@ function ouvrirReservationHotel() {
             }, 1000);
         };
         
-        console.log('Ouverture plateforme H-Resa');
+        console.log('Modal H-Resa ouvert');
     }, 800);
 }
 
@@ -369,17 +435,24 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Initialiser la carte
-    var map = L.map('map').setView([{{ venues.main.lat }}, {{ venues.main.lng }}], 15);
-    
-    // Ajouter les tuiles OpenStreetMap
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-    
-    // Ajouter un marqueur pour le centre de congrès
-    var marker = L.marker([{{ venues.main.lat }}, {{ venues.main.lng }}]).addTo(map);
-    marker.bindPopup('<strong>{{ venues.main.name }}</strong><br>{{ venues.main.address }}').openPopup();
+    try {
+        var map = L.map('map').setView([{{ venues.main.lat }}, {{ venues.main.lng }}], 15);
+        
+        // Ajouter les tuiles OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetMap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Ajouter un marqueur pour le centre de congrès
+        var marker = L.marker([{{ venues.main.lat }}, {{ venues.main.lng }}]).addTo(map);
+        marker.bindPopup('<strong>{{ venues.main.name }}</strong><br>{{ venues.main.address }}').openPopup();
+        
+        console.log('Carte initialisée');
+    } catch (error) {
+        console.error('Erreur initialisation carte:', error);
+        // En cas d'erreur, cacher la carte et afficher un message
+        document.getElementById('map').innerHTML = '<div class="text-center text-muted p-4"><i class="fas fa-map"></i><br>Carte non disponible</div>';
+    }
 });
 </script>
 {% endblock %}
-

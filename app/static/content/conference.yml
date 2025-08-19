@@ -104,7 +104,7 @@ transport:
     
   car:
     title: "Voiture"
-    description: "Autoroute A31 - Sortie Nancy Sud\nParking gratuit sur site (200 places)\nVoiturier disponible"
+    description: "Autoroute A31 - Sortie Nancy Sud\nParking gratuit sur site (200 places)"
     parking: "Gratuit - 200 places"
     
   plane:
@@ -124,7 +124,7 @@ transport:
 accommodation:
   platform:
     name: "H-Resa"
-    url: "https://insightoutside.h-resa.com/redirect.htm;AT?codeEvent=SFT2026&lang=fr&toAddressName=Nancy%252C%2520France&lat=48.67453211019228&lng=6.143106454972051&startDate=2026-06-01&endDate=2026-06-05&searchRadius=1000&nbAdults_room_1=1"
+    url: "https://insightoutside.h-resa.com/redirect.htm?AT&codeEvent=SFT2026&lang=fr&toAddressName=Nancy%252C%2520France&lat=48.67453211019228&lng=6.143106454972051&startDate=2026-06-01&endDate=2026-06-05&searchRadius=1000&nbAdults_room_1=1"
     description: "Plateforme officielle de réservation d'hébergement"
 
 # ===== INFORMATIONS VILLE =====
@@ -180,6 +180,23 @@ contacts:
     email: "christelle.moine@univ-lorraine.fr"
     person: "Christelle Moine"
     description: "Relations presse, communication externe et partenariats"
+
+  registration_provider:
+    company: "INSIGHT OUTSIDE"
+    address: "26 avenue Jean Kuntzmann"
+    postal_code: "38330"
+    city: "Montbonnot-Saint-Martin"
+    phone: "+33 825 595 525"
+    phone_cost: "0,15€/min*"
+    email: "inscription2025@congres-sft.fr"
+
+# ===== MENTIONS LÉGALES =====
+legal:
+  phone_disclaimer: "Numéro à 0,15€/min depuis un poste fixe"
+  data_protection: "Vos données personnelles sont traitées conformément au RGPD"
+  opt_out: "Pour vous désinscrire, contactez-nous à congres-sft2026@univ-lorraine.fr"
+
+
 
 # ===== FRAIS D'INSCRIPTION =====
 fees:

@@ -9,6 +9,7 @@ import os
 from datetime import datetime, timedelta
 import yaml
 from pathlib import Path
+import shutil
 
 
 
@@ -3331,7 +3332,7 @@ def send_individual_email():
     
     return redirect(url_for('admin.communications_dashboard'))
 
-
+# À remplacer dans app/admin.py - fonction manage_content
 
 @admin.route("/content")
 @login_required
@@ -3365,10 +3366,39 @@ def manage_content():
             'modified': os.path.getmtime(conference_file)
         }
     
+    # Vérifier l'existence des images
+    images_info = {}
+    image_types = ['ville', 'site', 'bandeau']
+    filename_map = {
+        'ville': 'ville.png',
+        'site': 'site.png', 
+        'bandeau': 'bandeau.png'
+    }
+    
+    for img_type in image_types:
+        filename = filename_map[img_type]
+        file_path = content_dir / filename
+        
+        if file_path.exists():
+            images_info[img_type] = {
+                'exists': True,
+                'filename': filename,
+                'size': os.path.getsize(file_path),
+                'modified': os.path.getmtime(file_path),
+                'url': f"/static/content/{filename}"
+            }
+        else:
+            images_info[img_type] = {
+                'exists': False,
+                'filename': filename,
+                'url': None
+            }
+    
     return render_template('admin/manage_content.html',
                          csv_files=csv_files,
                          conference_exists=conference_exists,
-                         conference_info=conference_info)
+                         conference_info=conference_info,
+                         images_info=images_info)
 
 @admin.route("/content/upload-csv", methods=["POST"])
 @login_required
@@ -3762,6 +3792,145 @@ def config_status():
                 'themes_count': len(current_app.themes_config) if hasattr(current_app, 'themes_config') else 0,
                 'email_loaded': hasattr(current_app, 'email_config')
             }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }), 500
+
+@admin.route("/content/upload-image", methods=["POST"])
+@login_required
+def upload_image():
+    """Upload/remplacement d'une image (ville.png, site.png, bandeau.png)."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'}), 400
+    
+    file = request.files['file']
+    image_type = request.form.get('image_type')
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'Nom de fichier vide'}), 400
+    
+    # Vérifier le type d'image
+    allowed_types = ['ville', 'site', 'bandeau']
+    if image_type not in allowed_types:
+        return jsonify({'success': False, 'message': 'Type d\'image non valide'}), 400
+    
+    # Vérifier l'extension
+    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+        return jsonify({'success': False, 'message': 'Seuls les fichiers PNG et JPG sont autorisés'}), 400
+    
+    try:
+        # Définir le nom de fichier selon le type
+        filename_map = {
+            'ville': 'ville.png',
+            'site': 'site.png', 
+            'bandeau': 'bandeau.png'
+        }
+        filename = filename_map[image_type]
+        
+        # Chemin de destination
+        content_dir = Path(current_app.root_path) / "static" / "content"
+        content_dir.mkdir(parents=True, exist_ok=True)
+        file_path = content_dir / filename
+        
+        # Pour le bandeau, on sauvegarde aussi dans images/
+        images_dir = Path(current_app.root_path) / "static" / "images"
+        if image_type == 'bandeau':
+            images_dir.mkdir(parents=True, exist_ok=True)
+            bandeau_path = images_dir / "bandeau_sft2026.png"
+        
+        # Sauvegarder l'ancien fichier s'il existe
+        if file_path.exists():
+            backup_path = content_dir / f"{filename}.backup.{int(datetime.now().timestamp())}"
+            os.rename(file_path, backup_path)
+        
+        # Sauvegarder le nouveau fichier
+        file.save(file_path)
+        
+        # Pour le bandeau, copier aussi dans images/
+        if image_type == 'bandeau' and file_path.exists():
+            import shutil
+            shutil.copy2(file_path, bandeau_path)
+        
+        current_app.logger.info(f"Image {filename} uploadée par {current_user.email}")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Image {filename} uploadée avec succès'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur upload image: {e}")
+        return jsonify({
+            'success': False, 
+            'message': f'Erreur lors de l\'upload: {str(e)}'
+        }), 500
+
+@admin.route("/content/download-image/<image_type>")
+@login_required
+def download_image(image_type):
+    """Télécharger une image."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    # Vérifier le type d'image
+    allowed_types = ['ville', 'site', 'bandeau']
+    if image_type not in allowed_types:
+        flash("Type d'image non valide.", "danger")
+        return redirect(url_for("admin.manage_content"))
+    
+    filename_map = {
+        'ville': 'ville.png',
+        'site': 'site.png', 
+        'bandeau': 'bandeau.png'
+    }
+    filename = filename_map[image_type]
+    
+    content_dir = Path(current_app.root_path) / "static" / "content"
+    file_path = content_dir / filename
+    
+    if not file_path.exists():
+        flash("Image non trouvée.", "danger")
+        return redirect(url_for("admin.manage_content"))
+    
+    return send_file(file_path, as_attachment=True, download_name=filename)
+
+@admin.route("/content/get-images-info")
+@login_required
+def get_images_info():
+    """Récupérer les informations sur les images existantes."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    try:
+        content_dir = Path(current_app.root_path) / "static" / "content"
+        images_info = {}
+        
+        for image_type in ['ville', 'site', 'bandeau']:
+            image_path = content_dir / f"{image_type}.png"
+            if image_path.exists():
+                images_info[image_type] = {
+                    'exists': True,
+                    'size': os.path.getsize(image_path),
+                    'modified': os.path.getmtime(image_path),
+                    'url': f"/static/content/{image_type}.png"
+                }
+            else:
+                images_info[image_type] = {
+                    'exists': False,
+                    'url': None
+                }
+        
+        return jsonify({
+            'success': True,
+            'images': images_info
         })
         
     except Exception as e:

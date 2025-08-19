@@ -608,6 +608,9 @@ def programme_preview():
     
     return render_template("conference/programme_pdf_preview.html", programme=programme_data)
 
+# Dans app/conference_routes.py - fonction localisation()
+# Ajouter ce code de debug temporaire
+
 @conference.route("/localisation")
 def localisation():
     """Affiche les informations de localisation."""
@@ -620,6 +623,19 @@ def localisation():
     accommodation_info = conference_config.get('accommodation', {})
     city_info = conference_config.get('city_info', {})
     
+    # DEBUG - Afficher ce qui est lu depuis le YAML
+    print("=== DEBUG ACCOMMODATION ===")
+    print("accommodation_info:", accommodation_info)
+    print("Type:", type(accommodation_info))
+    if accommodation_info:
+        print("Keys:", list(accommodation_info.keys()))
+        platform = accommodation_info.get('platform', {})
+        print("Platform:", platform)
+        if platform:
+            print("Platform keys:", list(platform.keys()) if isinstance(platform, dict) else "Not a dict")
+            print("URL value:", platform.get('url', 'NOT FOUND'))
+    print("=========================")
+    
     # Structurer les données pour le template
     venues = {
         'main': {
@@ -631,12 +647,32 @@ def localisation():
             'lng': location_info.get('coordinates', {}).get('longitude', 6.143)
         },
         'transport': _format_transport_data(transport_info),
-        'accommodation': accommodation_info  # Passer directement les données accommodation
+        'accommodation': accommodation_info  # Passer directement les données
     }
+    
+    # Variables supplémentaires pour le template
+    conference_location = {
+        'city': location_info.get('city', 'Nancy'),
+        'region': location_info.get('region', 'Grand Est')
+    }
+    
+    conference_dates = {
+        'dates': '2-5 juin 2026'
+    }
+    
+    # DEBUG - Vérifier ce qui est passé au template
+    print("=== DEBUG VENUES ===")
+    print("venues['accommodation']:", venues['accommodation'])
+    print("==================")
     
     return render_template("conference/localisation.html", 
                          venues=venues, 
-                         city_info=city_info)
+                         city_info=city_info,
+                         conference_location=conference_location,
+                         conference_dates=conference_dates)
+
+
+
 
 def _format_transport_data(transport_info):
     """Formate les données de transport pour le template."""

@@ -5,7 +5,7 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from markupsafe import Markup
 import re
-
+from datetime import datetime
 from .conference_routes import conference
 from .models import db
 
@@ -37,6 +37,11 @@ def nl2br_filter(text):
     # Retourner comme Markup pour éviter l'échappement automatique
     return Markup(text)
 
+def datetime_filter(timestamp, format='%d/%m/%Y %H:%M'):
+    """Convertit un timestamp en date formatée."""
+    if isinstance(timestamp, (int, float)):
+        return datetime.fromtimestamp(timestamp).strftime(format)
+    return str(timestamp)
 
 
 
@@ -46,6 +51,7 @@ def create_app():
     app.config.from_object('config.Config')
 
     app.jinja_env.filters['nl2br'] = nl2br_filter
+    app.jinja_env.filters['datetime'] = datetime_filter
     
     db.init_app(app)
     migrate.init_app(app, db)
@@ -83,6 +89,7 @@ def create_app():
             fees_info = app.conference_config.get('fees', {})
             transport_info = app.conference_config.get('transport', {})
             accommodation_info = app.conference_config.get('accommodation', {})
+            legal_info = app.conference_config.get('legal', {})
             
             return {
                 'conference': conference_info,  # ← CHANGEMENT : on passe directement conference_info au lieu d'une structure modifiée
@@ -92,6 +99,7 @@ def create_app():
                 'conference_fees': fees_info,
                 'conference_transport': transport_info,
                 'conference_accommodation': accommodation_info,
+                'legal': legal_info,
                 'themes_available': len(app.themes_config)
             }
 

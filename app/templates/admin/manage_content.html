@@ -16,9 +16,10 @@
     </div>
 
     <div class="row">
-        <!-- Section fichiers CSV -->
+        <!-- Colonne principale (CSV + Images) -->
         <div class="col-lg-8">
-            <div class="card">
+            <!-- Section fichiers CSV -->
+            <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0"><i class="fas fa-table me-2"></i>Fichiers CSV</h4>
                 </div>
@@ -48,25 +49,25 @@
                                         </td>
                                         <td>
                                             <small class="text-muted">
-                                                {{ moment(file.modified).format('DD/MM/YYYY HH:mm') if moment else 'N/A' }}
+                                                {{ file.modified|datetime }}
                                             </small>
                                         </td>
                                         <td>
-                                            <div class="btn-group btn-group-sm" role="group">
-                                                <button type="button" class="btn btn-outline-info" 
-                                                        onclick="previewCSV('{{ file.name }}')" 
-                                                        title="Prévisualiser">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
+                                            <div class="btn-group btn-group-sm">
                                                 <a href="{{ url_for('admin.download_csv', filename=file.name) }}" 
-                                                   class="btn btn-outline-success" 
-                                                   title="Télécharger">
+                                                   class="btn btn-outline-primary" title="Télécharger">
                                                     <i class="fas fa-download"></i>
                                                 </a>
-                                                <button type="button" class="btn btn-outline-warning" 
+                                                <a href="{{ url_for('admin.preview_csv', filename=file.name) }}" 
+                                                   class="btn btn-outline-info" 
+                                                   onclick="previewCSV('{{ file.name }}'); return false;"
+                                                   title="Prévisualiser">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <button class="btn btn-outline-warning" 
                                                         onclick="replaceCSV('{{ file.name }}')" 
                                                         title="Remplacer">
-                                                    <i class="fas fa-upload"></i>
+                                                    <i class="fas fa-edit"></i>
                                                 </button>
                                             </div>
                                         </td>
@@ -77,244 +78,380 @@
                         </div>
                     {% else %}
                         <div class="text-center py-4">
-                            <i class="fas fa-file-csv fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">Aucun fichier CSV trouvé</p>
+                            <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Aucun fichier CSV</h5>
+                            <p class="text-muted">Uploadez vos premiers fichiers CSV pour commencer.</p>
+                            <button class="btn btn-primary" onclick="uploadNewCSV()">
+                                <i class="fas fa-upload me-2"></i>Ajouter un fichier CSV
+                            </button>
                         </div>
                     {% endif %}
+                    
+                </div>
+            </div>
+
+            <!-- Section Images -->
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0"><i class="fas fa-images me-2"></i>Images du site</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">Gérez les 3 images principales du site. Les images sont automatiquement redimensionnées et optimisées.</p>
+                    
+                    <div class="row">
+                        {% for img_type, img_info in images_info.items() %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card border h-100">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0 text-center">
+                                        <i class="fas fa-image me-2"></i>
+                                        {% if img_type == 'ville' %}Image ville
+                                        {% elif img_type == 'site' %}Image site
+                                        {% elif img_type == 'bandeau' %}Bandeau
+                                        {% endif %}
+                                    </h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    {% if img_info.exists %}
+                                        <div class="mb-3">
+                                            <img src="{{ img_info.url }}?t={{ img_info.modified }}" 
+                                                 alt="{{ img_type }}" 
+                                                 class="img-thumbnail"
+                                                 style="max-height: 120px; max-width: 100%; object-fit: cover;">
+                                        </div>
+                                        <small class="text-muted d-block">
+                                            {{ img_info.filename }} - {{ "%.1f"|format(img_info.size / 1024) }} KB
+                                        </small>
+                                        <small class="text-muted d-block mb-3">
+                                            Modifié: {{ img_info.modified|datetime }}
+                                        </small>
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-primary btn-sm" 
+                                                    onclick="selectImageFile('{{ img_type }}')">
+                                                <i class="fas fa-edit me-1"></i> Remplacer
+                                            </button>
+                                            <a href="{{ url_for('admin.download_image', image_type=img_type) }}" 
+                                               class="btn btn-outline-secondary btn-sm">
+                                                <i class="fas fa-download me-1"></i> Télécharger
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-muted mb-3">
+                                            <i class="fas fa-image fa-3x mb-2"></i>
+                                            <p>Aucune image</p>
+                                        </div>
+                                        <button class="btn btn-primary btn-sm" 
+                                                onclick="selectImageFile('{{ img_type }}')">
+                                            <i class="fas fa-upload me-1"></i>Ajouter {{ img_info.filename }}
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Input caché pour les images -->
+                    <input type="file" 
+                           id="imageInput" 
+                           accept="image/png,image/jpeg,image/jpg" 
+                           style="display: none;" 
+                           onchange="uploadSelectedImage()">
+                           
+                    <!-- Input caché pour les CSV -->
+                    <input type="file" 
+                           id="csvInput" 
+                           accept=".csv" 
+                           style="display: none;" 
+                           onchange="uploadSelectedCSV()">
                 </div>
             </div>
         </div>
 
-        <!-- Section configuration et upload -->
+        <!-- Colonne latérale (Configuration uniquement) -->
         <div class="col-lg-4">
             <!-- Configuration YAML -->
-            <div class="card mb-4">
+            <div class="card">
                 <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Configuration</h5>
+                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Configuration</h5>
                 </div>
                 <div class="card-body">
                     {% if conference_exists %}
                         <div class="d-flex align-items-center mb-3">
-                            <i class="fas fa-file-code text-warning me-2"></i>
-                            <strong>conference.yml</strong>
+                            <i class="fas fa-check-circle text-success fa-2x me-3"></i>
+                            <div>
+                                <h6 class="mb-0">Configuration active</h6>
+                                <small class="text-muted">
+                                    {{ "%.1f"|format(conference_info.size / 1024) }} KB - 
+                                    {{ conference_info.modified|datetime }}
+                                </small>
+                            </div>
                         </div>
-                        <div class="small text-muted mb-3">
-                            <div>Taille: {{ "%.1f"|format(conference_info.size / 1024) }} KB</div>
-                            <div>Modifié: {{ moment(conference_info.modified).format('DD/MM/YYYY HH:mm') if moment else 'N/A' }}</div>
-                        </div>
+                        
                         <div class="d-grid gap-2">
-                            <button type="button" class="btn btn-warning btn-sm" onclick="editYAML()">
+                            <button class="btn btn-primary" onclick="editYAML()">
                                 <i class="fas fa-edit me-2"></i>Éditer
                             </button>
-                            <a href="{{ url_for('admin.download_yaml') }}" class="btn btn-outline-success btn-sm">
+                            <a href="{{ url_for('admin.download_yaml') }}" 
+                               class="btn btn-outline-secondary">
                                 <i class="fas fa-download me-2"></i>Télécharger
                             </a>
-                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="replaceYAML()">
-                                <i class="fas fa-upload me-2"></i>Remplacer
+                            <button class="btn btn-success" 
+                                    id="reloadConfigBtn" 
+                                    onclick="reloadConfig()">
+                                <i class="fas fa-sync-alt me-2"></i>Recharger
                             </button>
-			    <button type="button" class="btn btn-success btn-sm" onclick="reloadConfig()" id="reloadConfigBtn">
-			      <i class="fas fa-sync-alt me-2"></i>Recharger la config
-			    </button>
                         </div>
                     {% else %}
-                        <div class="text-center">
-                            <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
-                            <p class="small text-muted">Fichier conference.yml non trouvé</p>
-                            <button type="button" class="btn btn-warning btn-sm" onclick="uploadYAML()">
-                                <i class="fas fa-upload me-2"></i>Uploader
-                            </button>
+                        <div class="text-center text-muted">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <p>Aucune configuration trouvée</p>
+                            <small>Uploadez un fichier conference.yml via la section upload latérale</small>
                         </div>
                     {% endif %}
                 </div>
             </div>
-
-            <!-- Upload nouveau fichier -->
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-cloud-upload-alt me-2"></i>Nouveau fichier</h5>
-                </div>
-                <div class="card-body">
-                    <form id="uploadForm" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label for="fileInput" class="form-label">Sélectionner un fichier</label>
-                            <input type="file" class="form-control" id="fileInput" accept=".csv,.yml,.yaml">
-                            <div class="form-text">Formats acceptés: CSV, YAML</div>
-                        </div>
-                        <div class="d-grid">
-                            <button type="button" class="btn btn-success" onclick="uploadFile()">
-                                <i class="fas fa-upload me-2"></i>Uploader
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
         </div>
     </div>
 </div>
 
-<!-- Modal de prévisualisation CSV -->
-<div class="modal fade" id="csvPreviewModal" tabindex="-1">
+<!-- Modal pour prévisualisation CSV -->
+<div class="modal fade" id="csvPreviewModal" tabindex="-1" aria-labelledby="csvPreviewModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-eye me-2"></i>Prévisualisation: <span id="previewFileName"></span>
+                <h5 class="modal-title" id="csvPreviewModalLabel">
+                    <i class="fas fa-eye me-2"></i>Prévisualisation CSV
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Prévisualisation des 10 premières lignes du fichier CSV
+                </div>
+                
                 <div id="csvPreviewContent">
-                    <div class="text-center py-4">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Chargement...</span>
-                        </div>
+                    <div class="text-center">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p class="mt-2">Chargement...</p>
                     </div>
                 </div>
             </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Fermer
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Modal d'édition YAML -->
-<div class="modal fade" id="yamlEditModal" tabindex="-1">
+<!-- Modal pour édition YAML -->
+<div class="modal fade" id="yamlEditModal" tabindex="-1" aria-labelledby="yamlEditModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
+                <h5 class="modal-title" id="yamlEditModalLabel">
                     <i class="fas fa-edit me-2"></i>Éditer conference.yml
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <textarea id="yamlEditor" class="form-control" rows="20" style="font-family: monospace;"></textarea>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Modifiez le contenu YAML ci-dessous. La syntaxe sera validée avant la sauvegarde.
                 </div>
+                
                 <div id="yamlValidation" class="alert" style="display: none;"></div>
+                
+                <div class="mb-3">
+                    <label for="yamlEditor" class="form-label">Contenu YAML :</label>
+                    <textarea id="yamlEditor" class="form-control" rows="20" style="font-family: monospace; font-size: 12px;"></textarea>
+                </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-primary" onclick="validateYAML()">Valider syntaxe</button>
-                <button type="button" class="btn btn-success" onclick="saveYAML()">Sauvegarder</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Annuler
+                </button>
+                <button type="button" class="btn btn-warning" onclick="validateYAML()">
+                    <i class="fas fa-check me-1"></i>Valider syntaxe
+                </button>
+                <button type="button" class="btn btn-success" onclick="saveYAML()">
+                    <i class="fas fa-save me-1"></i>Sauvegarder
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-{% endblock %}
-
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
-
+<!-- Scripts JavaScript -->
 <script>
-// Variables globales
-let currentEditingFile = null;
+let selectedImageType = null;
 
-// Fonctions de prévisualisation CSV
-function previewCSV(filename) {
-    $('#previewFileName').text(filename);
-    $('#csvPreviewContent').html(`
-        <div class="text-center py-4">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Chargement...</span>
-            </div>
-        </div>
-    `);
-    $('#csvPreviewModal').modal('show');
+// Gestion des images
+function selectImageFile(imageType) {
+    selectedImageType = imageType;
+    document.getElementById('imageInput').click();
+}
+
+function uploadSelectedImage() {
+    const fileInput = document.getElementById('imageInput');
+    const file = fileInput.files[0];
     
-    fetch(`{{ url_for('admin.preview_csv', filename='FILENAME') }}`.replace('FILENAME', filename))
+    if (!file || !selectedImageType) {
+        alert('Erreur: aucun fichier ou type sélectionné');
+        return;
+    }
+    
+    // Vérifier le type de fichier
+    if (!file.type.match(/^image\/(png|jpeg|jpg)$/)) {
+        alert('Seuls les fichiers PNG et JPG sont autorisés');
+        return;
+    }
+    
+    // Vérifier la taille (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Le fichier est trop volumineux (max 5MB)');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('image_type', selectedImageType);
+    
+    // Afficher un indicateur de chargement
+    const btn = event.target.closest('.card-body').querySelector('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Upload...';
+    btn.disabled = true;
+    
+    fetch('/admin/content/upload-image', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Erreur: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de l\'upload de l\'image');
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        selectedImageType = null;
+        fileInput.value = '';
+    });
+}
+
+// Fonctions pour CSV
+function previewCSV(filename) {
+    const modal = new bootstrap.Modal(document.getElementById('csvPreviewModal'));
+    document.getElementById('csvPreviewModalLabel').innerHTML = `<i class="fas fa-eye me-2"></i>Prévisualisation : ${filename}`;
+    modal.show();
+    
+    // Afficher le spinner de chargement
+    document.getElementById('csvPreviewContent').innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p class="mt-2">Chargement de ${filename}...</p>
+        </div>
+    `;
+    
+    fetch(`/admin/content/preview-csv/${filename}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                $('#csvPreviewContent').html(data.html);
+                document.getElementById('csvPreviewContent').innerHTML = data.html;
             } else {
-                $('#csvPreviewContent').html(`<div class="alert alert-danger">${data.message}</div>`);
+                document.getElementById('csvPreviewContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Erreur : ${data.message}
+                    </div>
+                `;
             }
         })
         .catch(error => {
             console.error('Erreur:', error);
-            $('#csvPreviewContent').html('<div class="alert alert-danger">Erreur lors du chargement</div>');
+            document.getElementById('csvPreviewContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Erreur lors du chargement du fichier
+                </div>
+            `;
         });
 }
 
-// Fonctions de remplacement CSV
+function uploadNewCSV() {
+    document.getElementById('csvInput').click();
+}
+
 function replaceCSV(filename) {
-    if (confirm(`Êtes-vous sûr de vouloir remplacer ${filename} ?\n\nL'ancien fichier sera sauvegardé automatiquement.`)) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.csv';
-        input.onchange = function(e) {
-            if (e.target.files[0]) {
-                uploadCSVFile(e.target.files[0]);
-            }
-        };
-        input.click();
+    if (confirm(`Remplacer le fichier ${filename} ?\n\nL'ancien fichier sera sauvegardé automatiquement.`)) {
+        document.getElementById('csvInput').click();
     }
 }
 
-// Fonctions d'édition YAML
+function uploadSelectedCSV() {
+    const fileInput = document.getElementById('csvInput');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        return;
+    }
+    
+    // Vérifier l'extension
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        alert('Seuls les fichiers CSV sont autorisés');
+        fileInput.value = '';
+        return;
+    }
+    
+    // Utiliser la fonction existante
+    uploadCSVFile(file);
+    fileInput.value = '';
+}
 function editYAML() {
-    console.log('editYAML appelée');
-    $('#yamlEditModal').modal('show');
-    $('#yamlEditor').val('Chargement...');
-    $('#yamlValidation').hide();
+    const modal = new bootstrap.Modal(document.getElementById('yamlEditModal'));
+    modal.show();
     
-    const url = '/admin/content/get-yaml';
-    console.log('URL appelée:', url);
+    // Charger le contenu du fichier YAML
+    document.getElementById('yamlEditor').value = 'Chargement...';
+    document.getElementById('yamlValidation').style.display = 'none';
     
-    fetch(url)
+    fetch('/admin/content/get-yaml')
         .then(response => {
-            console.log('Réponse:', response.status);
             if (response.ok) {
                 return response.text();
             }
             throw new Error(`Erreur HTTP: ${response.status}`);
         })
         .then(content => {
-            console.log('Contenu reçu (100 premiers chars):', content.substring(0, 100));
-            $('#yamlEditor').val(content);
+            document.getElementById('yamlEditor').value = content;
         })
         .catch(error => {
             console.error('Erreur:', error);
-            $('#yamlEditor').val('Erreur lors du chargement du fichier: ' + error.message);
+            document.getElementById('yamlEditor').value = 'Erreur lors du chargement: ' + error.message;
         });
 }
 
-function replaceYAML() {
-    if (confirm('Êtes-vous sûr de vouloir remplacer conference.yml ?\n\nL\'ancien fichier sera sauvegardé automatiquement.')) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.yml,.yaml';
-        input.onchange = function(e) {
-            if (e.target.files[0]) {
-                uploadYAMLFile(e.target.files[0]);
-            }
-        };
-        input.click();
-    }
-}
-
-function uploadYAML() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.yml,.yaml';
-    input.onchange = function(e) {
-        if (e.target.files[0]) {
-            uploadYAMLFile(e.target.files[0]);
-        }
-    };
-    input.click();
-}
-
-// Validation YAML
 function validateYAML() {
-    const content = $('#yamlEditor').val();
+    const content = document.getElementById('yamlEditor').value;
     
     if (!content.trim()) {
-        showYAMLValidation(false, 'Le contenu ne peut pas être vide');
+        showYAMLValidation('Le contenu ne peut pas être vide', false);
         return;
     }
     
-    fetch(`{{ url_for('admin.validate_yaml') }}`, {
+    fetch('/admin/content/validate-yaml', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -323,25 +460,32 @@ function validateYAML() {
     })
     .then(response => response.json())
     .then(data => {
-        showYAMLValidation(data.success, data.message);
+        showYAMLValidation(data.message, data.success);
     })
     .catch(error => {
         console.error('Erreur:', error);
-        showYAMLValidation(false, 'Erreur de validation');
+        showYAMLValidation('Erreur lors de la validation', false);
     });
 }
 
-// Sauvegarde YAML
 function saveYAML() {
-    const content = $('#yamlEditor').val();
+    const content = document.getElementById('yamlEditor').value;
     
     if (!content.trim()) {
         alert('Le contenu ne peut pas être vide');
         return;
     }
     
-    // Validation avant sauvegarde
-    fetch(`{{ url_for('admin.validate_yaml') }}`, {
+    if (!confirm('Êtes-vous sûr de vouloir sauvegarder les modifications ?\n\nL\'ancien fichier sera sauvegardé automatiquement.')) {
+        return;
+    }
+    
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Sauvegarde...';
+    btn.disabled = true;
+    
+    fetch('/admin/content/save-yaml', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -350,52 +494,39 @@ function saveYAML() {
     })
     .then(response => response.json())
     .then(data => {
-        if (!data.success) {
-            showYAMLValidation(false, data.message);
-            return;
-        }
-        
-        // Si validation OK, sauvegarder
-        return fetch(`{{ url_for('admin.save_yaml') }}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ content: content })
-        });
-    })
-    .then(response => {
-        if (response) {
-            return response.json();
-        }
-    })
-    .then(data => {
-        if (data) {
-            if (data.success) {
-                alert(data.message);
-                $('#yamlEditModal').modal('hide');
-                location.reload();
-            } else {
-                showYAMLValidation(false, data.message);
-            }
+        if (data.success) {
+            alert(data.message);
+            bootstrap.Modal.getInstance(document.getElementById('yamlEditModal')).hide();
+            location.reload();
+        } else {
+            showYAMLValidation(data.message, false);
         }
     })
     .catch(error => {
         console.error('Erreur:', error);
-        alert('Erreur lors de la sauvegarde');
+        showYAMLValidation('Erreur lors de la sauvegarde', false);
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     });
 }
 
-// Affichage des messages de validation YAML
-function showYAMLValidation(isValid, message) {
-    const validationDiv = $('#yamlValidation');
-    validationDiv.removeClass('alert-success alert-danger');
-    validationDiv.addClass(isValid ? 'alert-success' : 'alert-danger');
-    validationDiv.text(message);
-    validationDiv.show();
+function showYAMLValidation(message, isValid) {
+    const validationDiv = document.getElementById('yamlValidation');
+    validationDiv.className = `alert ${isValid ? 'alert-success' : 'alert-danger'}`;
+    validationDiv.innerHTML = `<i class="fas fa-${isValid ? 'check' : 'exclamation-triangle'} me-2"></i>${message}`;
+    validationDiv.style.display = 'block';
 }
 
-// Upload général de fichier
+// Fonctions pour CSV/YAML (existantes)
+function showValidationResult(message, isValid) {
+    const validationDiv = document.getElementById('validationResult');
+    validationDiv.className = `alert ${isValid ? 'alert-success' : 'alert-danger'}`;
+    validationDiv.textContent = message;
+    validationDiv.style.display = 'block';
+}
+
 function uploadFile() {
     const fileInput = document.getElementById('fileInput');
     const file = fileInput.files[0];
@@ -414,7 +545,6 @@ function uploadFile() {
     }
 }
 
-// Upload spécifique CSV
 function uploadCSVFile(file) {
     const formData = new FormData();
     formData.append('file', file);
@@ -438,7 +568,6 @@ function uploadCSVFile(file) {
     });
 }
 
-// Upload spécifique YAML
 function uploadYAMLFile(file) {
     const formData = new FormData();
     formData.append('file', file);
@@ -462,12 +591,10 @@ function uploadYAMLFile(file) {
     });
 }
 
-// Rechargement de la configuration
 function reloadConfig() {
     const btn = document.getElementById('reloadConfigBtn');
     const originalText = btn.innerHTML;
     
-    // Afficher le spinner de chargement
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Rechargement...';
     btn.disabled = true;
     
@@ -490,26 +617,69 @@ function reloadConfig() {
         alert('Erreur lors du rechargement de la configuration');
     })
     .finally(() => {
-        // Remettre le bouton normal
         btn.innerHTML = originalText;
         btn.disabled = false;
     });
 }
 
-
-  
-// Initialisation au chargement de la page
+// Initialisation
 document.addEventListener('DOMContentLoaded', function() {
-    // Reset du formulaire d'upload
-    document.getElementById('fileInput').addEventListener('change', function() {
-        const file = this.files[0];
-        if (file) {
-            const fileName = file.name;
-            const fileSize = (file.size / 1024).toFixed(1);
-            console.log(`Fichier sélectionné: ${fileName} (${fileSize} KB)`);
-        }
-    });
+    console.log('Interface de gestion du contenu chargée');
 });
 </script>
 
+<style>
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.img-thumbnail {
+    transition: transform 0.2s ease-in-out;
+}
+
+.img-thumbnail:hover {
+    transform: scale(1.05);
+}
+
+.btn-group .btn {
+    border-radius: 0.25rem;
+}
+
+.alert {
+    border-radius: 0.5rem;
+}
+
+#csvPreviewModal .table {
+    font-size: 0.875rem;
+}
+
+#csvPreviewModal .table th,
+#csvPreviewModal .table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    padding: 0.5rem;
+}
+
+#csvPreviewModal .table-responsive {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 1rem;
+    }
+    
+    .col-lg-8, .col-lg-4 {
+        margin-bottom: 2rem;
+    }
+}
+</style>
 {% endblock %}
+
