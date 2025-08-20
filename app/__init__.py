@@ -116,7 +116,7 @@ def create_app():
     from .registration_routes import registration
     from .communication_public import public_comm
     from .conference_books import books
-
+    from .hal_integration.hal_routes import hal_bp
     from .emails import (
         send_email,
         send_activation_email_to_user,
@@ -145,5 +145,5 @@ def create_app():
     app.register_blueprint(registration, url_prefix="/registration")
     app.register_blueprint(books, url_prefix="/admin/books")
     app.register_blueprint(public_comm, url_prefix="/public")
-
+    app.register_blueprint(hal_bp, url_prefix="/hal")
     return app

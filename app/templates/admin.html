@@ -185,18 +185,6 @@
               <i class="fas fa-cog me-2"></i>Gérer le contenu
             </a>
             
-            <div class="row g-1">
-              <div class="col-6">
-                <a href="{{ url_for('admin.list_affiliations') }}" class="btn btn-outline-info btn-sm w-100">
-                  <i class="fas fa-university me-1"></i>Affiliations
-                </a>
-              </div>
-              <div class="col-6">
-                <a href="{{ url_for('admin.import_affiliations') }}" class="btn btn-outline-info btn-sm w-100">
-                  <i class="fas fa-upload me-1"></i>Import CSV
-                </a>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -309,58 +297,115 @@
     </div>
 
     <!-- Gestion des livres -->
-    <div class="col-lg-4 mb-4">
-      <div class="card border-0 shadow-sm h-100 hover-lift">
-        <div class="card-body">
-          <div class="d-flex align-items-center mb-3">
-            <div class="bg-purple bg-opacity-10 rounded-circle p-3 me-3">
-              <i class="fas fa-book text-purple fa-2x"></i>
-            </div>
-            <div>
-              <h5 class="card-title mb-1">Gestion des livres</h5>
-              <p class="text-muted small mb-0">Génération des actes du congrès</p>
-            </div>
-          </div>
-          
-          <div class="mb-3">
-            <div class="row text-center">
-              <div class="col-4">
-                <div class="border-end">
-                  <strong class="d-block text-purple">{{ stats.articles_count|default(0) }}</strong>
-                  <small class="text-muted">Articles</small>
-                </div>
-              </div>
-              <div class="col-4">
-                <div class="border-end">
-                  <strong class="d-block text-purple">{{ stats.resumes_count|default(0) }}</strong>
-                  <small class="text-muted">Résumés</small>
-                </div>
-              </div>
-              <div class="col-4">
-                <strong class="d-block text-purple">{{ stats.wips_count|default(0) }}</strong>
-                <small class="text-muted">WIP</small>
-              </div>
+<div class="col-lg-4 mb-4">
+  <div class="card border-0 shadow-sm h-100 hover-lift">
+    <div class="card-body">
+      <div class="d-flex align-items-center mb-3">
+        <div class="bg-secondary bg-opacity-10 rounded-circle p-3 me-3">
+          <i class="fas fa-book text-secondary fa-2x"></i>
+        </div>
+        <div>
+          <h5 class="card-title mb-1">Gestion des livres</h5>
+          <p class="text-muted small mb-0">Génération des actes du congrès</p>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <div class="row text-center">
+          <div class="col-4">
+            <div class="border-end">
+              <strong class="d-block text-secondary">{{ stats.articles_count|default(0) }}</strong>
+              <small class="text-muted">Articles</small>
             </div>
           </div>
-          
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('books.manage_books') }}" class="btn btn-purple w-100">
-              <i class="fas fa-book-open me-2"></i>Gérer les livres
-            </a>
-            
-            <a href="{{ url_for('books.preview_book', book_type='tome1') }}" 
-               class="btn btn-outline-purple w-100" target="_blank">
-              <i class="fas fa-eye me-2"></i>Prévisualiser Tome 1
-            </a>
-            
-            <a href="{{ url_for('books.preview_book', book_type='resumes-wip') }}" 
-               class="btn btn-outline-purple w-100" target="_blank">
-              <i class="fas fa-eye me-2"></i>Prévisualiser Résumés
-            </a>
+          <div class="col-4">
+            <div class="border-end">
+              <strong class="d-block text-secondary">{{ stats.resumes_count|default(0) }}</strong>
+              <small class="text-muted">Résumés</small>
+            </div>
+          </div>
+          <div class="col-4">
+            <strong class="d-block text-secondary">{{ stats.wips_count|default(0) }}</strong>
+            <small class="text-muted">WIP</small>
           </div>
         </div>
       </div>
+      
+      <div class="d-grid gap-2">
+        <a href="{{ url_for('books.manage_books') }}" class="btn btn-secondary w-100">
+          <i class="fas fa-book-open me-2"></i>Gérer les livres
+        </a>
+        
+        <a href="{{ url_for('books.preview_book', book_type='tome1') }}" 
+           class="btn btn-outline-secondary w-100" target="_blank">
+          <i class="fas fa-eye me-2"></i>Prévisualiser Tome 1
+        </a>
+        
+        <a href="{{ url_for('books.preview_book', book_type='resumes-wip') }}" 
+           class="btn btn-outline-secondary w-100" target="_blank">
+          <i class="fas fa-eye me-2"></i>Prévisualiser Résumés
+        </a>
+      </div>
     </div>
+  </div>
+</div>
+
+
+<!-- Intégration HAL -->
+<div class="col-lg-4 mb-4">
+  <div class="card border-0 shadow-sm h-100 hover-lift">
+    <div class="card-body">
+      <div class="d-flex align-items-center mb-3">
+        <div class="bg-dark bg-opacity-10 rounded-circle p-3 me-3">
+          <i class="fas fa-database text-dark fa-2x"></i>
+        </div>
+        <div>
+          <h5 class="card-title mb-1">Intégration HAL</h5>
+          <p class="text-muted small mb-0">Dépôt automatique collection SFT2026</p>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <div class="row text-center">
+          <div class="col-4">
+            <div class="border-end">
+              <strong class="d-block text-dark">{{ hal_stats.total_communications|default(0) }}</strong>
+              <small class="text-muted">À déposer</small>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="border-end">
+              <strong class="d-block text-success">{{ hal_stats.successful_deposits|default(0) }}</strong>
+              <small class="text-muted">Déposés</small>
+            </div>
+          </div>
+          <div class="col-4">
+            <strong class="d-block text-danger">{{ hal_stats.failed_deposits|default(0) }}</strong>
+            <small class="text-muted">Erreurs</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-grid gap-2">
+        <a href="{{ url_for('hal.dashboard') }}" class="btn btn-dark w-100">
+          <i class="fas fa-tachometer-alt me-2"></i>Tableau de bord HAL
+        </a>
+        
+        <a href="{{ url_for('hal.list_communications') }}" class="btn btn-outline-dark w-100">
+          <i class="fas fa-list me-2"></i>Gérer les communications
+        </a>
+        
+        <a href="https://hal.science/SFT2026" target="_blank" class="btn btn-outline-dark w-100">
+          <i class="fas fa-external-link-alt me-2"></i>Collection {{ conference.short_name }}
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
   </div>
   
   <!-- Actions rapides -->

@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from .models import db, Affiliation, Communication, User, ThematiqueHelper, ReviewAssignment, CommunicationStatus, SubmissionFile, Review
+from .models import db, Affiliation, Communication, User, ThematiqueHelper, ReviewAssignment, CommunicationStatus, SubmissionFile, Review, HALDeposit
 from io import StringIO
 import csv
 import os
@@ -56,13 +56,45 @@ def admin_dashboard():
             Communication.status == CommunicationStatus.WIP_SOUMIS
         ).count()
     }
+
+    try:
+        
+        # Communications éligibles pour HAL
+        eligible_communications = Communication.query.filter(
+            Communication.status.in_([
+                CommunicationStatus.ACCEPTE,
+                CommunicationStatus.WIP_SOUMIS,
+                CommunicationStatus.POSTER_SOUMIS
+            ]),
+            Communication.hal_authorization == True
+        ).count()
+        
+        # Statistiques des dépôts
+        hal_deposits = HALDeposit.query.all()
+        
+        hal_stats = {
+            'total_communications': eligible_communications,
+            'successful_deposits': len([d for d in hal_deposits if d.status == 'success']),
+            'failed_deposits': len([d for d in hal_deposits if d.status == 'error']),
+            'pending_deposits': len([d for d in hal_deposits if d.status == 'pending'])
+        }
+    except Exception as e:
+        # En cas d'erreur (tables pas encore créées, etc.)
+        hal_stats = {
+            'total_communications': 0,
+            'successful_deposits': 0,
+            'failed_deposits': 0,
+            'pending_deposits': 0
+        }
+    
+
     
     return render_template("admin.html", 
                          users=users,
                          affiliations_count=affiliations_count,
                          pending_reviews=pending_reviews,
                          csv_files_count=csv_files_count,
-                         stats=stats)
+                         stats=stats, hal_stats=hal_stats)
 
 @admin.route("/users")
 @login_required

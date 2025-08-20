@@ -328,14 +328,39 @@ integrations:
   hal:
     enabled: true
     collection_id: "SFT2026"
-    auto_deposit: false
+    auto_deposit: false  # Dépôt manuel pour l'instant
+    test_mode: true      # Mode test obligatoire
     
-  # ORCID
-  orcid:
-    enabled: true
-    required_for_reviewers: false
+    # Configuration par type de document - TYPES HAL CORRECTS
+    document_types:
+      article:
+        hal_typology: "COMM"  # Communication dans un congrès (inproceedings)
+        hal_audience: "2"     # International
+        hal_domain: "spi.energe"
+        required: true
+        description: "Article complet de congrès (inproceedings)"
+        
+      wip:
+        hal_typology: "OTHERREPORT"  # Document de travail / Autre publication scientifique
+        hal_audience: "2"            # International 
+        hal_domain: "spi.energe"
+        required: false
+        description: "Work in Progress - Document de travail"
+        
+      poster:
+        hal_typology: "POSTER"  # Poster de conférence
+        hal_audience: "2"       # International
+        hal_domain: "spi.energe" 
+        required: false
+        description: "Poster de conférence"
     
-  # DOI
-  doi:
-    enabled: false
-    prefix: "10.1000"
+    # Métadonnées du congrès
+    conference_metadata:
+      title_fr: "Actes du Congrès de la Société Française de Thermique SFT 2026"
+      title_en: "Proceedings of the French Society of Thermal Sciences Congress SFT 2026"
+      publisher: "Société Française de Thermique"
+      location: "Villiers-lès-Nancy"
+      country: "FR"
+      dates:
+        start: "2026-06-02"
+        end: "2026-06-05"

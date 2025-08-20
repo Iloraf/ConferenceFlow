@@ -1,7 +1,8 @@
-# app/models.py - Modèles de données pour SFT 2026
-
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey
+from sqlalchemy.orm import relationship
+from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from enum import Enum
@@ -1062,3 +1063,53 @@ def import_affiliations_from_csv(csv_path='static/uploads/data/labos.csv'):
         db.session.rollback()
         print(f"❌ Erreur lors de l'import des affiliations: {e}")
         return 0
+
+
+class HALDeposit(db.Model):
+    """Modèle pour tracker les dépôts HAL - SFT 2026"""
+    
+    __tablename__ = 'hal_deposits'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Référence à la communication
+    communication_id = db.Column(db.Integer, db.ForeignKey('communication.id'), nullable=False)
+    communication = db.relationship('Communication', backref='hal_deposits')
+    
+    # Données HAL
+    hal_id = db.Column(db.String(50), unique=True, nullable=True)  # ex: hal-00000001
+    hal_version = db.Column(db.Integer, nullable=True)
+    hal_password = db.Column(db.String(100), nullable=True)
+    hal_url = db.Column(db.String(500), nullable=True)
+    
+    # Statut du dépôt
+    status = db.Column(db.String(20), default='pending')  # pending, success, error
+    hal_status = db.Column(db.String(20), nullable=True)  # accept, verify, update, etc.
+    
+    # Métadonnées de dépôt
+    deposited_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_check = db.Column(db.DateTime, nullable=True)
+    
+    # Logs et erreurs
+    xml_content = db.Column(db.Text, nullable=True)  # XML envoyé
+    error_message = db.Column(db.Text, nullable=True)
+    response_data = db.Column(db.Text, nullable=True)  # JSON de la réponse
+    
+    # Configuration
+    test_mode = db.Column(db.Boolean, default=True)
+    collection_id = db.Column(db.String(50), default='SFT2026')
+    
+    # Ajout de champs manquants pour votre workflow
+    submission_type = db.Column(db.String(20), nullable=True)  # article, wip, poster
+    
+    def __repr__(self):
+        return f'<HALDeposit {self.hal_id or "pending"} for communication {self.communication_id}>'
+    
+    def get_status_display(self):
+        """Retourne un affichage formaté du statut"""
+        status_map = {
+            'pending': {'text': 'En attente', 'class': 'warning'},
+            'success': {'text': 'Déposé avec succès', 'class': 'success'},
+            'error': {'text': 'Erreur de dépôt', 'class': 'danger'}
+        }
+        return status_map.get(self.status, {'text': 'Statut inconnu', 'class': 'secondary'})
