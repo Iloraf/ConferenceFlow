@@ -1,8 +1,3 @@
-"""
-Chargeur de configuration pour ConferenceFlow
-Gère le chargement des fichiers YAML et CSV de configuration
-"""
-
 import yaml
 import csv
 import os
@@ -81,7 +76,205 @@ class ConfigLoader:
             current_app.logger.error(f"Erreur lors du chargement de emails.yml : {e}")
             return self._get_default_email_config()
 
+    # === NOUVELLES MÉTHODES POUR LES EMAILS ===
 
+    def get_email_template_variables(self):
+        """Récupère les variables pour les templates d'emails depuis conference.yml"""
+        conference_config = self.load_conference_config()
+        
+        variables = {}
+        
+        # Extraire les variables selon la configuration des emails
+        email_config = self.load_email_config()
+        auto_variables = email_config.get('settings', {}).get('auto_variables', {})
+        
+        for var_name, config_path in auto_variables.items():
+            value = self._get_nested_value(conference_config, config_path)
+            if value:
+                variables[var_name] = value
+        
+        return variables
+
+    def _get_nested_value(self, data, path):
+        """Récupère une valeur dans un dictionnaire imbriqué à partir d'un chemin"""
+        keys = path.split('.')
+        current = data
+        
+        try:
+            for key in keys:
+                current = current[key]
+            return current
+        except (KeyError, TypeError):
+            return None
+
+    def get_email_subject(self, template_key, **context):
+        """Récupère un sujet d'email avec remplacement des variables"""
+        email_config = self.load_email_config()
+        
+        # Récupérer le template de sujet
+        subject_template = email_config.get('templates', {}).get('subjects', {}).get(template_key, '')
+        
+        if not subject_template:
+            return f"[{template_key}] - Email non configuré"
+        
+        # Récupérer les variables de conference.yml
+        variables = self.get_email_template_variables()
+        
+        # Ajouter les variables de contexte
+        variables.update(context)
+        
+        # Remplacer les variables dans le sujet
+        return self._replace_variables(subject_template, variables)
+
+    def get_email_content(self, template_key, **context):
+        """Récupère le contenu d'un email avec remplacement des variables"""
+        email_config = self.load_email_config()
+        
+        # Récupérer le template de contenu
+        content_config = email_config.get('content', {}).get(template_key, {})
+        
+        if not content_config:
+            return {
+                'greeting': 'Bonjour,',
+                'intro': 'Email non configuré',
+                'body': 'Ce template d\'email n\'est pas configuré.',
+                'call_to_action': None
+            }
+        
+        # Récupérer les variables de conference.yml
+        variables = self.get_email_template_variables()
+        
+        # Ajouter les variables de contexte
+        variables.update(context)
+        
+        # Remplacer les variables dans chaque partie du contenu
+        result = {}
+        for key, value in content_config.items():
+            if isinstance(value, str):
+                result[key] = self._replace_variables(value, variables)
+            else:
+                result[key] = value
+        
+        return result
+
+    def get_email_signature(self, signature_type='default', **context):
+        """Récupère une signature d'email avec remplacement des variables"""
+        email_config = self.load_email_config()
+        
+        # Récupérer la signature
+        signature_template = email_config.get('signatures', {}).get(signature_type, '')
+        
+        if not signature_template:
+            signature_template = email_config.get('signatures', {}).get('default', 'Cordialement,\nL\'équipe')
+        
+        # Récupérer les variables de conference.yml
+        variables = self.get_email_template_variables()
+        
+        # Ajouter les variables de contexte
+        variables.update(context)
+        
+        # Remplacer les variables dans la signature
+        return self._replace_variables(signature_template, variables)
+
+    def get_predefined_email_template(self, template_key, **context):
+        """Récupère un template d'email prédéfini pour l'interface admin"""
+        email_config = self.load_email_config()
+        
+        # Récupérer le template prédéfini
+        template_config = email_config.get('predefined_templates', {}).get(template_key, {})
+        
+        if not template_config:
+            return {
+                'subject': f'[{template_key}] - Template non configuré',
+                'content': 'Ce template d\'email n\'est pas configuré.'
+            }
+        
+        # Récupérer les variables de conference.yml
+        variables = self.get_email_template_variables()
+        
+        # Ajouter les variables de contexte
+        variables.update(context)
+        
+        # Remplacer les variables
+        result = {}
+        for key, value in template_config.items():
+            if isinstance(value, str):
+                result[key] = self._replace_variables(value, variables)
+            else:
+                result[key] = value
+        
+        return result
+
+    def _replace_variables(self, text, variables):
+        """Remplace les variables dans un texte"""
+        if not text or not isinstance(text, str):
+            return text
+        
+        # Remplacer les variables {VARIABLE_NAME}
+        for var_name, var_value in variables.items():
+            placeholder = f"{{{var_name}}}"
+            if placeholder in text:
+                # Convertir la valeur en string et gérer les valeurs None
+                str_value = str(var_value) if var_value is not None else f"[{var_name}]"
+                text = text.replace(placeholder, str_value)
+        
+        return text
+
+    def get_admin_email_templates(self):
+        """Retourne les templates d'emails pour l'interface admin."""
+        # Contexte factice pour les templates
+        context = {
+            'COMMUNICATION_TITLE': '[TITRE_COMMUNICATION]',
+            'COMMUNICATION_ID': '[ID_COMMUNICATION]'
+        }
+        
+        templates = {}
+        
+        # Récupérer tous les templates prédéfinis
+        email_config = self.load_email_config()
+        predefined = email_config.get('predefined_templates', {})
+        
+        for template_key, template_config in predefined.items():
+            template_data = self.get_predefined_email_template(template_key, **context)
+            templates[template_key] = {
+                'subject': template_data.get('subject', ''),
+                'content': template_data.get('content', '')
+            }
+        
+        # Ajouter des templates par défaut si nécessaire
+        if not templates:
+            # Récupérer les variables de conference pour les templates par défaut
+            variables = self.get_email_template_variables()
+            conference_short = variables.get('CONFERENCE_SHORT_NAME', 'Congrès')
+            
+            templates = {
+                'information': {
+                    'subject': f'Information importante - {conference_short}',
+                    'content': '''Bonjour [PRENOM] [NOM],
+
+[Votre message ici]
+
+Concernant votre communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]),
+
+Cordialement,
+L'équipe d'organisation'''
+                },
+                'rappel': {
+                    'subject': f'Rappel important - {conference_short}',
+                    'content': '''Bonjour [PRENOM] [NOM],
+
+Nous vous rappelons que...
+
+Communication concernée : [TITRE_COMMUNICATION] (ID: [ID_COMMUNICATION])
+
+Cordialement,
+L'équipe d'organisation'''
+                }
+            }
+        
+        return templates
+
+    # === MÉTHODES EXISTANTES ===
 
     def reload_all_configs(self):
         """Force le rechargement de toutes les configurations."""
@@ -176,8 +369,10 @@ class ConfigLoader:
                 'city': 'Ville',
                 'country': 'France'
             },
-            'contact': {
-                'general': 'contact@conference.fr'
+            'contacts': {
+                'general': {
+                    'email': 'contact@conference.fr'
+                }
             }
         }
     
@@ -292,15 +487,40 @@ class ConfigLoader:
         ]
     
     def _get_default_email_config(self):
-        """Configuration email par défaut"""
+        """Configuration email par défaut si le fichier n'existe pas."""
         return {
+            'metadata': {
+                'name': 'Configuration par défaut',
+                'version': '1.0'
+            },
             'templates': {
                 'subjects': {
-                    'welcome': 'Bienvenue',
-                    'submission_received': 'Communication reçue'
+                    'welcome': 'Bienvenue au congrès',
+                    'activation': 'Activez votre compte',
+                    'coauthor_notification': 'Nouvelle communication',
+                    'review_reminder': 'Rappel : Reviews en attente'
+                }
+            },
+            'content': {
+                'welcome': {
+                    'greeting': 'Bonjour,',
+                    'intro': 'Bienvenue !',
+                    'body': 'Votre compte a été créé.'
                 },
-                'signatures': {
-                    'default': 'Cordialement,\nL\'équipe d\'organisation'
+                'coauthor_notification': {
+                    'greeting': 'Bonjour,',
+                    'intro': 'Vous avez été ajouté comme co-auteur',
+                    'body': 'Une nouvelle communication a été soumise.'
+                }
+            },
+            'signatures': {
+                'default': 'Cordialement,\nL\'équipe'
+            },
+            'settings': {
+                'auto_variables': {
+                    'CONFERENCE_NAME': 'conference.name',
+                    'CONFERENCE_SHORT_NAME': 'conference.short_name',
+                    'CONTACT_EMAIL': 'contacts.general.email'
                 }
             }
         }

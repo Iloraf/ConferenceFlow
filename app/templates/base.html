@@ -1,10 +1,9 @@
-<!-- templates/base.html -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>{{ conference.short_name or 'SFT 2026' }} {{ conference_location.city or 'Nancy' }}</title>   
+ <title>{{ conference.short_name }} {{ conference_location.city }}</title>   
     <!-- PWA -->
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#022949">
@@ -14,25 +13,21 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-    <!-- CSS commun SFT -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sft-style.css') }}">
-    
-
-    
+        
     {% block extra_css %}{% endblock %}
 </head>
 <body>
 
 <div class="banner-container">  
-  <img src="{{ url_for('static', filename='images/bandeau_sft2026.png') }}" alt="Bandeau" class="banner-image">
+  <img src="{{ url_for('static', filename='content/bandeau.png') }}" alt="Bandeau" class="banner-image">
 </div>
 
     <!-- Navigation principale -->
   <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
-  <!--<nav class="navbar navbar-expand-lg navbar-dark bg-primary">-->
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
-                <i class="fas fa-fire-flame-curved me-2"></i>{{ conference.short_name or 'SFT 2026' }} {{ conference_location.city or 'Nancy' }}
+                <i class="fas fa-fire-flame-curved me-2"></i>{{ conference.short_name }} {{ conference_location.city }}
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -55,9 +50,6 @@
                             <li><a class="dropdown-item" href="{{ url_for('conference.communication_info') }}">
                                 <i class="fas fa-info-circle me-2"></i>Informations générales
                             </a></li>
-                           <!-- <li><a class="dropdown-item" href="{{ url_for('main.choose_type') if current_user.is_authenticated else url_for('auth.login') }}">
-                                <i class="fas fa-plus me-2"></i>Soumettre
-                            </a></li>-->
                             {% if current_user.is_authenticated %}
                             <li><a class="dropdown-item" href="{{ url_for('main.mes_communications') }}">
                                 <i class="fas fa-folder me-2"></i>Mes communications
@@ -158,9 +150,9 @@
                 <div class="col-md-4 mb-3">
                     <h5 class="mb-3">
                         <i class="fas fa-fire-flame-curved me-2 text-primary"></i>
-                        {{ conference.short_name|default('SFT 2026') }}
+                        {{ conference.short_name|safe }}
                     </h5>
-                    <p class="mb-1">{{ conference.name|default('Congrès Français de Thermique') }}</p>
+                    <p class="mb-1">{{ conference.name | safe }}</p>
                     <p class="mb-1">
                         <i class="fas fa-calendar me-2"></i>{{ conference_dates.dates }}
                     </p>

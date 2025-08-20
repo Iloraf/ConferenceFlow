@@ -1,200 +1,244 @@
-# Configuration complète des emails pour SFT 2026
-# Fichier : config/emails.yml
+# Fichier : app/static/content/emails.yml
 
 # ===== MÉTADONNÉES =====
 metadata:
-  name: "Configuration emails SFT 2026"
+  name: "Configuration emails congrès"
   version: "1.0"
   last_updated: "2024-01-15"
+  note: "Utilise les variables de conference.yml automatiquement"
 
 # ===== SUJETS DES EMAILS =====
+# Les variables {CONFERENCE_*} seront automatiquement remplacées par 
+# les valeurs de conference.yml via le système de configuration
 templates:
   subjects:
     # Utilisateurs
-    welcome: "Bienvenue au congrès SFT 2026"
-    activation: "Activez votre compte SFT 2026"
-    password_reset: "Réinitialisation de votre mot de passe - SFT 2026"
+    welcome: "Bienvenue au {CONFERENCE_NAME}"
+    activation: "Activez votre compte {CONFERENCE_SHORT_NAME}"
+    password_reset: "Réinitialisation de votre mot de passe - {CONFERENCE_SHORT_NAME}"
     
     # Soumissions
-    submission_received: "Communication reçue - SFT 2026"
-    submission_confirmed: "Confirmation de soumission - SFT 2026"
-    submission_updated: "Mise à jour de votre communication - SFT 2026"
+    submission_received: "Communication reçue - {CONFERENCE_SHORT_NAME}"
+    submission_confirmed: "Confirmation de soumission - {CONFERENCE_SHORT_NAME}"
+    submission_updated: "Mise à jour de votre communication - {CONFERENCE_SHORT_NAME}"
     
     # Reviews
-    review_assigned: "Nouvelle review assignée - SFT 2026"
-    review_reminder: "Rappel : Reviews en attente - SFT 2026"
-    reviewer_welcome: "Bienvenue comme reviewer - SFT 2026"
+    review_assigned: "Nouvelle review assignée - {CONFERENCE_SHORT_NAME}"
+    review_reminder: "Rappel : Reviews en attente - {CONFERENCE_SHORT_NAME}"
+    reviewer_welcome: "Bienvenue comme reviewer - {CONFERENCE_SHORT_NAME}"
     
     # Décisions
-    decision_notification: "Décision sur votre communication - SFT 2026"
-    decision_accept: "Félicitations ! Communication acceptée - SFT 2026"
-    decision_reject: "Décision sur votre communication - SFT 2026"
-    decision_revise: "Révisions demandées - SFT 2026"
+    decision_notification: "Décision sur votre communication - {CONFERENCE_SHORT_NAME}"
+    decision_accept: "Félicitations ! Communication acceptée - {CONFERENCE_SHORT_NAME}"
+    decision_reject: "Décision sur votre communication - {CONFERENCE_SHORT_NAME}"
+    decision_revise: "Révisions demandées - {CONFERENCE_SHORT_NAME}"
     
     # Co-auteurs
-    coauthor_invitation: "Invitation comme co-auteur - SFT 2026"
-    coauthor_notification: "Nouvelle communication ajoutée - SFT 2026"
+    coauthor_invitation: "Invitation comme co-auteur - {CONFERENCE_SHORT_NAME}"
+    coauthor_notification: "Nouvelle communication ajoutée - {CONFERENCE_SHORT_NAME}"
     
     # Prix et distinctions
-    biot_fourier_nomination: "Nomination au Prix Biot-Fourier - SFT 2026"
-    biot_fourier_winner: "Lauréat du Prix Biot-Fourier - SFT 2026"
+    biot_fourier_nomination: "Nomination au Prix Biot-Fourier - {CONFERENCE_SHORT_NAME}"
+    biot_fourier_winner: "Lauréat du Prix Biot-Fourier - {CONFERENCE_SHORT_NAME}"
     
     # Admin
-    admin_weekly_summary: "Résumé hebdomadaire - Reviews SFT 2026"
-    admin_alert: "Alerte système - SFT 2026"
+    admin_weekly_summary: "Résumé hebdomadaire - Reviews {CONFERENCE_SHORT_NAME}"
+    admin_alert: "Alerte système - {CONFERENCE_SHORT_NAME}"
     
     # QR Codes et posters
-    qr_code_ready: "QR Code de votre poster - SFT 2026"
-    poster_reminder: "Rappel : Soumission de votre poster - SFT 2026"
+    qr_code_ready: "QR Code de votre poster - {CONFERENCE_SHORT_NAME}"
+    poster_reminder: "Rappel : Soumission de votre poster - {CONFERENCE_SHORT_NAME}"
     
     # Inscription
-    registration_confirmed: "Inscription confirmée - SFT 2026"
-    payment_reminder: "Rappel de paiement - SFT 2026"
+    registration_confirmed: "Inscription confirmée - {CONFERENCE_SHORT_NAME}"
+    payment_reminder: "Rappel de paiement - {CONFERENCE_SHORT_NAME}"
+
+# ===== CORPS DES EMAILS =====
+content:
+  # Email de bienvenue
+  welcome:
+    greeting: "Bonjour {USER_FIRST_NAME},"
+    intro: "Bienvenue au {CONFERENCE_NAME} !"
+    body: |
+      Votre compte a été créé avec succès pour le {CONFERENCE_NAME}.
+      
+      Vous pouvez dès maintenant vous connecter et commencer à soumettre vos communications.
+      
+      📅 Dates : {CONFERENCE_DATES}
+      📍 Lieu : {CONFERENCE_LOCATION}
+    
+  # Email d'activation
+  activation:
+    greeting: "Bonjour {USER_FIRST_NAME},"
+    intro: "Votre compte pour le {CONFERENCE_NAME} est presque prêt !"
+    body: |
+      Pour terminer la création de votre compte, cliquez sur le lien d'activation ci-dessous.
+      Ce lien est valable 7 jours.
+      
+      📧 Email : {USER_EMAIL}
+      👤 Rôle : {USER_ROLE}
+    call_to_action: "Activer mon compte"
+    
+  # Email de co-auteur
+  coauthor_notification:
+    greeting: "Bonjour {USER_FIRST_NAME},"
+    intro: "Vous avez été ajouté(e) comme co-auteur d'une communication"
+    body: |
+      Une nouvelle communication a été soumise pour le {CONFERENCE_NAME} avec vous comme  co-auteur(rice).
+      
+      📝 Titre : {COMMUNICATION_TITLE}
+      📋 Type : {COMMUNICATION_TYPE}
+      👤 Auteur principal : {MAIN_AUTHOR_NAME}
+      🆔 ID : {COMMUNICATION_ID}
+      
+      Vous pouvez consulter les détails en vous connectant à votre compte.
+    call_to_action: "Consulter la communication"
+    
+  # Email de review assignée
+  review_assigned:
+    greeting: "Bonjour {REVIEWER_NAME},"
+    intro: "Nouvelle review assignée pour {CONFERENCE_NAME}"
+    body: |
+      Vous avez été assigné(e) à {REVIEWS_COUNT} nouvelle(s) review(s).
+      
+      🎯 Vos spécialités : {REVIEWER_SPECIALTIES}
+      ⏰ Échéance : {REVIEW_DEADLINE}
+      
+      Consultez votre tableau de bord pour commencer vos évaluations.
+    call_to_action: "Accéder au tableau de bord"
+    
+  # Email de rappel review
+  review_reminder:
+    greeting: "Bonjour {REVIEWER_NAME},"
+    intro: "Rappel : {PENDING_REVIEWS_COUNT} review(s) en attente"
+    body: |
+      Vous avez {PENDING_REVIEWS_COUNT} review(s) en attente pour le {CONFERENCE_NAME}.
+      {OVERDUE_MESSAGE}
+      
+      Merci de compléter vos évaluations dans les meilleurs délais.
+    call_to_action: "Voir mes reviews"
+    
+  # Email de décision
+  decision_notification:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Décision concernant votre communication"
+    body: |
+      La décision concernant votre communication pour le {CONFERENCE_NAME} est disponible.
+      
+      📝 Communication : {COMMUNICATION_TITLE}
+      📋 Décision : {DECISION_STATUS}
+      📅 Date de décision : {DECISION_DATE}
+      
+      {DECISION_DETAILS}
+    call_to_action: "Consulter les détails"
 
 # ===== SIGNATURES =====
 signatures:
   default: |
     Cordialement,
-    L'équipe d'organisation SFT 2026
-    congres-sft2026@univ-lorraine.fr
+    L'équipe d'organisation {CONFERENCE_SHORT_NAME}
+    {CONTACT_EMAIL}
     
   scientific: |
     Cordialement,
-    Le Comité Scientifique SFT 2026
-    scientifique@sft2026.fr
+    Le Comité Scientifique {CONFERENCE_SHORT_NAME}
+    {SCIENTIFIC_EMAIL}
     
   technical: |
     Cordialement,
-    L'équipe technique SFT 2026
-    technique@sft2026.fr
+    L'équipe technique {CONFERENCE_SHORT_NAME}
+    {TECHNICAL_EMAIL}
     
   registration: |
     Cordialement,
-    Service inscription SFT 2026
-    inscription@sft2026.fr
+    Service inscription {CONFERENCE_SHORT_NAME}
+    {REGISTRATION_EMAIL}
     
   system: |
     Cet email a été envoyé automatiquement.
-    Système de gestion du congrès SFT 2026
-    contact@sft2026.fr
+    {CONFERENCE_NAME} - {CONFERENCE_LOCATION}
 
-# ===== CONFIGURATIONS SPÉCIFIQUES =====
-notifications:
-  # Fréquence des rappels
-  reminder_frequency:
-    review_reminder_days: [7, 3, 1]  # Rappels à J-7, J-3, J-1
-    payment_reminder_days: [14, 7, 3]
-    submission_reminder_days: [10, 5, 2]
-    
-  # Notifications groupées
-  batch_processing:
-    enabled: true
-    max_emails_per_batch: 50
-    delay_between_batches_seconds: 60
-    
-  # Emails automatiques
-  auto_notifications:
-    submission_confirmation: true
-    review_assignment: true
-    decision_notification: true
-    qr_code_generation: true
-
-# ===== TEMPLATES PERSONNALISÉS =====
-custom_templates:
-  header:
-    logo_url: "/static/images/sft_logo.png"
-    background_color: "#007bff"
-    text_color: "#ffffff"
-    
-  footer:
-    include_social_links: true
-    include_unsubscribe: true
-    include_contact_info: true
-    
-  styling:
-    primary_color: "#007bff"
-    secondary_color: "#6c757d"
-    success_color: "#28a745"
-    warning_color: "#ffc107"
-    danger_color: "#dc3545"
-
-# ===== GESTION DES ERREURS =====
-error_handling:
-  bounce_management:
-    enabled: true
-    max_bounces: 3
-    disable_after_bounces: true
-    
-  retry_policy:
-    max_retries: 3
-    retry_delay_seconds: [60, 300, 900]  # 1min, 5min, 15min
-    
-  fallback:
-    admin_notification: true
-    admin_email: "admin@sft2026.fr"
-
-# ===== LOCALISATION =====
-localization:
-  default_language: "fr"
-  supported_languages: ["fr", "en"]
-  
-  date_formats:
-    fr: "%d/%m/%Y"
-    en: "%Y-%m-%d"
-    
-  time_formats:
-    fr: "%H:%M"
-    en: "%I:%M %p"
-
-# ===== INTÉGRATIONS =====
-integrations:
-  analytics:
-    track_opens: true
-    track_clicks: true
-    provider: "internal"
-    
-  attachments:
-    max_size_mb: 25
-    allowed_types: ["pdf", "doc", "docx", "png", "jpg"]
-    virus_scan: true
-    
-  calendar:
-    generate_ics: true
-    include_location: true
-    include_description: true
-
-# ===== MESSAGES PRÉDÉFINIS =====
-predefined_messages:
-  common_responses:
-    technical_support: |
-      Pour toute question technique, contactez :
-      technique@sft2026.fr
+# ===== TEMPLATES PRÉDÉFINIS =====
+predefined_templates:
+  # Pour l'interface admin
+  information_generale:
+    subject: "Information importante - {CONFERENCE_SHORT_NAME}"
+    content: |
+      Bonjour [PRENOM] [NOM],
       
-    scientific_inquiry: |
-      Pour toute question scientifique, contactez :
-      scientifique@sft2026.fr
+      Nous vous informons que...
       
-    registration_help: |
-      Pour l'aide à l'inscription, contactez :
-      inscription@sft2026.fr
+      [Votre message ici]
       
-  auto_replies:
-    out_of_office: |
-      Merci pour votre message. Nous vous répondrons dans les plus brefs délais.
+      📝 Communication concernée : {COMMUNICATION_TITLE} (ID: {COMMUNICATION_ID})
       
-    confirmation: |
-      Votre message a été reçu et sera traité prochainement.
+      Pour toute question, n'hésitez pas à nous contacter.
+      
+      Cordialement,
+      L'équipe d'organisation {CONFERENCE_SHORT_NAME}
+      
+  rappel_review:
+    subject: "Rappel urgent - Review en attente - {CONFERENCE_SHORT_NAME}"
+    content: |
+      Bonjour [PRENOM] [NOM],
+      
+      Nous vous rappelons que vous avez une review en attente pour la communication suivante :
+      
+      📝 Titre : {COMMUNICATION_TITLE}
+      🆔 ID : {COMMUNICATION_ID}
+      ⏰ Échéance : {REVIEW_DEADLINE}
+      
+      Merci de compléter votre évaluation dans les meilleurs délais.
+      
+      [Lien vers la review]
+      
+      Cordialement,
+      Le Comité Scientifique {CONFERENCE_SHORT_NAME}
+      
+  decision_accept:
+    subject: "Félicitations ! Communication acceptée - {CONFERENCE_SHORT_NAME}"
+    content: |
+      Bonjour [PRENOM] [NOM],
+      
+      Nous avons le plaisir de vous informer que votre communication a été acceptée pour le {CONFERENCE_NAME} !
+      
+      📝 Communication : {COMMUNICATION_TITLE}
+      📋 Type : {COMMUNICATION_TYPE}
+      ✅ Statut : Acceptée
+      
+      Prochaines étapes :
+      - Préparer votre présentation/poster
+      - Vous inscrire au congrès si ce n'est pas déjà fait
+      - Finaliser votre article (si applicable)
+      
+      Toutes nos félicitations !
+      
+      Cordialement,
+      Le Comité Scientifique {CONFERENCE_SHORT_NAME}
 
-# ===== TESTS ET DÉVELOPPEMENT =====
-testing:
-  test_mode: false
-  test_recipients: ["test@sft2026.fr"]
-  
-  mock_settings:
-    simulate_sending: false
-    log_only: false
+# ===== CONFIGURATION =====
+settings:
+  # Variables automatiquement extraites de conference.yml
+  auto_variables:
+    CONFERENCE_NAME: "conference.name"                    # "34ème Congrès Français de Thermique"
+    CONFERENCE_SHORT_NAME: "conference.short_name"        # "SFT 2026"
+    CONFERENCE_YEAR: "conference.year"                    # 2026
+    CONFERENCE_THEME: "conference.theme"                  # "Thermique & Décarbonation de l'industrie"
+    CONFERENCE_DATES: "dates.submission.final"           # Dates du congrès
+    CONFERENCE_LOCATION: "location.city"                 # Lieu du congrès
+    CONTACT_EMAIL: "contacts.general.email"              # Email général
+    SCIENTIFIC_EMAIL: "contacts.submissions.email"       # Email scientifique
+    ORGANIZATION_NAME: "conference.organizer.name"       # "Société Française de Thermique"
     
-  validation:
-    check_email_format: true
-    verify_templates: true
-    test_smtp_connection: true
+  # Format des emails
+  format:
+    line_length: 80
+    use_html: true
+    include_unsubscribe: false
+    track_opens: false
+    
+  # Gestion des erreurs
+  error_handling:
+    missing_variable_action: "use_placeholder"  # ou "raise_error"
+    placeholder_format: "[{variable_name}]"
+    log_missing_variables: true

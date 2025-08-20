@@ -51,6 +51,7 @@ footer {
     margin-top: auto;
 }
 
+
 .hero-gradient {
     background: var(--hero-gradient);
 }
@@ -258,8 +259,18 @@ h6 .fa, h6 .fas, h6 .far, h6 .fal, h6 .fab {
 }
 
 .lead {
-    font-weight: 300;
-    color: var(--text-muted);
+ font-weight: 500;
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: var(--text-primary, #212529);
+}
+
+.intro-paragraph {
+    font-weight: 500;
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: white;
+    margin-bottom: 1.5rem;
 }
 
 .text-primary {

@@ -69,7 +69,8 @@ def create_app():
             app.conference_config = config_loader.load_conference_config()
             app.themes_config = config_loader.load_themes()
             app.email_config = config_loader.load_email_config()
-            
+
+            app.config_loader = config_loader
             app.logger.info(f"Configuration chargée : {len(app.themes_config)} thématiques")
             
         except Exception as e:

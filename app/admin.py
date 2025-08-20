@@ -3047,8 +3047,6 @@ def send_email_to_user(user, subject, content, communication=None):
 
 
 
-
-
 @admin.route('/email-authors/<int:comm_id>')
 @login_required
 def email_authors(comm_id):
@@ -3058,51 +3056,40 @@ def email_authors(comm_id):
     
     communication = Communication.query.get_or_404(comm_id)
     
-    # Templates d'emails prédéfinis
-    email_templates = {
-        'acceptation': {
-            'subject': f'Félicitations - Communication acceptée: {communication.title}',
-            'content': '''Nous avons le plaisir de vous informer que votre communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]) a été acceptée pour le 34ème Congrès Français de Thermique.
-
-Prochaines étapes:
-- Vous devez maintenant soumettre votre poster de présentation
-- Vous recevrez prochainement les instructions détaillées
-
-Félicitations pour cette excellente contribution !'''
-        },
-        'refus': {
-            'subject': f'Décision concernant votre communication: {communication.title}',
-            'content': '''Nous vous remercions pour votre soumission "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
-
-Après évaluation par notre comité scientifique, nous regrettons de vous informer que votre communication n'a pas été retenue pour le 34ème Congrès Français de Thermique.
-
-Cette décision ne reflète en rien la qualité de vos travaux et nous vous encourageons à soumettre à nouveau lors de futures éditions.'''
-        },
-        'revision': {
-            'subject': f'Révisions demandées - Communication: {communication.title}',
-            'content': '''Votre communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]) a été évaluée par notre comité scientifique.
-
-Des révisions sont demandées avant acceptation définitive. Vous trouverez les commentaires des reviewers dans votre espace personnel.
-
-Merci de soumettre votre version révisée dans les meilleurs délais.'''
-        },
-        'rappel': {
-            'subject': f'Rappel - Action requise: {communication.title}',
-            'content': '''Concernant votre communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]),
-
-Une action de votre part est en attente. Merci de vous connecter à votre espace personnel pour continuer le processus de soumission.'''
-        },
-        'information': {
-            'subject': f'Information - SFT 2026: {communication.title}',
-            'content': '''Nous souhaitons vous informer concernant votre communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
-
-[Votre information ici]'''
-        }
+    # Importer la fonction depuis emails.py
+    from app.emails import get_admin_email_templates
+    
+    # Récupérer les templates depuis la configuration
+    email_templates = get_admin_email_templates()
+    
+    # Ajouter des variables spécifiques à cette communication dans les templates
+    # pour que les placeholders soient correctement remplacés
+    context_variables = {
+        'COMMUNICATION_TITLE': communication.title,
+        'COMMUNICATION_ID': communication.id,
+        'COMMUNICATION_TYPE': communication.type.title()
     }
+    
+    # Remplacer les variables dans les templates pour l'affichage JavaScript
+    processed_templates = {}
+    for template_key, template_data in email_templates.items():
+        processed_templates[template_key] = {
+            'subject': template_data['subject'],
+            'content': template_data['content']
+        }
+        
+        # Remplacer les variables spécifiques à cette communication
+        for var_name, var_value in context_variables.items():
+            placeholder = f'[{var_name}]'
+            if placeholder in processed_templates[template_key]['subject']:
+                processed_templates[template_key]['subject'] = processed_templates[template_key]['subject'].replace(placeholder, str(var_value))
+            if placeholder in processed_templates[template_key]['content']:
+                processed_templates[template_key]['content'] = processed_templates[template_key]['content'].replace(placeholder, str(var_value))
     
     return render_template('admin/email_authors.html', 
                          communication=communication,
-                         email_templates=email_templates)
+                         email_templates=processed_templates)
+
 
 
 @admin.route('/email-reviewers/<int:comm_id>')
@@ -3970,3 +3957,324 @@ def get_images_info():
             'success': False,
             'message': f'Erreur: {str(e)}'
         }), 500
+
+
+# À ajouter dans app/admin.py
+
+@admin.route("/test-emails")
+@login_required
+def test_emails_form():
+    """Page pour configurer et lancer les tests d'emails."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    return render_template('admin/test_emails.html')
+
+
+@admin.route("/test-emails/run", methods=["POST"])
+@login_required
+def run_email_tests():
+    """Exécute les tests d'emails selon la configuration."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    try:
+        test_email = request.form.get('test_email')
+        selected_tests = request.form.getlist('email_tests')
+        dry_run = request.form.get('dry_run') == 'on'
+        
+        if not test_email:
+            return jsonify({
+                'success': False,
+                'message': 'Adresse email de test requise'
+            }), 400
+        
+        if not selected_tests:
+            return jsonify({
+                'success': False,
+                'message': 'Sélectionnez au moins un test'
+            }), 400
+        
+        # Résultats des tests
+        results = []
+        
+        # Créer des objets de test
+        test_objects = create_test_objects_for_admin(test_email)
+        
+        # Exécuter les tests sélectionnés
+        if 'activation' in selected_tests:
+            result = run_activation_test(test_objects['user'], dry_run)
+            results.append(result)
+        
+        if 'coauthor_new' in selected_tests:
+            result = run_coauthor_new_test(test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+            
+        if 'coauthor_existing' in selected_tests:
+            result = run_coauthor_existing_test(test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+        
+        if 'review_reminder' in selected_tests:
+            result = run_review_reminder_test(test_objects['reviewer'], test_objects['assignment'], dry_run)
+            results.append(result)
+        
+        if 'qr_code' in selected_tests:
+            result = run_qr_code_test(test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+        
+        if 'decision_accept' in selected_tests:
+            result = run_decision_test(test_objects['communication'], 'accepter', dry_run)
+            results.append(result)
+            
+        if 'decision_reject' in selected_tests:
+            result = run_decision_test(test_objects['communication'], 'rejeter', dry_run)
+            results.append(result)
+            
+        if 'decision_revise' in selected_tests:
+            result = run_decision_test(test_objects['communication'], 'reviser', dry_run)
+            results.append(result)
+        
+        if 'biot_fourier' in selected_tests:
+            result = run_biot_fourier_test(test_objects['communication'], dry_run)
+            results.append(result)
+        
+        # Test de configuration
+        config_result = test_email_configuration()
+        results.append(config_result)
+        
+        # Compter les succès/échecs
+        success_count = len([r for r in results if r['success']])
+        total_count = len(results)
+        
+        return jsonify({
+            'success': True,
+            'message': f'{success_count}/{total_count} tests réussis',
+            'results': results,
+            'dry_run': dry_run
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur test emails: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }), 500
+
+
+def create_test_objects_for_admin(test_email):
+    """Crée des objets factices pour les tests admin."""
+    from datetime import datetime
+    
+    # Utilisateur test
+    test_user = type('MockUser', (), {
+        'email': test_email,
+        'first_name': 'Jean',
+        'last_name': 'Dupont',
+        'full_name': 'Jean Dupont',
+        'specialites_codes': 'COND,MULTI',
+        'is_reviewer': True,
+        'affiliations': []
+    })()
+    
+    # Communication test
+    test_communication = type('MockCommunication', (), {
+        'id': 999,
+        'title': 'Test de communication pour validation du système d\'emails',
+        'type': 'article',
+        'status': type('MockStatus', (), {'value': 'submitted'})(),
+        'authors': [test_user],
+        'thematiques_codes': 'COND,SIMUL'
+    })()
+    
+    # Assignment de review test
+    test_assignment = type('MockAssignment', (), {
+        'communication': test_communication,
+        'reviewer': test_user,
+        'due_date': datetime(2025, 9, 15),
+        'is_overdue': False
+    })()
+    
+    return {
+        'user': test_user,
+        'communication': test_communication,
+        'reviewer': test_user,
+        'assignment': test_assignment
+    }
+
+
+def run_activation_test(user, dry_run):
+    """Test email d'activation."""
+    try:
+        if not dry_run:
+            from app.emails import send_activation_email_to_user
+            send_activation_email_to_user(user, "test_token_12345")
+        
+        return {
+            'test': 'Email d\'activation',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email d\'activation',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+
+def run_coauthor_new_test(user, communication, dry_run):
+    """Test email co-auteur nouveau."""
+    try:
+        if not dry_run:
+            from app.emails import send_coauthor_notification_email
+            send_coauthor_notification_email(user, communication, "coauthor_token_67890")
+        
+        return {
+            'test': 'Email co-auteur (nouveau)',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email co-auteur (nouveau)',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+
+def run_coauthor_existing_test(user, communication, dry_run):
+    """Test email co-auteur existant."""
+    try:
+        if not dry_run:
+            from app.emails import send_existing_coauthor_notification_email
+            send_existing_coauthor_notification_email(user, communication)
+        
+        return {
+            'test': 'Email co-auteur (existant)',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email co-auteur (existant)',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+
+def run_review_reminder_test(reviewer, assignment, dry_run):
+    """Test email rappel review."""
+    try:
+        if not dry_run:
+            from app.emails import send_review_reminder_email
+            send_review_reminder_email(reviewer, [assignment])
+        
+        return {
+            'test': 'Email rappel review',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email rappel review',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+
+def run_qr_code_test(user, communication, dry_run):
+    """Test email QR code."""
+    try:
+        if not dry_run:
+            from app.emails import send_qr_code_reminder_email
+            send_qr_code_reminder_email(user, [communication])
+        
+        return {
+            'test': 'Email QR code',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email QR code',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+
+def run_decision_test(communication, decision, dry_run):
+    """Test email de décision."""
+    try:
+        if not dry_run:
+            from app.emails import send_decision_notification_email
+            send_decision_notification_email(communication, decision, f"Commentaires de test pour {decision}")
+        
+        return {
+            'test': f'Email décision ({decision})',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': f'Email décision ({decision})',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+
+def run_biot_fourier_test(communication, dry_run):
+    """Test email Biot-Fourier."""
+    try:
+        if not dry_run:
+            from app.emails import send_biot_fourier_audition_notification
+            send_biot_fourier_audition_notification(communication)
+        
+        return {
+            'test': 'Email Biot-Fourier',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email Biot-Fourier',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+
+def test_email_configuration():
+    """Test de la configuration emails."""
+    try:
+        config_loader = current_app.config_loader
+        
+        # Test chargement configuration
+        email_config = config_loader.load_email_config()
+        variables = config_loader.get_email_template_variables()
+        
+        # Vérifications
+        checks = []
+        
+        # Vérifier les sujets
+        subjects = email_config.get('templates', {}).get('subjects', {})
+        checks.append(f"{len(subjects)} sujets d'emails configurés")
+        
+        # Vérifier les variables
+        conference_name = variables.get('CONFERENCE_SHORT_NAME', 'NON TROUVÉ')
+        checks.append(f"CONFERENCE_SHORT_NAME: {conference_name}")
+        
+        # Test d'un template
+        test_subject = config_loader.get_email_subject('welcome', USER_FIRST_NAME="Test")
+        checks.append(f"Template de test: {test_subject[:50]}...")
+        
+        return {
+            'test': 'Configuration emails',
+            'success': True,
+            'message': ' | '.join(checks)
+        }
+        
+    except Exception as e:
+        return {
+            'test': 'Configuration emails',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }

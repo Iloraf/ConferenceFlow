@@ -16,39 +16,9 @@ except ImportError:
 
 conference = Blueprint("conference", __name__)
 
-#####   test email ####
-
-@conference.route("/test-email")
-@login_required
-def test_email():
-    print("📩 Route /test-email atteinte")
-    try:
-        from app.utils.email_utils import send_email
-
-        #recipients = ["olivier@olivier-farges.xyz"]
-        recipients = ["farges.olivier@gmail.com"]
-        print(f"👤 Envoi vers: {recipients}")
-
-        send_email(
-            subject="Test SFT",
-            recipients=recipients,
-            body="Test d'email via le SMTP universitaire",
-            html="<p><strong>Test</strong> depuis Flask</p>"
-        )
-        flash("✅ Email envoyé", "success")
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        flash(f"❌ Échec de l'envoi: {e}", "danger")
-
-    return redirect(url_for("conference.contact"))
-
-###########################
-
 def load_programme_csv_common():
     """Fonction commune pour charger le programme depuis le CSV avec gestion du temps."""
-    csv_path = os.path.join(current_app.root_path, '..', 'config', 'programme.csv')
-    
+    csv_path = os.path.join(current_app.root_path, 'static', 'content', 'programme.csv')
     if not os.path.exists(csv_path):
         current_app.logger.warning(f"Fichier programme.csv non trouvé à: {csv_path}")
         return {}
@@ -221,13 +191,20 @@ def programme():
     
     return render_template("conference/programme.html", programme=programme_data)
 
-
 @conference.route("/programme/pdf")
 def programme_pdf():
     """Génère et retourne le programme en PDF."""
     
     if not WEASYPRINT_AVAILABLE:
         return "WeasyPrint n'est pas installé. Installez-le avec: pip install weasyprint", 500
+    
+    # Charger la configuration depuis conference.yml
+    from app.config_loader import ConfigLoader
+    config_loader = ConfigLoader()
+    config = config_loader.load_conference_config()
+    
+    # Debug pour voir la structure réelle
+    current_app.logger.info(f"Structure config chargée: {list(config.keys()) if config else 'Config vide'}")
     
     # Utilise la même fonction que la route principale
     programme_data = load_programme_csv_common()  # ou votre fonction existante
@@ -246,7 +223,7 @@ def programme_pdf():
             }
         }
     
-    # Template HTML intégré
+    # Template HTML intégré (avec variables dynamiques)
     html_template = """
 <!DOCTYPE html>
 <html lang="fr">
@@ -268,6 +245,12 @@ def programme_pdf():
             font-size: 11pt;
             line-height: 1.4;
             color: #333;
+        }
+        
+        sup {
+            vertical-align: super;
+            font-size: 0.7em;
+            line-height: 0;
         }
         
         .header {
@@ -463,9 +446,9 @@ def programme_pdf():
 <body>
     <div class="header">
         <h1>Programme du Congrès</h1>
-        <div class="subtitle">34ème Congrès Français de Thermique</div>
-        <div class="subtitle">Villers-lès-Nancy, 2-5 juin 2026</div>
-        <div class="subtitle">« Thermique & Décarbonation de l'industrie »</div>
+        <div class="subtitle">{{ config.conference.name|safe }}</div>
+        <div class="subtitle">{{ config.location.city }}, {{ config.dates.dates }}</div>
+        <div class="subtitle">« {{ config.conference.theme }} »</div>
     </div>
     
     {% for day_key, day_data in programme.items() %}
@@ -546,17 +529,16 @@ def programme_pdf():
     </div>
     
     <div class="footer-info">
-        34ème Congrès Français de Thermique - SFT 2026<br>
-        Domaine de l'Asnée - Villers-lès-Nancy<br>
-        Contact : programme@congres-sft2026.fr
+        {{ config.conference.name|safe }} - {{ config.conference.short_name }}<br>
+        {{ config.location.venue }} - {{ config.location.city }}
     </div>
 </body>
 </html>
     """
     
     try:
-        # Rendu du template HTML
-        rendered_html = render_template_string(html_template, programme=programme_data)
+        # Rendu du template HTML avec les deux variables
+        rendered_html = render_template_string(html_template, programme=programme_data, config=config)
         
         # Génération du PDF
         html_doc = HTML(string=rendered_html)
@@ -569,11 +551,11 @@ def programme_pdf():
             tmp_file.write(pdf_buffer.getvalue())
             tmp_file_path = tmp_file.name
         
-        # Retour du fichier PDF
+        # Retour du fichier PDF avec nom dynamique
         return send_file(
             tmp_file_path,
             as_attachment=True,
-            download_name='Programme_SFT_2026.pdf',
+            download_name=f'Programme_{config["conference"]["short_name"].replace(" ", "_")}.pdf',
             mimetype='application/pdf'
         )
         
@@ -607,9 +589,6 @@ def programme_preview():
         }
     
     return render_template("conference/programme_pdf_preview.html", programme=programme_data)
-
-# Dans app/conference_routes.py - fonction localisation()
-# Ajouter ce code de debug temporaire
 
 @conference.route("/localisation")
 def localisation():
@@ -671,9 +650,6 @@ def localisation():
                          conference_location=conference_location,
                          conference_dates=conference_dates)
 
-
-
-
 def _format_transport_data(transport_info):
     """Formate les données de transport pour le template."""
     transport_mapping = {
@@ -703,8 +679,7 @@ def organisation():
     
     def load_csv_data(filename):
         """Charge les données depuis un fichier CSV."""
-        csv_path = os.path.join(current_app.root_path, '..', 'config', filename)
-
+        csv_path = os.path.join(current_app.root_path, 'static', 'content', filename)
         if not os.path.exists(csv_path):
             current_app.logger.warning(f"Fichier CSV non trouvé : {csv_path}")
             return []
@@ -1177,10 +1152,6 @@ def contact():
         message = request.form.get("message")
         contact_type = request.form.get("contact_type")  # ← AJOUT
         
-        # DEBUG - Afficher les données reçues
-        current_app.logger.info(f"DEBUG Contact - contact_type reçu: '{contact_type}'")
-        current_app.logger.info(f"DEBUG Contact - Données form: name={name}, email={email}, subject={subject}")
-        
         # Valider les champs
         if not all([name, email, subject, message]):
             flash("Tous les champs sont obligatoires.", "danger")
@@ -1192,21 +1163,18 @@ def contact():
             contacts_config = conference_config.get('contacts', {})
             conference_info = conference_config.get('conference', {})
             
-            # DEBUG - Afficher la config des contacts
-            current_app.logger.info(f"DEBUG Contact - contacts_config keys: {list(contacts_config.keys())}")
-            
             # Déterminer l'email de destination selon le type de contact
-            recipient_email = "congres-sft2026@univ-lorraine.fr"  # Email par défaut
-            recipient_name = "Équipe SFT 2026"
+            default_contact = contacts_config.get('general', {})
+            recipient_email = default_contact.get('email', 'congres-sft2026@univ-lorraine.fr')
+            recipient_name = f"Équipe {conference_info.get('short_name', 'SFT 2026')}"
+
             
             if contact_type and contact_type in contacts_config:
                 contact_data = contacts_config[contact_type]
-                current_app.logger.info(f"DEBUG Contact - contact_data pour {contact_type}: {contact_data}")
                 
                 # Pour le programme (présidents), chercher l'email dans les présidents
                 if contact_type == 'program':
                     presidents = conference_info.get('presidents', [])
-                    current_app.logger.info(f"DEBUG Contact - presidents: {presidents}")
                     if presidents and presidents[0].get('email'):
                         recipient_email = presidents[0]['email']
                         recipient_name = presidents[0].get('name', 'Président du programme')
@@ -1219,10 +1187,10 @@ def contact():
                         recipient_email = contact_data['email']
                         recipient_name = contact_data.get('person', contact_data.get('title', 'Contact'))
             
-            current_app.logger.info(f"DEBUG Contact - Email final: {recipient_email}, Nom: {recipient_name}")
             
             # Utiliser la fonction send_email existante
-            email_subject = f"[Contact SFT 2026] {subject}"
+            congress_short_name = conference_info.get('short_name', 'SFT 2026')
+            email_subject = f"[Contact {congress_short_name}] {subject}"
             email_body = f"""
 Nouveau message reçu depuis le formulaire de contact :
 
@@ -1236,13 +1204,13 @@ Message :
 {message}
 
 ---
-Envoyé depuis le site SFT 2026
+Envoyé depuis le site {congress_name} ({congress_short_name})
 Répondre à : {email}
 """
+
             
             # Envoyer avec la fonction existante
             current_app.send_email(email_subject, [recipient_email], email_body)
-            
             flash(f"Votre message a été envoyé avec succès à {recipient_name} ({recipient_email}).", "success")
             
         except Exception as e:

@@ -5,286 +5,430 @@ def send_email(subject, recipients, body, html=None):
     msg = Message(subject=subject, recipients=recipients, body=body, html=html)
     mail.send(msg)
 
+# À ajouter dans app/emails.py
+
+def get_specialites_names(specialites_codes):
+    """Convertit les codes de spécialités en noms complets."""
+    if not specialites_codes:
+        return 'Non spécifiées'
+    
+    try:
+        from flask import current_app
+        from app.config_loader import ThematiqueLoader
+        
+        # Récupérer toutes les thématiques
+        themes = ThematiqueLoader.load_themes()
+        
+        # Créer un dictionnaire code -> nom
+        themes_dict = {theme['code']: theme['nom'] for theme in themes}
+        
+        # Séparer les codes et les convertir
+        codes = [code.strip().upper() for code in specialites_codes.split(',')]
+        noms = []
+        
+        for code in codes:
+            if code in themes_dict:
+                noms.append(themes_dict[code])
+            else:
+                noms.append(code)  # Garder le code si pas trouvé
+        
+        return ' - '.join(noms)
+        
+    except Exception as e:
+        # En cas d'erreur, retourner les codes originaux
+        return specialites_codes or 'Non spécifiées'
+
+
+# Modifier la fonction send_activation_email_to_user
 
 def send_activation_email_to_user(user, token):
     """Envoie l'email d'activation à un reviewer."""
-    from flask import url_for
-
-    activation_url = url_for('main.activate_account', token=token, _external=True)
-
-    subject = "Activation de votre compte reviewer - SFT 2026"
-    body = f"""
-Bonjour {user.full_name or user.email},
-
-Votre compte reviewer a été créé avec succès. Pour commencer, veuillez activer votre compte en cliquant sur le lien suivant :
-
-Activez votre compte : {activation_url}
-
-Ce lien est valable 7 jours.
-
-Après l'activation de votre compte, vous pourrez créer votre mot de passe et compléter votre profil en vous connectant à notre plateforme.
-
-Cordialement,
-L'équipe SFT 2026
-"""
-
-    html = f'''
-<p>Bonjour <strong>{user.full_name or user.email}</strong>,</p>
-<p>Votre compte reviewer a été créé avec succès. Pour commencer, veuillez activer votre compte en cliquant sur le lien suivant :</p>
-<p><a href="{activation_url}">Cliquer ici pour activer votre compte</a></p>
-<p><em>Ce lien est valable 7 jours.</em></p>
-<p>Après l'activation de votre compte, vous pourrez créer votre mot de passe et compléter votre profil en vous connectant à notre plateforme.</p>
-<p>Cordialement,<br/>L'équipe SFT 2026</p>
-'''
-
-    # Utilise la fonction send_email du même fichier
+    from flask import url_for, current_app
+    
+    # Récupérer le config loader
+    config_loader = current_app.config_loader
+    
+    # Convertir les spécialités en noms complets
+    specialites_noms = get_specialites_names(user.specialites_codes)
+    
+    # Préparer le contexte pour le template
+    context = {
+        'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+        'USER_EMAIL': user.email,
+        'USER_ROLE': 'Reviewer',
+        'REVIEWER_SPECIALTIES': specialites_noms,  # Utiliser les noms au lieu des codes
+        'REVIEWER_AFFILIATIONS': ', '.join([aff.sigle for aff in user.affiliations]) if user.affiliations else 'Aucune',
+        'call_to_action_url': url_for('main.activate_account', token=token, _external=True)
+    }
+    
+    # Récupérer le sujet depuis la configuration
+    subject = config_loader.get_email_subject('activation', **context)
+    
+    # Récupérer le contenu depuis la configuration
+    content_config = config_loader.get_email_content('activation', **context)
+    
+    # Récupérer la signature
+    signature = config_loader.get_email_signature('default', **context)
+    
+    # Construire le corps de l'email en texte
+    body_parts = []
+    if content_config.get('greeting'):
+        body_parts.append(content_config['greeting'])
+    if content_config.get('intro'):
+        body_parts.append(f"\n\n{content_config['intro']}")
+    if content_config.get('body'):
+        body_parts.append(f"\n\n{content_config['body']}")
+    
+    # Ajouter les informations spécifiques au reviewer
+    body_parts.append(f"\n\nVos informations :")
+    body_parts.append(f"- Email : {context['USER_EMAIL']}")
+    body_parts.append(f"- Spécialités : {context['REVIEWER_SPECIALTIES']}")  # Noms complets
+    body_parts.append(f"- Affiliations : {context['REVIEWER_AFFILIATIONS']}")
+    
+    body_parts.append(f"\n\nPour activer votre compte :\n{context['call_to_action_url']}")
+    body_parts.append(f"\nCe lien est valable 7 jours.")
+    
+    if signature:
+        body_parts.append(f"\n\n{signature}")
+    
+    body = ''.join(body_parts)
+    
+    # Construire le HTML
+    html_parts = []
+    if content_config.get('greeting'):
+        html_parts.append(f"<p><strong>{content_config['greeting']}</strong></p>")
+    if content_config.get('intro'):
+        html_parts.append(f"<h3 style='color: #007bff;'>{content_config['intro']}</h3>")
+    if content_config.get('body'):
+        body_html = content_config['body'].replace('\n\n', '</p><p>').replace('\n', '<br>')
+        html_parts.append(f"<p>{body_html}</p>")
+    
+    # Informations reviewer
+    html_parts.append(f"""
+    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h4 style="margin-top: 0;">Vos informations :</h4>
+        <ul>
+            <li><strong>Email :</strong> {context['USER_EMAIL']}</li>
+            <li><strong>Spécialités :</strong> {context['REVIEWER_SPECIALTIES']}</li>
+            <li><strong>Affiliations :</strong> {context['REVIEWER_AFFILIATIONS']}</li>
+        </ul>
+    </div>
+    """)
+    
+    # Bouton d'activation
+    button_text = content_config.get('call_to_action', 'Activer mon compte')
+    html_parts.append(f'''
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{context['call_to_action_url']}" 
+           style="background-color: #007bff; color: white; padding: 12px 25px; 
+                  text-decoration: none; border-radius: 5px; display: inline-block;">
+            {button_text}
+        </a>
+    </div>
+    <p><em>Ce lien est valable 7 jours.</em></p>
+    ''')
+    
+    if signature:
+        signature_html = signature.replace('\n', '<br>')
+        html_parts.append(f"<hr><p>{signature_html}</p>")
+    
+    html = ''.join(html_parts)
+    
+    # Envoyer l'email
     send_email(subject, [user.email], body, html)
-   
 
-# def send_activation_email_to_user(user, token):
-#     """Envoie l'email d'activation à un reviewer."""
-#     from flask import url_for
-    
-#     activation_url = url_for('main.activate_account', token=token, _external=True)
-    
-#     subject = "Activation de votre compte reviewer - SFT 2026"
-#     body = f"""
-# Bonjour {user.full_name or user.email},
-
-# Activez votre compte : {activation_url}
-
-# Ce lien est valable 7 jours.
-# """
-#     html = f'''
-# <p>Bonjour <strong>{user.full_name or user.email}</strong>,</p>
-# <p><a href="{activation_url}">Cliquer ici pour activer votre compte</a></p>
-# <p><em>Ce lien est valable 7 jours.</em></p>
-# '''
-    
-#     # Utilise la fonction send_email du même fichier
-#     send_email(subject, [user.email], body, html)
 
 
 def send_coauthor_notification_email(user, communication, token):
     """Envoie un email de notification à un nouveau co-auteur."""
-    from flask import url_for
+    from flask import url_for, current_app
     
-    activation_url = url_for('main.activate_account', token=token, _external=True)
+    # Récupérer le config loader
+    config_loader = current_app.config_loader
     
-    subject = f"Vous êtes co-auteur d'une communication - SFT 2026"
+    # Préparer le contexte pour le template
+    context = {
+        'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+        'USER_EMAIL': user.email,
+        'USER_ROLE': 'Co-auteur',
+        'COMMUNICATION_TITLE': communication.title,
+        'COMMUNICATION_TYPE': 'Article complet' if communication.type == 'article' else 'Work in Progress',
+        'COMMUNICATION_ID': communication.id,
+        'MAIN_AUTHOR_NAME': communication.authors[0].full_name or communication.authors[0].email
+    }
     
-    # Corps de l'email en texte
-    body = f"""
-Bonjour {user.full_name or user.email},
-
-Vous avez été ajouté(e) comme co-auteur de la communication suivante pour la conférence SFT 2026 :
-
-Titre : {communication.title}
-Type : {'Article complet' if communication.type == 'article' else 'Work in Progress'}
-Auteur principal : {communication.authors[0].full_name or communication.authors[0].email}
-
-Pour compléter votre profil et créer votre mot de passe, cliquez sur le lien suivant :
-{activation_url}
-
-Ce lien est valable 7 jours.
-
-Une fois votre compte activé, vous pourrez :
-- Consulter les détails de la communication
-- Mettre à jour vos informations personnelles
-- Suivre l'avancement de la soumission
-
-Cordialement,
-L'équipe SFT 2026
-"""
-
-    # Corps de l'email en HTML
-    html = f"""
-<h2>Nouvelle co-signature - SFT 2026</h2>
-
-<p>Bonjour <strong>{user.full_name or user.email}</strong>,</p>
-
-<p>Vous avez été ajouté(e) comme co-auteur de la communication suivante pour la conférence SFT 2026 :</p>
-
-<div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-    <h3 style="color: #495057; margin-top: 0;">{communication.title}</h3>
-    <p><strong>Type :</strong> {'Article complet' if communication.type == 'article' else 'Work in Progress'}</p>
-    <p><strong>Auteur principal :</strong> {communication.authors[0].full_name or communication.authors[0].email}</p>
-</div>
-
-<p>
-    <a href="{activation_url}" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">
-        Activer mon compte et consulter la communication
-    </a>
-</p>
-
-<p><em>Ce lien est valable 7 jours.</em></p>
-
-<h3>Une fois votre compte activé, vous pourrez :</h3>
-<ul>
-    <li>Consulter les détails de la communication</li>
-    <li>Mettre à jour vos informations personnelles</li>
-    <li>Suivre l'avancement de la soumission</li>
-</ul>
-
-<p>Cordialement,<br>L'équipe SFT 2026</p>
-"""
-
-    # Utiliser votre fonction existante
+    # Choisir le bon template selon si on a un token ou pas
+    if token:
+        # Nouvel utilisateur avec activation
+        template_key = 'activation'
+        subject_key = 'coauthor_invitation'
+        context['call_to_action_url'] = url_for('main.activate_account', token=token, _external=True)
+    else:
+        # Utilisateur existant
+        template_key = 'coauthor_notification'
+        subject_key = 'coauthor_notification'
+        context['call_to_action_url'] = url_for('main.mes_communications', _external=True)
+    
+    # Récupérer le sujet depuis la configuration
+    subject = config_loader.get_email_subject(subject_key, **context)
+    
+    # Récupérer le contenu depuis la configuration
+    content_config = config_loader.get_email_content(template_key, **context)
+    
+    # Récupérer la signature
+    signature = config_loader.get_email_signature('default', **context)
+    
+    # Construire le corps de l'email en texte
+    body_parts = []
+    if content_config.get('greeting'):
+        body_parts.append(content_config['greeting'])
+    if content_config.get('intro'):
+        body_parts.append(f"\n\n{content_config['intro']}")
+    if content_config.get('body'):
+        body_parts.append(f"\n\n{content_config['body']}")
+    if context.get('call_to_action_url'):
+        if token:
+            body_parts.append(f"\n\nPour activer votre compte et consulter la communication :\n{context['call_to_action_url']}")
+            body_parts.append(f"\nCe lien est valable 7 jours.")
+        else:
+            body_parts.append(f"\n\nConsulter vos communications :\n{context['call_to_action_url']}")
+    if signature:
+        body_parts.append(f"\n\n{signature}")
+    
+    body = ''.join(body_parts)
+    
+    # Construire le HTML
+    html_parts = []
+    if content_config.get('greeting'):
+        html_parts.append(f"<p><strong>{content_config['greeting']}</strong></p>")
+    if content_config.get('intro'):
+        html_parts.append(f"<h3 style='color: #007bff;'>{content_config['intro']}</h3>")
+    if content_config.get('body'):
+        # Remplacer les retours à la ligne par des paragraphes
+        body_html = content_config['body'].replace('\n\n', '</p><p>').replace('\n', '<br>')
+        html_parts.append(f"<p>{body_html}</p>")
+    
+    # Ajouter le bouton d'action si présent
+    if context.get('call_to_action_url'):
+        button_text = content_config.get('call_to_action', 'Accéder à la plateforme')
+        html_parts.append(f'''
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{context['call_to_action_url']}" 
+               style="background-color: #007bff; color: white; padding: 12px 25px; 
+                      text-decoration: none; border-radius: 5px; display: inline-block;">
+                {button_text}
+            </a>
+        </div>
+        ''')
+        
+        if token:
+            html_parts.append('<p><em>Ce lien est valable 7 jours.</em></p>')
+    
+    if signature:
+        signature_html = signature.replace('\n', '<br>')
+        html_parts.append(f"<hr><p>{signature_html}</p>")
+    
+    html = ''.join(html_parts)
+    
+    # Envoyer l'email
     send_email(subject, [user.email], body, html)
 
 
 def send_existing_coauthor_notification_email(user, communication):
     """Envoie un email de notification à un co-auteur existant."""
+    from flask import url_for, current_app
     
-    subject = f"Vous êtes co-auteur d'une nouvelle communication - SFT 2026"
+    # Récupérer le config loader
+    config_loader = current_app.config_loader
     
-    # Corps de l'email en texte
-    body = f"""
-Bonjour {user.full_name or user.email},
-
-Vous avez été ajouté(e) comme co-auteur de la communication suivante pour la conférence SFT 2026 :
-
-Titre : {communication.title}
-Type : {'Article complet' if communication.type == 'article' else 'Work in Progress'}
-Auteur principal : {communication.authors[0].full_name or communication.authors[0].email}
-
-Vous pouvez dès maintenant consulter cette communication en vous connectant à votre compte sur la plateforme SFT 2026.
-
-Cordialement,
-L'équipe SFT 2026
-"""
-
-    # Corps de l'email en HTML
-    html = f"""
-<h2>Nouvelle co-signature - SFT 2026</h2>
-
-<p>Bonjour <strong>{user.full_name or user.email}</strong>,</p>
-
-<p>Vous avez été ajouté(e) comme co-auteur de la communication suivante pour la conférence SFT 2026 :</p>
-
-<div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-    <h3 style="color: #495057; margin-top: 0;">{communication.title}</h3>
-    <p><strong>Type :</strong> {'Article complet' if communication.type == 'article' else 'Work in Progress'}</p>
-    <p><strong>Auteur principal :</strong> {communication.authors[0].full_name or communication.authors[0].email}</p>
-</div>
-
-<p>Vous pouvez dès maintenant consulter cette communication en vous connectant à votre compte sur la plateforme SFT 2026.</p>
-
-<p>Cordialement,<br>L'équipe SFT 2026</p>
-"""
-
+    # Préparer le contexte pour le template
+    context = {
+        'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+        'USER_EMAIL': user.email,
+        'USER_ROLE': 'Co-auteur',
+        'COMMUNICATION_TITLE': communication.title,
+        'COMMUNICATION_TYPE': 'Article complet' if communication.type == 'article' else 'Work in Progress',
+        'COMMUNICATION_ID': communication.id,
+        'MAIN_AUTHOR_NAME': communication.authors[0].full_name or communication.authors[0].email,
+        'call_to_action_url': url_for('main.mes_communications', _external=True)
+    }
+    
+    # Récupérer le sujet depuis la configuration
+    subject = config_loader.get_email_subject('coauthor_notification', **context)
+    
+    # Récupérer le contenu depuis la configuration
+    content_config = config_loader.get_email_content('coauthor_notification', **context)
+    
+    # Récupérer la signature
+    signature = config_loader.get_email_signature('default', **context)
+    
+    # Construire le corps de l'email en texte
+    body_parts = []
+    if content_config.get('greeting'):
+        body_parts.append(content_config['greeting'])
+    if content_config.get('intro'):
+        body_parts.append(f"\n\n{content_config['intro']}")
+    if content_config.get('body'):
+        body_parts.append(f"\n\n{content_config['body']}")
+    if context.get('call_to_action_url'):
+        body_parts.append(f"\n\nConsulter vos communications :\n{context['call_to_action_url']}")
+    if signature:
+        body_parts.append(f"\n\n{signature}")
+    
+    body = ''.join(body_parts)
+    
+    # Construire le HTML
+    html_parts = []
+    if content_config.get('greeting'):
+        html_parts.append(f"<p><strong>{content_config['greeting']}</strong></p>")
+    if content_config.get('intro'):
+        html_parts.append(f"<h3 style='color: #007bff;'>{content_config['intro']}</h3>")
+    if content_config.get('body'):
+        # Remplacer les retours à la ligne par des paragraphes
+        body_html = content_config['body'].replace('\n\n', '</p><p>').replace('\n', '<br>')
+        html_parts.append(f"<p>{body_html}</p>")
+    
+    # Ajouter le bouton d'action
+    if context.get('call_to_action_url'):
+        button_text = content_config.get('call_to_action', 'Consulter mes communications')
+        html_parts.append(f'''
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{context['call_to_action_url']}" 
+               style="background-color: #007bff; color: white; padding: 12px 25px; 
+                      text-decoration: none; border-radius: 5px; display: inline-block;">
+                {button_text}
+            </a>
+        </div>
+        ''')
+    
+    if signature:
+        signature_html = signature.replace('\n', '<br>')
+        html_parts.append(f"<hr><p>{signature_html}</p>")
+    
+    html = ''.join(html_parts)
+    
+    # Envoyer l'email
     send_email(subject, [user.email], body, html)
 
 
 def send_review_reminder_email(reviewer, assignments):
     """Envoie un email de rappel à un reviewer avec ses reviews en attente."""
-    from flask import url_for
+    from flask import url_for, current_app
+    
+    # Récupérer le config loader
+    config_loader = current_app.config_loader
     
     # Compter les reviews en attente et en retard
     total_assignments = len(assignments)
-    overdue_count = 0
+    overdue_count = sum(1 for assignment in assignments if assignment.is_overdue)
     
-    for assignment in assignments:
-        if assignment.is_overdue:
-            overdue_count += 1
+    # Préparer le contexte
+    context = {
+        'REVIEWER_NAME': reviewer.full_name or reviewer.email,
+        'REVIEWER_SPECIALTIES': reviewer.specialites_codes or 'Non spécifiées',
+        'PENDING_REVIEWS_COUNT': total_assignments,
+        'OVERDUE_COUNT': overdue_count,
+        'OVERDUE_MESSAGE': f"⚠️ {overdue_count} review(s) sont en retard." if overdue_count > 0 else ""
+    }
     
-    subject = f"Rappel - {total_assignments} review(s) en attente - SFT 2026"
+    # Récupérer le sujet et le contenu
+    subject = config_loader.get_email_subject('review_reminder', **context)
+    content_config = config_loader.get_email_content('review_reminder', **context)
+    signature = config_loader.get_email_signature('scientific', **context)
     
-    # Construction de la liste des communications
-    assignments_list = ""
+    # Construire la liste des reviews pour le texte
+    reviews_text_list = []
+    reviews_html_list = []
+    
     for assignment in assignments:
         comm = assignment.communication
         status_text = "⚠️ EN RETARD" if assignment.is_overdue else "En attente"
         due_text = f"Échéance: {assignment.due_date.strftime('%d/%m/%Y')}" if assignment.due_date else "Pas d'échéance"
         
-        assignments_list += f"""
+        # Version texte
+        reviews_text_list.append(f"""
 - Communication #{comm.id}: "{comm.title[:80]}..."
   Statut: {status_text}
   {due_text}
   Lien: {url_for('main.submit_review', comm_id=comm.id, _external=True)}
-"""
-    
-    # Corps de l'email
-    body = f"""
-Bonjour {reviewer.full_name or reviewer.email},
-
-Vous avez {total_assignments} review(s) en attente pour la conférence SFT 2026.
-{f"⚠️ {overdue_count} review(s) sont en retard." if overdue_count > 0 else ""}
-
-Vos reviews en attente :
-{assignments_list}
-
-Pour accéder à votre tableau de bord reviewer :
-{url_for('main.reviewer_dashboard', _external=True)}
-
-Merci de bien vouloir compléter vos reviews dans les meilleurs délais.
-
-Cordialement,
-L'équipe SFT 2026
-"""
-
-    # Version HTML
-    assignments_html = ""
-    for assignment in assignments:
-        comm = assignment.communication
-        status_class = "color: red;" if assignment.is_overdue else "color: orange;"
-        status_text = "⚠️ EN RETARD" if assignment.is_overdue else "En attente"
-        due_text = f"Échéance: {assignment.due_date.strftime('%d/%m/%Y')}" if assignment.due_date else "Pas d'échéance"
+""")
         
-        assignments_html += f"""
-<div style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; background-color: #f8f9fa;">
-    <h4 style="color: #495057; margin-top: 0;">Communication #{comm.id}</h4>
+        # Version HTML
+        reviews_html_list.append(f"""
+<div style="margin: 15px 0; padding: 15px; border-left: 4px solid {'#dc3545' if assignment.is_overdue else '#007bff'}; background-color: #f8f9fa;">
+    <h4 style="margin-top: 0; color: #333;">Communication #{comm.id}</h4>
     <p><strong>Titre:</strong> {comm.title}</p>
-    <p><strong>Statut:</strong> <span style="{status_class}">{status_text}</span></p>
+    <p><strong>Statut:</strong> <span style="color: {'#dc3545' if assignment.is_overdue else '#28a745'};">{status_text}</span></p>
     <p><strong>{due_text}</strong></p>
-    <p style="margin-top: 15px;">
-        <a href="{url_for('main.submit_review', comm_id=comm.id, _external=True)}" 
-           style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">
-           Faire la review
-        </a>
-    </p>
-</div>
-"""
-
-    html = f"""
-<h2>Rappel - Reviews en attente - SFT 2026</h2>
-
-<p>Bonjour <strong>{reviewer.full_name or reviewer.email}</strong>,</p>
-
-<p>Vous avez <strong>{total_assignments} review(s) en attente</strong> pour la conférence SFT 2026.</p>
-{f"<p style='color: red; font-weight: bold;'>⚠️ {overdue_count} review(s) sont en retard.</p>" if overdue_count > 0 else ""}
-
-<h3>Vos reviews en attente :</h3>
-{assignments_html}
-
-<div style="text-align: center; margin: 30px 0;">
-    <a href="{url_for('main.reviewer_dashboard', _external=True)}" 
-       style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 16px; display: inline-block;">
-        Accéder à mon tableau de bord
+    <a href="{url_for('main.submit_review', comm_id=comm.id, _external=True)}" 
+       style="background-color: #28a745; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px;">
+        Effectuer la review
     </a>
 </div>
-
-<p>Merci de bien vouloir compléter vos reviews dans les meilleurs délais.</p>
-
-<p>Cordialement,<br>L'équipe SFT 2026</p>
-"""
-
+""")
+    
+    # Ajouter les listes au contexte
+    context['REVIEWS_LIST_TEXT'] = ''.join(reviews_text_list)
+    context['REVIEWS_LIST_HTML'] = ''.join(reviews_html_list)
+    context['call_to_action_url'] = url_for('main.reviewer_dashboard', _external=True)
+    
+    # Construire l'email
+    body_parts = [
+        content_config.get('greeting', ''),
+        f"\n\n{content_config.get('intro', '')}",
+        f"\n\n{content_config.get('body', '')}",
+        f"\n\n{context['REVIEWS_LIST_TEXT']}",
+        f"\nDashboard reviewer: {context['call_to_action_url']}",
+        f"\n\n{signature}"
+    ]
+    
+    body = ''.join(body_parts)
+    
+    # HTML
+    html_parts = [
+        f"<p><strong>{content_config.get('greeting', '')}</strong></p>",
+        f"<h3 style='color: #007bff;'>{content_config.get('intro', '')}</h3>",
+        f"<p>{content_config.get('body', '').replace(chr(10), '<br>')}</p>",
+        context['REVIEWS_LIST_HTML'],
+        f'''<div style="text-align: center; margin: 30px 0;">
+            <a href="{context['call_to_action_url']}" 
+               style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 16px;">
+                Accéder à mon dashboard reviewer
+            </a>
+        </div>''',
+        f"<hr><p>{signature.replace(chr(10), '<br>')}</p>"
+    ]
+    
+    html = ''.join(html_parts)
+    
     # Envoyer l'email
     send_email(subject, [reviewer.email], body, html)
 
 
-
-
 def send_qr_code_reminder_email(user, user_communications):
     """Envoie un email de rappel sur l'utilité du QR code."""
-    from flask import url_for
+    from flask import url_for, current_app
     
-    subject = "QR Code pour vos posters - SFT 2026"
+    # Récupérer le config loader
+    config_loader = current_app.config_loader
+    
+    # Préparer le contexte
+    context = {
+        'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+        'USER_EMAIL': user.email,
+        'COMMUNICATIONS_COUNT': len(user_communications),
+        'call_to_action_url': url_for('main.mes_communications', _external=True)
+    }
+    
+    # Récupérer le sujet depuis la configuration
+    subject = config_loader.get_email_subject('qr_code_ready', **context)
+    
+    # Utiliser un contenu spécifique pour le QR code (ou créer un template custom)
+    # Pour l'instant, on garde la logique existante
     
     # Construire la liste des communications
     comm_list = ""
     for comm in user_communications:
-        comm_url = url_for('main.mes_communications', _external=True)
         comm_list += f"""
 - "{comm.title}" (#{comm.id})
   Type: {'Article' if comm.type == 'article' else 'Work in Progress'}
@@ -293,9 +437,9 @@ def send_qr_code_reminder_email(user, user_communications):
     
     # Corps de l'email en texte
     body = f"""
-Bonjour {user.full_name or user.email},
+Bonjour {context['USER_FIRST_NAME']},
 
-Nous espérons que la préparation de votre poster pour le congrès SFT 2026 se passe bien !
+Nous espérons que la préparation de votre poster pour le congrès se passe bien !
 
 RAPPEL IMPORTANT : QR Code pour votre poster
 
@@ -305,8 +449,8 @@ N'oubliez pas d'ajouter un QR code sur votre poster ! Ce QR code permettra aux p
 ✓ Consulter tous vos documents associés
 
 Comment récupérer votre QR code :
-1. Connectez-vous sur la plateforme SFT 2026
-2. Allez dans "Mes communications" : {url_for('main.mes_communications', _external=True)}
+1. Connectez-vous sur la plateforme
+2. Allez dans "Mes communications" : {context['call_to_action_url']}
 3. Cliquez sur "Télécharger QR Code" pour chacune de vos communications
 
 Vos communications :
@@ -318,10 +462,9 @@ Pourquoi utiliser le QR code ?
 - Modernise la présentation de votre poster
 - Permet un suivi des consultations
 
-Pour toute question : congres-sft2026@univ-lorraine.fr
+Pour toute question, n'hésitez pas à nous contacter.
 
-Cordialement,
-L'équipe SFT 2026
+{config_loader.get_email_signature('default', **context)}
 """
 
     # Version HTML
@@ -336,32 +479,32 @@ L'équipe SFT 2026
 """
 
     html = f"""
-<h2>QR Code pour vos posters - SFT 2026</h2>
+<h2>QR Code pour vos posters</h2>
 
-<p>Bonjour <strong>{user.full_name or user.email}</strong>,</p>
+<p>Bonjour <strong>{context['USER_FIRST_NAME']}</strong>,</p>
 
-<p>Nous espérons que la préparation de votre poster pour le congrès SFT 2026 se passe bien !</p>
+<p>Nous espérons que la préparation de votre poster pour le congrès se passe bien !</p>
 
 <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-    <h3 style="color: #856404; margin-top: 0;">📱 RAPPEL IMPORTANT : QR Code pour votre poster</h3>
+    <h3 style="color: #856404; margin-top: 0;">RAPPEL IMPORTANT : QR Code pour votre poster</h3>
     <p style="margin-bottom: 0;">N'oubliez pas d'ajouter un QR code sur votre poster !</p>
 </div>
 
-<h3>✅ Ce QR code permettra aux participants de :</h3>
+<h3>Ce QR code permettra aux participants de :</h3>
 <ul>
     <li>Accéder directement à votre résumé depuis leur smartphone</li>
     <li>Télécharger votre article complet s'il est disponible</li>
     <li>Consulter tous vos documents associés</li>
 </ul>
 
-<h3>🔧 Comment récupérer votre QR code :</h3>
+<h3>Comment récupérer votre QR code :</h3>
 <ol>
-    <li>Connectez-vous sur la plateforme SFT 2026</li>
-    <li>Allez dans <a href="{url_for('main.mes_communications', _external=True)}">Mes communications</a></li>
+    <li>Connectez-vous sur la plateforme</li>
+    <li>Allez dans <a href="{context['call_to_action_url']}">Mes communications</a></li>
     <li>Cliquez sur "Télécharger QR Code" pour chacune de vos communications</li>
 </ol>
 
-<h3>📄 Vos communications :</h3>
+<h3>Vos communications :</h3>
 <table style="border-collapse: collapse; width: 100%; margin: 20px 0;">
     <tr style="background-color: #f8f9fa;">
         <th style="padding: 10px; border: 1px solid #ddd;">Titre</th>
@@ -371,26 +514,14 @@ L'équipe SFT 2026
     {comm_html}
 </table>
 
-<div style="background-color: #e7f3ff; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-    <h4 style="color: #004085; margin-top: 0;">💡 Pourquoi utiliser le QR code ?</h4>
-    <ul style="margin-bottom: 0;">
-        <li>Facilite l'accès aux documents pour les participants</li>
-        <li>Évite les échanges d'emails après le congrès</li>
-        <li>Modernise la présentation de votre poster</li>
-        <li>Permet un suivi des consultations</li>
-    </ul>
-</div>
-
-<p style="text-align: center; margin: 30px 0;">
-    <a href="{url_for('main.mes_communications', _external=True)}" 
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{context['call_to_action_url']}" 
        style="background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
         Accéder à mes communications
     </a>
-</p>
+</div>
 
-<p>Pour toute question : <a href="mailto:congres-sft2026@univ-lorraine.fr">congres-sft2026@univ-lorraine.fr</a></p>
-
-<p>Cordialement,<br>L'équipe SFT 2026</p>
+<p>{config_loader.get_email_signature('default', **context).replace(chr(10), '<br>')}</p>
 """
 
     # Envoyer l'email
@@ -399,8 +530,13 @@ L'équipe SFT 2026
 
 def send_decision_notification_email(communication, decision, comments=None):
     """Envoie une notification de décision à tous les auteurs."""
+    from flask import current_app
+    
     if not communication.authors:
         raise ValueError("Aucun auteur à notifier")
+    
+    # Récupérer le config loader
+    config_loader = current_app.config_loader
     
     # Récupérer tous les emails des auteurs
     author_emails = [author.email for author in communication.authors if author.email]
@@ -408,47 +544,59 @@ def send_decision_notification_email(communication, decision, comments=None):
     if not author_emails:
         raise ValueError("Aucun email d'auteur valide")
     
-    # Textes selon la décision
-    decision_texts = {
-        'accepter': {
-            'subject': 'Communication acceptée',
-            'title': 'Félicitations ! Votre communication a été acceptée',
-            'message': 'Nous avons le plaisir de vous informer que votre communication a été acceptée pour le congrès SFT 2026.',
-            'color': '#28a745'
-        },
-        'rejeter': {
-            'subject': 'Communication non retenue',
-            'title': 'Communication non retenue',
-            'message': 'Nous regrettons de vous informer que votre communication n\'a pas été retenue pour le congrès SFT 2026.',
-            'color': '#dc3545'
-        },
-        'reviser': {
-            'subject': 'Révisions demandées pour votre communication',
-            'title': 'Révisions demandées',
-            'message': 'Votre communication nécessite des révisions avant acceptation finale.',
-            'color': '#ffc107'
-        }
+    # Préparer le contexte
+    context = {
+        'AUTHOR_NAME': communication.authors[0].full_name or communication.authors[0].email,
+        'COMMUNICATION_TITLE': communication.title,
+        'COMMUNICATION_ID': communication.id,
+        'COMMUNICATION_TYPE': communication.type.upper(),
+        'DECISION_STATUS': decision.upper(),
+        'DECISION_DATE': 'aujourd\'hui',  # ou une vraie date
+        'DECISION_DETAILS': comments or ''
     }
     
-    decision_info = decision_texts[decision]
-    subject = f"SFT 2026 - {decision_info['subject']} - {communication.title}"
+    # Mapping des décisions vers les clés de template
+    decision_mapping = {
+        'accepter': 'decision_accept',
+        'rejeter': 'decision_reject', 
+        'reviser': 'decision_revise'
+    }
+    
+    template_key = decision_mapping.get(decision, 'decision_notification')
+    
+    # Récupérer le sujet depuis la configuration
+    subject = config_loader.get_email_subject(template_key, **context)
+    
+    # Récupérer le contenu depuis la configuration
+    content_config = config_loader.get_email_content('decision_notification', **context)
+    
+    # Récupérer la signature
+    signature = config_loader.get_email_signature('scientific', **context)
     
     # Corps de l'email
-    body = f"""
-Bonjour,
-
-{decision_info['message']}
-
-Titre de la communication : {communication.title}
-ID : {communication.id}
-Type : {communication.type.upper()}
-
-{f"Commentaires de l'équipe scientifique :{chr(10)}{comments}" if comments else ""}
-
-Cordialement,
-L'équipe SFT 2026
-"""
-
+    body_parts = []
+    if content_config.get('greeting'):
+        body_parts.append(content_config['greeting'])
+    if content_config.get('intro'):
+        body_parts.append(f"\n\n{content_config['intro']}")
+    if content_config.get('body'):
+        body_parts.append(f"\n\n{content_config['body']}")
+    if comments:
+        body_parts.append(f"\n\nCommentaires de l'équipe scientifique :\n{comments}")
+    if signature:
+        body_parts.append(f"\n\n{signature}")
+    
+    body = ''.join(body_parts)
+    
+    # Couleurs selon la décision
+    decision_colors = {
+        'accepter': '#28a745',
+        'rejeter': '#dc3545',
+        'reviser': '#ffc107'
+    }
+    
+    color = decision_colors.get(decision, '#007bff')
+    
     # Version HTML
     comments_html = ""
     if comments:
@@ -461,23 +609,18 @@ L'équipe SFT 2026
 
     html = f"""
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-    <div style="background-color: {decision_info['color']}; color: white; padding: 20px; text-align: center;">
-        <h1 style="margin: 0;">{decision_info['title']}</h1>
+    <div style="background-color: {color}; color: white; padding: 20px; text-align: center;">
+        <h1 style="margin: 0;">{content_config.get('intro', 'Décision concernant votre communication')}</h1>
     </div>
     
     <div style="padding: 20px; background-color: #f8f9fa;">
-        <p>{decision_info['message']}</p>
+        <p><strong>{content_config.get('greeting', '')}</strong></p>
         
-        <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
-            <h3 style="color: #007bff; margin-top: 0;">Détails de la communication</h3>
-            <p><strong>Titre :</strong> {communication.title}</p>
-            <p><strong>ID :</strong> {communication.id}</p>
-            <p><strong>Type :</strong> {communication.type.upper()}</p>
-        </div>
+        <p>{content_config.get('body', '').replace(chr(10), '<br>')}</p>
         
         {comments_html}
         
-        <p style="margin-top: 20px;">Cordialement,<br>L'équipe SFT 2026</p>
+        <p style="margin-top: 20px;">{signature.replace(chr(10), '<br>')}</p>
     </div>
 </div>
 """
@@ -488,8 +631,13 @@ L'équipe SFT 2026
 
 def send_biot_fourier_audition_notification(communication):
     """Envoie une notification d'audition Biot-Fourier à l'auteur principal."""
+    from flask import current_app
+    
     if not communication.authors:
         raise ValueError("Aucun auteur à notifier")
+    
+    # Récupérer le config loader
+    config_loader = current_app.config_loader
     
     # Récupérer l'auteur principal (premier auteur)
     main_author = communication.authors[0]
@@ -497,21 +645,33 @@ def send_biot_fourier_audition_notification(communication):
     if not main_author.email:
         raise ValueError("Pas d'email pour l'auteur principal")
     
-    subject = f"Sélection pour l'audition Prix Biot-Fourier - SFT 2026"
+    # Préparer le contexte
+    context = {
+        'AUTHOR_NAME': main_author.full_name or main_author.email,
+        'COMMUNICATION_TITLE': communication.title,
+        'COMMUNICATION_ID': communication.id,
+        'COMMUNICATION_TYPE': communication.type.upper()
+    }
     
-    # Corps de l'email en texte
+    # Récupérer le sujet depuis la configuration
+    subject = config_loader.get_email_subject('biot_fourier_nomination', **context)
+    
+    # Récupérer la signature
+    signature = config_loader.get_email_signature('scientific', **context)
+    
+    # Corps de l'email en texte (gardé pour compatibilité)
     body = f"""
-Bonjour {main_author.full_name or main_author.email},
+Bonjour {context['AUTHOR_NAME']},
 
 Félicitations !
 
-Votre communication a été sélectionnée pour l'audition du Prix Biot-Fourier 2026.
+Votre communication a été sélectionnée pour l'audition du Prix Biot-Fourier.
 
-Titre de la communication : {communication.title}
-ID : {communication.id}
-Type : {communication.type.upper()}
+Titre de la communication : {context['COMMUNICATION_TITLE']}
+ID : {context['COMMUNICATION_ID']}
+Type : {context['COMMUNICATION_TYPE']}
 
-Le Prix Biot-Fourier récompense chaque année la meilleure communication présentée par un jeune chercheur (moins de 35 ans) lors du Congrès de la SFT.
+Le Prix Biot-Fourier récompense chaque année la meilleure communication présentée par un jeune chercheur (moins de 35 ans) lors du Congrès.
 
 PROCHAINES ÉTAPES :
 - Vous devrez présenter votre travail lors d'une audition devant le jury
@@ -527,38 +687,37 @@ Nous vous contacterons prochainement avec les détails pratiques de l'audition.
 
 Encore toutes nos félicitations pour cette sélection !
 
-Cordialement,
-Le comité scientifique SFT 2026
+{signature}
 """
 
     # Version HTML
     html = f"""
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
     <div style="background: linear-gradient(135deg, #ffc107, #ff8c00); color: white; padding: 30px; text-align: center;">
-        <h1 style="margin: 0; font-size: 28px;">🏆 Félicitations !</h1>
+        <h1 style="margin: 0; font-size: 28px;">Félicitations !</h1>
         <h2 style="margin: 10px 0 0 0; font-weight: normal;">Sélection Prix Biot-Fourier</h2>
     </div>
     
     <div style="padding: 30px; background-color: #f8f9fa;">
         <p style="font-size: 18px; color: #28a745; font-weight: bold;">
-            Votre communication a été sélectionnée pour l'audition du Prix Biot-Fourier 2026 !
+            Votre communication a été sélectionnée pour l'audition du Prix Biot-Fourier !
         </p>
         
         <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
             <h3 style="color: #007bff; margin-top: 0;">Votre communication sélectionnée</h3>
-            <p><strong>Titre :</strong> {communication.title}</p>
-            <p><strong>ID :</strong> {communication.id}</p>
-            <p><strong>Type :</strong> {communication.type.upper()}</p>
-            <p><strong>Auteur principal :</strong> {main_author.full_name or main_author.email}</p>
+            <p><strong>Titre :</strong> {context['COMMUNICATION_TITLE']}</p>
+            <p><strong>ID :</strong> {context['COMMUNICATION_ID']}</p>
+            <p><strong>Type :</strong> {context['COMMUNICATION_TYPE']}</p>
+            <p><strong>Auteur principal :</strong> {context['AUTHOR_NAME']}</p>
         </div>
         
         <div style="background-color: #e7f3ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="color: #004085; margin-top: 0;">À propos du Prix Biot-Fourier</h3>
-            <p>Le Prix Biot-Fourier récompense chaque année la meilleure communication présentée par un <strong>jeune chercheur (moins de 35 ans)</strong> lors du Congrès de la SFT.</p>
+            <p>Le Prix Biot-Fourier récompense chaque année la meilleure communication présentée par un <strong>jeune chercheur (moins de 35 ans)</strong> lors du Congrès.</p>
         </div>
         
         <div style="background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #ffeaa7;">
-            <h3 style="color: #856404; margin-top: 0;">📋 Prochaines étapes</h3>
+            <h3 style="color: #856404; margin-top: 0;">Prochaines étapes</h3>
             <ul style="margin-bottom: 0;">
                 <li>Présentation devant le jury pendant le congrès</li>
                 <li><strong>Durée :</strong> 15 minutes + 10 minutes de questions</li>
@@ -568,7 +727,7 @@ Le comité scientifique SFT 2026
         </div>
         
         <div style="background-color: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #f5c6cb;">
-            <h3 style="color: #721c24; margin-top: 0;">⚠️ Conditions importantes</h3>
+            <h3 style="color: #721c24; margin-top: 0;">Conditions importantes</h3>
             <ul style="margin-bottom: 0;">
                 <li>Vous devez avoir <strong>moins de 35 ans</strong> au moment du congrès</li>
                 <li>La présentation doit être faite <strong>par vous-même</strong></li>
@@ -581,10 +740,10 @@ Le comité scientifique SFT 2026
         </p>
         
         <div style="text-align: center; background-color: #28a745; color: white; padding: 15px; border-radius: 8px;">
-            <strong>🎉 Encore toutes nos félicitations pour cette sélection ! 🎉</strong>
+            <strong>Encore toutes nos félicitations pour cette sélection !</strong>
         </div>
         
-        <p style="margin-top: 30px;">Cordialement,<br><strong>Le comité scientifique SFT 2026</strong></p>
+        <p style="margin-top: 30px;">{signature.replace(chr(10), '<br>')}</p>
     </div>
 </div>
 """
@@ -593,13 +752,25 @@ Le comité scientifique SFT 2026
     send_email(subject, [main_author.email], body, html)
 
 
+# === FONCTIONS UTILITAIRES POUR L'ADMIN ===
 
-# À ajouter dans utils.py
+def get_admin_email_templates():
+    """Retourne les templates d'emails pour l'interface admin."""
+    from flask import current_app
+    
+    config_loader = current_app.config_loader
+    return config_loader.get_admin_email_templates()
+
+
+# === FONCTIONS SUPPLÉMENTAIRES ===
 
 def send_review_decline_notification(assignment, decline_reason, other_reason=None):
     """Envoie une notification aux admins quand une review est refusée."""
     from flask import url_for, current_app
     from .models import User
+    
+    # Récupérer le config loader
+    config_loader = current_app.config_loader
     
     # Récupérer tous les admins
     admins = User.query.filter_by(is_admin=True).all()
@@ -621,10 +792,20 @@ def send_review_decline_notification(assignment, decline_reason, other_reason=No
         'other': f'Autre raison : {other_reason}' if other_reason else 'Autre raison'
     }.get(decline_reason, 'Raison non spécifiée')
     
+    # Préparer le contexte
+    context = {
+        'REVIEWER_NAME': reviewer.full_name or reviewer.email,
+        'COMMUNICATION_TITLE': communication.title,
+        'COMMUNICATION_ID': communication.id,
+        'DECLINE_REASON': reason_text
+    }
+    
     # URL pour réassigner
     reassign_url = url_for('admin.suggest_reviewers', comm_id=communication.id, _external=True)
     
-    subject = f"Review refusée - {communication.title[:50]}..."
+    subject = config_loader.get_email_subject('admin_alert', **context)
+    if 'Review refusée' not in subject:
+        subject = f"Review refusée - {communication.title[:50]}..."
     
     # Corps de l'email en texte
     body = f"""
@@ -656,18 +837,17 @@ Lien direct pour réassigner : {reassign_url}
 
 Dashboard admin : {url_for('admin.admin_dashboard', _external=True)}
 
----
-Système de gestion SFT 2026
+{config_loader.get_email_signature('system', **context)}
 """
 
     # Corps de l'email en HTML
     html = f"""
-<h2 style="color: #dc3545;">🚨 Review refusée - Action requise</h2>
+<h2 style="color: #dc3545;">Review refusée - Action requise</h2>
 
 <p>Une review a été refusée par un reviewer et nécessite une <strong>réassignation immédiate</strong>.</p>
 
 <div style="border: 1px solid #dc3545; border-radius: 5px; padding: 15px; margin: 20px 0; background-color: #f8d7da;">
-    <h3 style="color: #721c24; margin-top: 0;">📄 Communication concernée</h3>
+    <h3 style="color: #721c24; margin-top: 0;">Communication concernée</h3>
     <ul>
         <li><strong>Titre :</strong> {communication.title}</li>
         <li><strong>ID :</strong> {communication.id}</li>
@@ -679,7 +859,7 @@ Système de gestion SFT 2026
 </div>
 
 <div style="border: 1px solid #ffc107; border-radius: 5px; padding: 15px; margin: 20px 0; background-color: #fff3cd;">
-    <h3 style="color: #856404; margin-top: 0;">👤 Reviewer qui a refusé</h3>
+    <h3 style="color: #856404; margin-top: 0;">Reviewer qui a refusé</h3>
     <ul>
         <li><strong>Nom :</strong> {reviewer.full_name or reviewer.email}</li>
         <li><strong>Email :</strong> {reviewer.email}</li>
@@ -688,7 +868,7 @@ Système de gestion SFT 2026
 </div>
 
 <div style="border: 1px solid #17a2b8; border-radius: 5px; padding: 15px; margin: 20px 0; background-color: #d1ecf1;">
-    <h3 style="color: #0c5460; margin-top: 0;">❌ Détails du refus</h3>
+    <h3 style="color: #0c5460; margin-top: 0;">Détails du refus</h3>
     <ul>
         <li><strong>Date :</strong> {assignment.declined_at.strftime('%d/%m/%Y à %H:%M') if hasattr(assignment, 'declined_at') and assignment.declined_at else 'Non définie'}</li>
         <li><strong>Raison :</strong> {reason_text}</li>
@@ -697,20 +877,19 @@ Système de gestion SFT 2026
 
 <div style="text-align: center; margin: 30px 0;">
     <a href="{reassign_url}" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-        🔄 Réassigner cette review
+        Réassigner cette review
     </a>
 </div>
 
 <div style="text-align: center; margin: 20px 0;">
     <a href="{url_for('admin.admin_dashboard', _external=True)}" style="background-color: #6c757d; color: white; padding: 8px 20px; text-decoration: none; border-radius: 3px;">
-        📊 Dashboard admin
+        Dashboard admin
     </a>
 </div>
 
 <hr>
 <p style="color: #666; font-size: 12px; text-align: center;">
-    Système de gestion SFT 2026<br>
-    Notification automatique - Ne pas répondre à cet email
+    {config_loader.get_email_signature('system', **context).replace(chr(10), '<br>')}
 </p>
 """
 
@@ -723,12 +902,11 @@ Système de gestion SFT 2026
         raise e
 
 
-# À ajouter dans emails.py
-
 def send_grouped_review_notifications():
     """Envoie un email groupé à chaque reviewer avec toutes ses reviews assignées."""
-    from flask import url_for, current_app
+    from flask import current_app
     from .models import User, ReviewAssignment
+    from datetime import datetime
     
     # Récupérer tous les reviewers ayant des assignations en attente
     reviewers_with_assignments = {}
@@ -784,10 +962,19 @@ def send_grouped_review_notifications():
 
 def send_grouped_review_notification_to_reviewer(reviewer, assignments):
     """Envoie l'email groupé à un reviewer spécifique."""
-    from flask import url_for
-    from datetime import datetime
+    from flask import url_for, current_app
     
-    subject = f"SFT 2026 - {len(assignments)} review(s) à effectuer"
+    # Récupérer le config loader
+    config_loader = current_app.config_loader
+    
+    # Préparer le contexte
+    context = {
+        'REVIEWER_NAME': reviewer.full_name or reviewer.email,
+        'REVIEWER_SPECIALTIES': reviewer.specialites_codes or 'Non spécifiées',
+        'REVIEWS_COUNT': len(assignments)
+    }
+    
+    subject = config_loader.get_email_subject('review_assigned', **context)
     
     # Générer les liens pour chaque review
     reviews_html = ""
@@ -809,7 +996,7 @@ def send_grouped_review_notification_to_reviewer(reviewer, assignments):
         # HTML pour cette review
         reviews_html += f"""
         <div style="border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin: 15px 0; background-color: #f8f9fa;">
-            <h4 style="color: #007bff; margin-top: 0;">📄 Review #{i}</h4>
+            <h4 style="color: #007bff; margin-top: 0;">Review #{i}</h4>
             <p><strong>Titre :</strong> {communication.title}</p>
             <p><strong>Auteurs :</strong> {authors_list}</p>
             <p><strong>Type :</strong> {communication.type.title()}</p>
@@ -818,10 +1005,10 @@ def send_grouped_review_notification_to_reviewer(reviewer, assignments):
             
             <div style="margin-top: 15px;">
                 <a href="{review_url}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;">
-                    📝 Faire la review
+                    Faire la review
                 </a>
                 <a href="{decline_url}" style="background-color: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                    ❌ Refuser cette review
+                    Refuser cette review
                 </a>
             </div>
         </div>
@@ -844,7 +1031,7 @@ Review #{i}:
     body = f"""
 Bonjour {reviewer.full_name or reviewer.email},
 
-Vous avez été assigné(e) à {len(assignments)} review(s) pour le congrès SFT 2026.
+Vous avez été assigné(e) à {len(assignments)} review(s) pour le congrès.
 
 {reviews_text}
 
@@ -856,20 +1043,19 @@ Important:
 - En cas d'impossibilité, utilisez le lien "Refuser cette review"
 - Pour toute question, contactez l'équipe organisatrice
 
-Cordialement,
-L'équipe SFT 2026
+{config_loader.get_email_signature('scientific', **context)}
 """
 
     # Corps de l'email en HTML
     html = f"""
-<h2 style="color: #007bff;">📋 Vos assignations de reviews SFT 2026</h2>
+<h2 style="color: #007bff;">Vos assignations de reviews</h2>
 
 <p>Bonjour <strong>{reviewer.full_name or reviewer.email}</strong>,</p>
 
-<p>Vous avez été assigné(e) à <strong>{len(assignments)} review(s)</strong> pour le congrès SFT 2026.</p>
+<p>Vous avez été assigné(e) à <strong>{len(assignments)} review(s)</strong> pour le congrès.</p>
 
 <div style="background-color: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0;">
-    <h3 style="margin-top: 0; color: #0056b3;">ℹ️ Informations importantes</h3>
+    <h3 style="margin-top: 0; color: #0056b3;">Informations importantes</h3>
     <ul>
         <li>Consultez chaque communication attentivement</li>
         <li>Respectez les échéances indiquées</li>
@@ -878,20 +1064,19 @@ L'équipe SFT 2026
     </ul>
 </div>
 
-<h3 style="color: #28a745;">📝 Vos reviews à effectuer:</h3>
+<h3 style="color: #28a745;">Vos reviews à effectuer:</h3>
 
 {reviews_html}
 
 <div style="text-align: center; margin: 30px 0;">
     <a href="{url_for('main.reviewer_dashboard', _external=True)}" style="background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 16px;">
-        🏠 Accéder à mon dashboard reviewer
+        Accéder à mon dashboard reviewer
     </a>
 </div>
 
 <hr>
 <p style="color: #666; font-size: 12px;">
-    Congrès SFT 2026 - Villers-lès-Nancy<br>
-    Pour toute question: contact@sft2026-nancy.fr
+    {config_loader.get_email_signature('scientific', **context).replace(chr(10), '<br>')}
 </p>
 """
 
