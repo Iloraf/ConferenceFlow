@@ -317,10 +317,12 @@
 
 <script>
 // URLs des plateformes d'inscription
-const urlsInscription = {
-    participant: 'https://2026.congres-sft.fr/index.php?langue=fr&onglet=6',
-    accompagnant: 'https://2026.congres-sft.fr/index.php?langue=fr&onglet=12'
-};
+//const urlsInscription = {
+//    participant: 'https://2026.congres-sft.fr/index.php?langue=fr&onglet=6',
+//    accompagnant: 'https://2026.congres-sft.fr/index.php?langue=fr&onglet=12'
+//};
+const urlsInscription = {{ registration_urls|tojson }};
+  
 
 function ouvrirInscription(type) {
     // Afficher l'overlay de chargement

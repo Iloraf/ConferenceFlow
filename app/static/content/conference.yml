@@ -317,6 +317,11 @@ technical:
     password_min_length: 8
     max_login_attempts: 5
 
+# ===== URLS PLATEFORMES =====
+registration_urls:
+  participant: "https://2026.congres-sft.fr/index.php?langue=fr&onglet=6"
+  accompagnant: "https://2026.congres-sft.fr/index.php?langue=fr&onglet=12"
+
 # ===== INTÉGRATIONS =====
 integrations:
   # HAL (Hyper Articles en Ligne)

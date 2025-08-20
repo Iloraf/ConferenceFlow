@@ -838,6 +838,7 @@ def inscription_conference():
     
     # Récupérer la configuration des prix depuis le fichier YAML
     fees_config = current_app.conference_config.get('fees', {})
+    registration_urls = current_app.conference_config.get('registration_urls', {})
     
     # Si la configuration n'est pas disponible, utiliser des valeurs par défaut
     if not fees_config:
@@ -912,7 +913,8 @@ def inscription_conference():
             ])
         }
     
-    return render_template("conference/inscription_conference.html", fees=fees)
+    return render_template("conference/inscription_conference.html", fees=fees,
+                         registration_urls=registration_urls)
 
 
 @conference.route("/communication-info")
@@ -1162,6 +1164,7 @@ def _get_file_size(filepath):
     except:
         return "N/A"
 
+
 @conference.route("/contact", methods=["GET", "POST"])
 def contact():
     """Page de contact."""
@@ -1172,9 +1175,80 @@ def contact():
         email = request.form.get("email")
         subject = request.form.get("subject")
         message = request.form.get("message")
+        contact_type = request.form.get("contact_type")  # ← AJOUT
         
-        # Ici vous pourriez envoyer un email
-        flash("Votre message a été envoyé avec succès.", "success")
+        # DEBUG - Afficher les données reçues
+        current_app.logger.info(f"DEBUG Contact - contact_type reçu: '{contact_type}'")
+        current_app.logger.info(f"DEBUG Contact - Données form: name={name}, email={email}, subject={subject}")
+        
+        # Valider les champs
+        if not all([name, email, subject, message]):
+            flash("Tous les champs sont obligatoires.", "danger")
+            return redirect(url_for("conference.contact"))
+        
+        try:
+            # Récupérer la configuration des contacts
+            conference_config = current_app.conference_config
+            contacts_config = conference_config.get('contacts', {})
+            conference_info = conference_config.get('conference', {})
+            
+            # DEBUG - Afficher la config des contacts
+            current_app.logger.info(f"DEBUG Contact - contacts_config keys: {list(contacts_config.keys())}")
+            
+            # Déterminer l'email de destination selon le type de contact
+            recipient_email = "congres-sft2026@univ-lorraine.fr"  # Email par défaut
+            recipient_name = "Équipe SFT 2026"
+            
+            if contact_type and contact_type in contacts_config:
+                contact_data = contacts_config[contact_type]
+                current_app.logger.info(f"DEBUG Contact - contact_data pour {contact_type}: {contact_data}")
+                
+                # Pour le programme (présidents), chercher l'email dans les présidents
+                if contact_type == 'program':
+                    presidents = conference_info.get('presidents', [])
+                    current_app.logger.info(f"DEBUG Contact - presidents: {presidents}")
+                    if presidents and presidents[0].get('email'):
+                        recipient_email = presidents[0]['email']
+                        recipient_name = presidents[0].get('name', 'Président du programme')
+                    elif contact_data.get('email'):
+                        recipient_email = contact_data['email']
+                        recipient_name = contact_data.get('person', 'Programme scientifique')
+                else:
+                    # Pour les autres contacts, utiliser directement l'email du contact
+                    if contact_data.get('email'):
+                        recipient_email = contact_data['email']
+                        recipient_name = contact_data.get('person', contact_data.get('title', 'Contact'))
+            
+            current_app.logger.info(f"DEBUG Contact - Email final: {recipient_email}, Nom: {recipient_name}")
+            
+            # Utiliser la fonction send_email existante
+            email_subject = f"[Contact SFT 2026] {subject}"
+            email_body = f"""
+Nouveau message reçu depuis le formulaire de contact :
+
+Destinataire : {recipient_name}
+Type de contact : {contact_type or 'Général'}
+Nom : {name}
+Email : {email}
+Sujet : {subject}
+
+Message :
+{message}
+
+---
+Envoyé depuis le site SFT 2026
+Répondre à : {email}
+"""
+            
+            # Envoyer avec la fonction existante
+            current_app.send_email(email_subject, [recipient_email], email_body)
+            
+            flash(f"Votre message a été envoyé avec succès à {recipient_name} ({recipient_email}).", "success")
+            
+        except Exception as e:
+            current_app.logger.error(f"Erreur envoi email contact: {str(e)}")
+            flash("Erreur lors de l'envoi du message. Veuillez réessayer.", "danger")
+        
         return redirect(url_for("conference.contact"))
     
     # Récupérer les contacts depuis conference.yml
@@ -1199,12 +1273,7 @@ def contact():
             
             # Traitement spécial pour le programme scientifique (présidents)
             if template_key == 'program':
-                # Récupérer les présidents depuis conference.presidents
                 presidents = conference_info.get('presidents', [])
-                
-                # Debug pour voir ce qui est récupéré
-                current_app.logger.info(f"DEBUG - Présidents récupérés: {presidents}")
-                current_app.logger.info(f"DEBUG - Contact program data: {contact_data}")
                 
                 # Si on a des présidents, on les utilise directement
                 if presidents:

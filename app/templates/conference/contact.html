@@ -184,7 +184,8 @@
                         <h3 class="mb-0"><i class="fas fa-paper-plane me-2"></i>Nous contacter</h3>
                     </div>
                     <div class="card-body">
-                        <form method="POST">
+                      <form method="POST">
+			 <input type="hidden" id="contact_type" name="contact_type" value="">
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
@@ -257,6 +258,9 @@ function contactPerson(email, person, contactType) {
     
     // Pré-remplir le formulaire
     setTimeout(() => {
+        // Définir le type de contact
+        document.getElementById('contact_type').value = contactType;
+        
         // Sujet
         const subjectSelect = document.getElementById('subject');
         subjectSelect.value = contactType;
@@ -270,28 +274,37 @@ function contactPerson(email, person, contactType) {
         const formCard = document.querySelector('.card.shadow');
         const isPresident = contactType === 'program';
         const borderClass = isPresident ? 'border-success' : 'border-primary';
-        const shadowColor = isPresident ? 'rgba(40, 167, 69, 0.3)' : 'rgba(0, 123, 255, 0.3)';
+        const shadowColor = isPresident ? 'shadow-success' : 'shadow-primary';
         
-        formCard.classList.add(borderClass);
-        formCard.style.boxShadow = `0 0 20px ${shadowColor}`;
+        // Supprimer les anciennes classes de bordure
+        formCard.classList.remove('border-primary', 'border-success', 'border-warning', 'border-info', 'border-secondary');
+        formCard.classList.remove('shadow-primary', 'shadow-success', 'shadow-warning', 'shadow-info', 'shadow-secondary');
         
-        // Afficher une notification
-        const contactTypeNames = {
-            'general': 'Contact général',
-            'program': 'Programme scientifique',
-            'submissions': 'Soumissions et communications',
-            'communication': 'Communication et médias'
-        };
+        // Ajouter les nouvelles classes selon le type
+        switch(contactType) {
+            case 'program':
+                formCard.classList.add('border-success');
+                break;
+            case 'submissions':
+                formCard.classList.add('border-warning');
+                break;
+            case 'communication':
+                formCard.classList.add('border-info');
+                break;
+            case 'general':
+                formCard.classList.add('border-primary');
+                break;
+            default:
+                formCard.classList.add('border-secondary');
+        }
         
-        const displayName = contactTypeNames[contactType] || contactType;
-        showNotification(`Formulaire pré-rempli pour ${displayName}${person ? ' (' + person + ')' : ''}`, isPresident ? 'success' : 'info');
-        
-        // Retirer la mise en évidence après 3 secondes
+        // Animation légère pour attirer l'attention
+        formCard.style.transform = 'scale(1.02)';
         setTimeout(() => {
-            formCard.classList.remove(borderClass);
-            formCard.style.boxShadow = '';
-        }, 3000);
-    }, 500);
+            formCard.style.transform = 'scale(1)';
+        }, 200);
+        
+    }, 300);
 }
 
 // Fonction pour afficher une notification
