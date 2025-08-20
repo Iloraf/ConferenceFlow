@@ -20,8 +20,7 @@ Automatiser les tâches répétitives et centraliser la gestion des soumissions,
 
 ### Planification et programme
 - Création et modification du programme de la conférence.
-- Export du programme au format PDF ou ICS.
-- Intégration avec les calendriers (Google, Outlook).
+- Export du programme au format PDF.
 
 ### Tableau de bord administrateur
 - Vue d’ensemble des soumissions et des inscriptions.
@@ -30,19 +29,10 @@ Automatiser les tâches répétitives et centraliser la gestion des soumissions,
 
 ### Intégrations
 - Export des données vers Excel/CSV.
-- Compatibilité avec les outils de visioconférence (Zoom, Teams).
 
 ## Installation
 1. Cloner le dépôt : `git clone [lien-du-depot]`
-2. Installer les dépendances : `npm install`
-3. Configurer les variables d’environnement (voir `.env.example`).
-4. Lancer l’application : `npm start`
-
-## Technologies utilisées
-- Frontend : React.js
-- Backend : Node.js/Express
-- Base de données : MongoDB
-- Authentification : JWT
+2. À venir
 
 ## Support
 Pour toute question ou suggestion, ouvrez une issue ou contactez-nous à [votre-email].
