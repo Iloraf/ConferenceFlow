@@ -31,11 +31,10 @@ COPY requirements.txt .
 RUN pip install --user -r requirements.txt
 
 COPY --chown=appuser:appuser app ./app
-COPY --chown=appuser:appuser config ./config
 
-COPY --chown=appuser:appuser config.py ./config.py
-COPY --chown=appuser:appuser setup.py ./setup.py
+COPY --chown=appuser:appuser init_app.py ./init_app.py
 COPY --chown=appuser:appuser run.py ./run.py
 
 
 COPY --chown=appuser:appuser deployment/cflow/gunicorn.conf.py .
+COPY --chown=appuser:appuser deployment/cflow/wsgi.py .

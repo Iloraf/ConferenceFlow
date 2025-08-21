@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Script de configuration locale pour ConferenceFlow."""
 
-import os
 import sys
 import subprocess
 import secrets
@@ -100,6 +99,14 @@ def get_user_input():
     print("\n📧 Configuration email :")
     config['mail_server'] = input("Serveur SMTP [smtp.example.com]: ").strip() or "smtp.example.com"
     config['mail_port'] = input("Port SMTP [465]: ").strip() or "465"
+
+    if config['mail_port'] == '465':
+        use_ssl = 'True'
+        use_tls = 'False'
+    else:  # Port 587
+        use_ssl = 'False' 
+        use_tls = 'True'
+    
     config['mail_username'] = input("Utilisateur SMTP [your_email@example.com]: ").strip() or "your_email@example.com"
     config['mail_password'] = input("Mot de passe SMTP [your_password]: ").strip() or "your_password"
     
@@ -112,6 +119,7 @@ def get_user_input():
 
 def create_env_file(config):
     """Crée le fichier .env avec la configuration."""
+    import os
     # Générer une clé secrète
     secret_key = secrets.token_hex(32)
     
@@ -144,8 +152,8 @@ MAIL_USERNAME={config['mail_username']}
 MAIL_PASSWORD={config['mail_password']}
 MAIL_SERVER={config['mail_server']}
 MAIL_PORT={config['mail_port']}
-MAIL_USE_TLS=True
-MAIL_USE_SSL=False
+MAIL_USE_TLS={use_tls}
+MAIL_USE_SSL={use_ssl}
 
 # Limites de fichiers
 MAX_CONTENT_LENGTH=52428800

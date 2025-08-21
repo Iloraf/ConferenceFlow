@@ -69,7 +69,6 @@ def validate_environment():
 def init_database():
     """Initialise la base de données."""
     try:
-        from flask_migrate import upgrade
         from app import create_app, db
         
         app = create_app()
@@ -87,11 +86,16 @@ def init_database():
                 print("✓ Tables de base de données créées")
             
             # Appliquer les migrations si elles existent
-            try:
-                upgrade()
-                print("✓ Migrations appliquées")
-            except Exception as e:
-                print(f"ℹ️  Pas de migrations à appliquer: {e}")
+            import os
+            if os.path.exists('migrations'):
+                try:
+                    from flask_migrate import upgrade
+                    upgrade()
+                    print("✓ Migrations appliquées")
+                except Exception as e:
+                    print(f"ℹ️  Erreur migrations: {e}")
+            else:
+                print("ℹ️  Pas de dossier migrations - tables créées directement")
         
         print("✓ Base de données prête")
         return True

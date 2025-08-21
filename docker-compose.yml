@@ -31,7 +31,7 @@ services:
     ports:
       - 8080:8080
     restart: unless-stopped
-    command: ["sh", "-c", "python init_app.py || true && gunicorn -c gunicorn.conf.py run:app"]
+    command: ["sh", "-c", "python init_app.py || true && gunicorn -c gunicorn.conf.py wsgi:app"]
 
   db:
     image: postgres:15
