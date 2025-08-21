@@ -84,11 +84,10 @@ def get_user_input():
     
     config['db_name'] = input(f"Nom de la base [{default_db_name}]: ").strip() or default_db_name
     config['db_user'] = input(f"Utilisateur PostgreSQL [{default_db_user}]: ").strip() or default_db_user
-    config['db_password'] = input("Mot de passe PostgreSQL : ").strip()
     
-    if not config['db_password']:
-        config['db_password'] = generate_secure_password(12)
-        print(f"✓ Mot de passe PostgreSQL généré : {config['db_password']}")
+    # Génération automatique du mot de passe PostgreSQL
+    config['db_password'] = generate_secure_password(16)
+    print(f"✓ Mot de passe PostgreSQL généré : {config['db_password']}")
     
     # Admin
     print("\n👤 Compte administrateur :")
