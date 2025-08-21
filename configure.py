@@ -68,9 +68,10 @@ def get_user_input():
         default_host = "localhost"  # Développement local
         host_explanation = "Développement (PostgreSQL local)"
     
-    # Base de données
+    # Base de données - Configuration automatique
     print(f"\n🗄️  Configuration PostgreSQL ({host_explanation}) :")
-    config['db_host'] = input(f"Host PostgreSQL [{default_host}]: ").strip() or default_host
+    config['db_host'] = default_host
+    print(f"✓ Host PostgreSQL : {default_host}")
     config['db_port'] = input("Port PostgreSQL [5432]: ").strip() or "5432"
     
     # Adapter les noms par défaut selon l'environnement
