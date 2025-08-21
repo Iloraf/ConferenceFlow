@@ -293,18 +293,6 @@ statistics:
 
 # ===== CONFIGURATION TECHNIQUE =====
 technical:
-  # Base de données
-  database:
-    backup_frequency: "daily"
-    retention_days: 365
-    
-  # Emails
-  email:
-    smtp_server: "smtp.univ-lorraine.fr"
-    from_name: "SFT 2026"
-    from_email: "congres-sft2026@univ-lorraine.fr"
-    max_attachments_mb: 25
-    
   # Uploads
   uploads:
     max_file_size_mb: 50
