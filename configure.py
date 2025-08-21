@@ -117,7 +117,6 @@ def get_user_input():
     
     return config
 
-
 def create_env_file(config):
     """Crée le fichier .env avec la configuration."""
     # Générer une clé secrète
