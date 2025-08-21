@@ -60,6 +60,10 @@ def get_user_input():
     config['flask_env'] = "production" if is_production in ['y', 'yes', 'o', 'oui'] else "development"
     config['flask_debug'] = "False" if is_production in ['y', 'yes', 'o', 'oui'] else "True"
     
+    # Docker partout - hostname toujours "db"
+    default_host = "db"
+    host_explanation = "Production (Docker)" if config['flask_env'] == 'production' else "Développement (Docker)"'o', 'oui'] else "True"
+    
     # Déterminer l'hostname automatiquement
     if config['flask_env'] == 'production':
         default_host = "db"  # Docker Compose en production
@@ -116,6 +120,7 @@ def get_user_input():
     config['base_url'] = input(f"URL de base [{default_url}]: ").strip() or default_url
     
     return config
+
 
 def create_env_file(config):
     """Crée le fichier .env avec la configuration."""
@@ -192,7 +197,7 @@ def main():
     print("\n🎉 Configuration terminée !")
     print("\n📋 Prochaines étapes :")
     print("1. Vérifiez le fichier .env créé")
-    print("2. Pour développement local : pip install -r requirements.txt && python run.py")
+    print("2. Pour développement local : python init_app.py && python run.py")
     print("3. Pour Docker : docker-compose up --build")
     print(f"\n👤 Compte admin configuré : {config['admin_email']}")
     if 'admin_password' in config:
