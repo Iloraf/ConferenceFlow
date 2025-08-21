@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+
+{% block title %}Test des emails - Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="fas fa-envelope-open-text me-2"></i>
+                Test du système d'emails
+            </h2>
+            
+            <!-- Info configuration -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Configuration actuelle
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Conférence :</strong> {{ conference.name|safe or 'Non configuré' }}</p>
+                            <p><strong>Nom court :</strong> {{ conference.short_name or 'Non configuré' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Email contact :</strong> {{ conference_contacts.general.email or 'Non configuré' }}</p>
+                            <p><strong>Lieu :</strong> {{ conference_location.city or 'Non configuré' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Formulaire de test -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        Configuration des tests
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="emailTestForm">
+                        <!-- Email de test -->
+                        <div class="mb-4">
+                            <label for="test_email" class="form-label">
+                                <i class="fas fa-at me-1"></i>
+                                Adresse email de test
+                            </label>
+                            <input type="email" class="form-control" id="test_email" name="test_email" 
+                                   value="{{ current_user.email }}" required>
+                            <div class="form-text">
+                                Tous les emails de test seront envoyés à cette adresse
+                            </div>
+                        </div>
+                        
+                        <!-- Mode simulation -->
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="dry_run" name="dry_run" checked>
+                                <label class="form-check-label" for="dry_run">
+                                    <i class="fas fa-eye me-1"></i>
+                                    Mode simulation (ne pas envoyer les emails)
+                                </label>
+                            </div>
+                            <div class="form-text">
+                                En mode simulation, les tests s'exécutent sans envoyer d'emails
+                            </div>
+                        </div>
+                        
+                        <!-- Sélection des tests -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <i class="fas fa-list-check me-1"></i>
+                                Tests à exécuter
+                            </label>
+                            
+                            <div class="row">
+                                <!-- Colonne 1 -->
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">Emails utilisateurs</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_activation" 
+                                                       name="email_tests" value="activation">
+                                                <label class="form-check-label" for="test_activation">
+                                                    Email d'activation reviewer
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_coauthor_new" 
+                                                       name="email_tests" value="coauthor_new">
+                                                <label class="form-check-label" for="test_coauthor_new">
+                                                    Notification co-auteur (nouveau)
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_coauthor_existing" 
+                                                       name="email_tests" value="coauthor_existing">
+                                                <label class="form-check-label" for="test_coauthor_existing">
+                                                    Notification co-auteur (existant)
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_qr_code" 
+                                                       name="email_tests" value="qr_code">
+                                                <label class="form-check-label" for="test_qr_code">
+                                                    Rappel QR code poster
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Colonne 2 -->
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">Emails reviews & décisions</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_review_reminder" 
+                                                       name="email_tests" value="review_reminder">
+                                                <label class="form-check-label" for="test_review_reminder">
+                                                    Rappel review en attente
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_decision_accept" 
+                                                       name="email_tests" value="decision_accept">
+                                                <label class="form-check-label" for="test_decision_accept">
+                                                    Décision : Acceptation
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_decision_reject" 
+                                                       name="email_tests" value="decision_reject">
+                                                <label class="form-check-label" for="test_decision_reject">
+                                                    Décision : Refus
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_decision_revise" 
+                                                       name="email_tests" value="decision_revise">
+                                                <label class="form-check-label" for="test_decision_revise">
+                                                    Décision : Révisions
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_biot_fourier" 
+                                                       name="email_tests" value="biot_fourier">
+                                                <label class="form-check-label" for="test_biot_fourier">
+                                                    Nomination Biot-Fourier
+                                                </label>
+
+
+					    </div>
+
+<div class="form-check">
+    <input class="form-check-input" type="checkbox" id="test_hal_collection" 
+           name="email_tests" value="hal_collection">
+    <label class="form-check-label" for="test_hal_collection">
+        Demande collection HAL
+    </label>
+</div>
+					    
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Boutons de sélection -->
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllTests()">
+                                    <i class="fas fa-check-double me-1"></i>Tout sélectionner
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="unselectAllTests()">
+                                    <i class="fas fa-times me-1"></i>Tout désélectionner
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Boutons d'action -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-play me-1"></i>Lancer les tests
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Résultats -->
+            <div id="resultsSection" class="card mt-4" style="display: none;">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Résultats des tests
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="testResults"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Sélectionner tous les tests
+function selectAllTests() {
+    document.querySelectorAll('input[name="email_tests"]').forEach(cb => cb.checked = true);
+}
+
+// Désélectionner tous les tests
+function unselectAllTests() {
+    document.querySelectorAll('input[name="email_tests"]').forEach(cb => cb.checked = false);
+}
+
+// Soumission du formulaire
+document.getElementById('emailTestForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const selectedTests = formData.getAll('email_tests');
+    
+    if (selectedTests.length === 0) {
+        alert('Veuillez sélectionner au moins un test');
+        return;
+    }
+    
+    // Afficher le loading
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Tests en cours...';
+    submitBtn.disabled = true;
+    
+    // Cacher les anciens résultats
+    document.getElementById('resultsSection').style.display = 'none';
+    
+    // Envoyer la requête
+    fetch('{{ url_for("admin.run_email_tests") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Restaurer le bouton
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+        
+        // Afficher les résultats
+        displayResults(data);
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de l\'exécution des tests');
+        
+        // Restaurer le bouton
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+function displayResults(data) {
+    const resultsDiv = document.getElementById('testResults');
+    const resultsSection = document.getElementById('resultsSection');
+    
+    let html = '';
+    
+    // Résumé
+    const successClass = data.success ? 'alert-success' : 'alert-danger';
+    html += `<div class="alert ${successClass}">`;
+    html += `<h6 class="mb-2"><i class="fas fa-info-circle me-1"></i>${data.message}</h6>`;
+    if (data.dry_run) {
+        html += `<small><i class="fas fa-eye me-1"></i>Mode simulation - Aucun email n'a été envoyé</small>`;
+    }
+    html += `</div>`;
+    
+    // Détails des tests
+    if (data.results && data.results.length > 0) {
+        html += `<div class="row">`;
+        
+        data.results.forEach(result => {
+            const statusClass = result.success ? 'border-success' : 'border-danger';
+            const iconClass = result.success ? 'fas fa-check-circle text-success' : 'fas fa-exclamation-circle text-danger';
+            
+            html += `<div class="col-md-6 mb-3">`;
+            html += `<div class="card ${statusClass}">`;
+            html += `<div class="card-body">`;
+            html += `<h6 class="card-title">`;
+            html += `<i class="${iconClass} me-2"></i>${result.test}`;
+            html += `</h6>`;
+            html += `<p class="card-text">${result.message}</p>`;
+            html += `</div>`;
+            html += `</div>`;
+            html += `</div>`;
+        });
+        
+        html += `</div>`;
+    }
+    
+    resultsDiv.innerHTML = html;
+    resultsSection.style.display = 'block';
+    
+    // Scroller vers les résultats
+    resultsSection.scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+{% endblock %}
