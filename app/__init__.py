@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -44,11 +45,39 @@ def datetime_filter(timestamp, format='%d/%m/%Y %H:%M'):
     return str(timestamp)
 
 
-
-
 def create_app():
     app = Flask(__name__)
-    app.config.from_object('config.Config')
+    
+    # Configuration directe depuis les variables d'environnement (remplace config.py)
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['UPLOAD_FOLDER'] = os.path.join("static", "uploads")
+    app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 52428800))
+    
+    # Configuration email
+    app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
+    app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 465))
+    app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'False') == 'True'
+    app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
+    app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+    app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
+    
+    # Configuration application
+    app.config['BASE_URL'] = os.getenv('BASE_URL', 'http://localhost:5000')
+    app.config['ENV'] = os.getenv('FLASK_ENV', 'development')
+    app.config['DEBUG'] = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    # Configuration emails par défaut
+    app.config['REGISTRATION_EMAIL_RECIPIENTS'] = ["organizers@conferenceflow.fr", "admin@conferenceflow.fr"]
+    app.config['REGISTRATION_EMAIL_SENDER'] = os.getenv('MAIL_USERNAME', 'inscription@conferenceflow.fr')
+    
+    # Validation des variables requises
+    required_vars = ['SECRET_KEY', 'DATABASE_URL']
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+    if missing_vars:
+        raise ValueError(f"Variables d'environnement manquantes : {', '.join(missing_vars)}")
 
     app.jinja_env.filters['nl2br'] = nl2br_filter
     app.jinja_env.filters['datetime'] = datetime_filter
@@ -126,7 +155,8 @@ def create_app():
         send_review_reminder_email,
         send_qr_code_reminder_email,
         send_decision_notification_email,
-        send_biot_fourier_audition_notification
+        send_biot_fourier_audition_notification,
+        send_hal_collection_request
     )
 
     app.send_email = send_email
@@ -137,7 +167,7 @@ def create_app():
     app.send_qr_code_reminder_email = send_qr_code_reminder_email
     app.send_decision_notification_email = send_decision_notification_email 
     app.send_biot_fourier_audition_notification = send_biot_fourier_audition_notification
-
+    app.send_hal_collection_request = send_hal_collection_request
     
     app.register_blueprint(main)
     app.register_blueprint(conference)
@@ -148,3 +178,6 @@ def create_app():
     app.register_blueprint(public_comm, url_prefix="/public")
     app.register_blueprint(hal_bp, url_prefix="/hal")
     return app
+
+
+

@@ -1,21 +1,21 @@
 
 services:
 
-#  nginx:
-#    container_name: cflow-nginx
-#    build:
-#      context: ./deployment/nginx
-#      args:
+  nginx:
+    container_name: cflow-nginx
+    build:
+      context: ./deployment/nginx
+      args:
         # reference the app target in this compose file
-#        APP: app  # do not change me
-#    env_file:
+        APP: app  # do not change me
+    env_file:
       # load Certbot configs
-#      - deployment/certbot.env
-#    ports:
-#      - "80:80"
-#      - "443:443"
-#    volumes:
-#      - /etc/letsencrypt:/etc/letsencrypt
+      - deployment/certbot.env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt
 
   app:
     container_name: cflow_app
@@ -23,23 +23,11 @@ services:
       dockerfile: ./deployment/cflow/Dockerfile
       context: .
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-myapp}:${DB_PASSWORD:-changeme}@db:5432/${DB_NAME:-myapp_db}
-#    ports:
-#      - 8080:8080
+      - DATABASE_URL=postgresql://${DB_USER:-conference_user}:${DB_PASSWORD:-conference_password}@db:5432/${DB_NAME:-conference_flow}
+    ports:
+      - 8080:8080
     restart: unless-stopped
-
-######temporaire sft.olivier-farges.xyz
-    networks:
-      - mailu_default:
-        -external: true
-      - default
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.conferenceflow.rule=Host(`sft.olivier-farges.xyz`)"
-      - "traefik.http.routers.conferenceflow.entrypoints=websecure"
-      - "traefik.http.routers.conferenceflow.tls.certresolver=letsencrypt"
-#########################
-
+    command: ["sh", "-c", "python init_app.py || true && gunicorn -c gunicorn.conf.py run:app"]
 
   db:
     image: postgres:15

@@ -103,10 +103,14 @@ def create_env_file(config):
     """Crée le fichier .env avec la configuration."""
     # Générer une clé secrète
     secret_key = secrets.token_hex(32)
+
+
+    database_url = f"postgresql://{config['db_user']}:{config['db_password']}@{config['db_host']}:{config['db_port']}/{config['db_name']}"
+    
     
     env_content = f"""# Configuration Flask
 SECRET_KEY={secret_key}
-DATABASE_URL=postgresql://conference_user:conference_password@postgres:5432/conference_flow
+DATABASE_URL={database_url}
 FLASK_ENV={config['flask_env']}
 FLASK_DEBUG={config['flask_debug']}
 BASE_URL={config['base_url']}
