@@ -54,12 +54,35 @@ def get_user_input():
     
     config = {}
     
+    # Mode AVANT la base de données pour déterminer l'hostname
+    print("\n⚙️  Mode de déploiement :")
+    is_production = input("Mode production ? [y/N]: ").strip().lower()
+    config['flask_env'] = "production" if is_production in ['y', 'yes', 'o', 'oui'] else "development"
+    config['flask_debug'] = "False" if is_production in ['y', 'yes', 'o', 'oui'] else "True"
+    
+    # Déterminer l'hostname automatiquement
+    if config['flask_env'] == 'production':
+        default_host = "db"  # Docker Compose en production
+        host_explanation = "Production (Docker Compose)"
+    else:
+        default_host = "localhost"  # Développement local
+        host_explanation = "Développement (PostgreSQL local)"
+    
     # Base de données
-    print("\n🗄️  Configuration PostgreSQL :")
-    config['db_host'] = input("Host PostgreSQL [localhost]: ").strip() or "localhost"
+    print(f"\n🗄️  Configuration PostgreSQL ({host_explanation}) :")
+    config['db_host'] = input(f"Host PostgreSQL [{default_host}]: ").strip() or default_host
     config['db_port'] = input("Port PostgreSQL [5432]: ").strip() or "5432"
-    config['db_name'] = input("Nom de la base [cflow]: ").strip() or "cflow"
-    config['db_user'] = input("Utilisateur PostgreSQL [cflow_user]: ").strip() or "cflow_user"
+    
+    # Adapter les noms par défaut selon l'environnement
+    if config['flask_env'] == 'production':
+        default_db_name = "conference_flow"
+        default_db_user = "conference_user"
+    else:
+        default_db_name = "conferenceflow_dev"
+        default_db_user = "postgres"
+    
+    config['db_name'] = input(f"Nom de la base [{default_db_name}]: ").strip() or default_db_name
+    config['db_user'] = input(f"Utilisateur PostgreSQL [{default_db_user}]: ").strip() or default_db_user
     config['db_password'] = input("Mot de passe PostgreSQL : ").strip()
     
     if not config['db_password']:
@@ -89,15 +112,11 @@ def get_user_input():
     
     # Base URL
     print("\n🌐 Configuration serveur :")
-    config['base_url'] = input("URL de base [http://localhost:5000]: ").strip() or "http://localhost:5000"
-    
-    # Mode
-    print("\n⚙️  Mode de déploiement :")
-    is_production = input("Mode production ? [y/N]: ").strip().lower()
-    config['flask_env'] = "production" if is_production in ['y', 'yes', 'o', 'oui'] else "development"
-    config['flask_debug'] = "False" if is_production in ['y', 'yes', 'o', 'oui'] else "True"
+    default_url = "https://your-domain.com" if config['flask_env'] == 'production' else "http://localhost:5000"
+    config['base_url'] = input(f"URL de base [{default_url}]: ").strip() or default_url
     
     return config
+
 
 def create_env_file(config):
     """Crée le fichier .env avec la configuration."""
