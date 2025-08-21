@@ -1082,3 +1082,96 @@ Important:
 
     # Envoyer l'email
     send_email(subject, [reviewer.email], body, html)
+
+
+ # AJOUT dans app/emails.py
+
+def send_hal_collection_request(recipient_email, email_data, custom_message=""):
+    """Envoie une demande de création de collection HAL."""
+    
+    subject = f"Demande de création de collection HAL - {email_data['conference_name']}"
+    
+    # Corps du message basé sur votre exemple
+    body_parts = [
+        "Bonjour,",
+        "",
+        f"Je suis {email_data['contact_name']}, {email_data['contact_title']}, membre de l'équipe d'organisation du Congrès de la Société Française de Thermique 2026 qui se déroulera à {email_data['conference_location']} le {email_data['conference_dates']}.",
+        "",
+        "Dans le cadre de ce congrès, nous souhaitons déposer l'ensemble des communications acceptées (articles complets, work in progress et posters) dans une collection dédiée sur HAL.",
+        "",
+        "**Informations sur la collection demandée :**",
+        f"* **Nom de la collection :** {email_data['conference_name']} - 34ème Congrès de la Société Française de Thermique",
+        f"* **Identifiant souhaité :** {email_data['collection_id']}",
+        "* **Type de documents :** Articles de conférences, communications, posters",
+        f"* **Nombre estimé de documents :** ~{email_data['estimated_docs']} publications",
+        "* **Domaine scientifique :** Sciences de l'ingénieur (thermique, énergétique)",
+        "",
+        "**Contexte organisationnel :**",
+        "* **Organisateur principal :** Société Française de Thermique",
+        f"* **Institution d'accueil :** {email_data.get('organizing_lab_name', 'Université de Lorraine')}",
+        f"* **Contact organisateur :** {email_data['contact_email']}",
+        f"* **Mon login HAL :** {email_data['hal_login']}",
+        "",
+        "**Objectifs :**",
+        "* Centraliser toutes les publications du congrès",
+        "* Faciliter la diffusion des travaux de recherche",
+        "* Automatiser le dépôt via l'API SWORD",
+        "* Assurer une visibilité maximale aux contributions",
+        "",
+        "**Planning :**",
+        f"* **Soumissions :** Novembre 2025 - {email_data['submission_deadline']}",
+        f"* **Congrès :** {email_data['conference_dates']}",
+        f"* **Dépôts HAL prévus :** À partir de {email_data['deposit_start']}",
+        ""
+    ]
+    
+    # Ajouter un message personnalisé si fourni
+    if custom_message.strip():
+        body_parts.extend([
+            "**Message supplémentaire :**",
+            custom_message.strip(),
+            ""
+        ])
+    
+    body_parts.extend([
+        "Pourriez-vous me confirmer la création de cette collection et m'indiquer les éventuelles étapes supplémentaires à suivre ?",
+        "",
+        "Je reste à votre disposition pour tout complément d'information.",
+        "",
+        "Cordialement,",
+        f"{email_data['contact_name']}",
+        f"{email_data['contact_title']}",
+        f"Email : {email_data['contact_email']}"
+    ])
+    
+    body = '\n'.join(body_parts)
+    
+    # Version HTML
+    html_parts = []
+    for line in body_parts:
+        if line.startswith('**') and line.endswith('**'):
+            # Titre en gras
+            title = line.replace('**', '')
+            html_parts.append(f"<p><strong>{title}</strong></p>")
+        elif line.startswith('* **') and '**' in line:
+            # Élément de liste avec partie en gras
+            parts = line.split('**')
+            if len(parts) >= 3:
+                html_parts.append(f"<li><strong>{parts[1]}</strong>{parts[2]}</li>")
+            else:
+                html_parts.append(f"<li>{line[2:]}</li>")
+        elif line.startswith('* '):
+            # Élément de liste simple
+            html_parts.append(f"<li>{line[2:]}</li>")
+        elif line == "":
+            # Ligne vide
+            html_parts.append("<br>")
+        else:
+            # Paragraphe normal
+            html_parts.append(f"<p>{line}</p>")
+    
+    html = ''.join(html_parts)
+    html = f"<div style='font-family: Arial, sans-serif; line-height: 1.6;'>{html}</div>"
+    
+    # Envoyer l'email
+    send_email(subject, [recipient_email], body, html)   
