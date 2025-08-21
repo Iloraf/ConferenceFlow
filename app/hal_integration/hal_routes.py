@@ -336,3 +336,74 @@ document.getElementById('test-connection').addEventListener('click', function() 
 </script>
 {% endblock %}
 '''
+
+@hal_bp.route('/admin/hal/request-collection', methods=['GET', 'POST'])
+@login_required
+def request_collection():
+    """Page pour demander la création de la collection HAL"""
+    if not current_user.is_admin:
+        flash("Accès refusé", "danger")
+        return redirect(url_for("main.index"))
+    
+    # Charger la configuration depuis conference.yml
+    from app.config_loader import ConfigLoader
+    config_loader = ConfigLoader()
+    config = config_loader.load_conference_config()
+    
+    # Extraire les informations du responsable depuis .env (générées par configure.py)
+    import os
+    
+    # Utiliser les variables admin générées par configure.py
+    admin_first_name = os.getenv('ADMIN_FIRST_NAME', 'Admin')
+    admin_last_name = os.getenv('ADMIN_LAST_NAME', 'Responsable')
+    admin_email = os.getenv('ADMIN_EMAIL', 'admin@example.com')
+    
+    # Construire le nom complet et titre depuis conference.yml
+    contact_name = f"{admin_first_name} {admin_last_name}"
+    
+    # Construire le titre à partir des infos du laboratoire organisateur
+    organizing_lab = config.get('conference', {}).get('organizing_lab', {})
+    lab_short_name = organizing_lab.get('short_name', 'Laboratoire organisateur')
+    contact_title = f"Responsable du congrès, {lab_short_name}"
+    
+    # Login HAL - à ajouter manuellement dans .env si nécessaire
+    hal_login = os.getenv('HAL_LOGIN', os.getenv('HAL_USERNAME', 'organizer-login'))
+    
+    # Données pour le template d'email
+    email_data = {
+        'contact_name': contact_name,
+        'contact_title': contact_title,
+        'contact_email': admin_email,
+        'hal_login': hal_login,
+        'conference_name': config.get('conference', {}).get('full_name', 'SFT 2026'),
+        'conference_dates': f"{config.get('dates', {}).get('conference', {}).get('start', '2026-06-02')} au {config.get('dates', {}).get('conference', {}).get('end', '2026-06-05')}",
+        'conference_location': config.get('conference', {}).get('location', {}).get('city', 'Nancy'),
+        'organizing_lab_name': organizing_lab.get('name', 'Laboratoire organisateur'),
+        'organizing_lab_short': lab_short_name,
+        'collection_id': config.get('integrations', {}).get('hal', {}).get('collection_id', 'SFT2026'),
+        'estimated_docs': 200,
+        'submission_deadline': config.get('dates', {}).get('submission', {}).get('final', 'Mars 2026'),
+        'deposit_start': config.get('dates', {}).get('conference', {}).get('start', 'Avril 2026')
+    }
+    
+    if request.method == 'POST':
+        # Récupérer les données du formulaire
+        recipient_email = request.form.get('recipient_email', 'hal@ccsd.cnrs.fr')
+        custom_message = request.form.get('custom_message', '')
+        
+        try:
+            # Envoyer l'email
+            from app.emails import send_hal_collection_request
+            send_hal_collection_request(
+                recipient_email=recipient_email,
+                email_data=email_data,
+                custom_message=custom_message
+            )
+            
+            flash('Demande de collection HAL envoyée avec succès !', 'success')
+            return redirect(url_for('hal.dashboard'))
+            
+        except Exception as e:
+            flash(f'Erreur lors de l\'envoi : {str(e)}', 'danger')
+    
+    return render_template('admin/hal/request_collection.html', email_data=email_data)

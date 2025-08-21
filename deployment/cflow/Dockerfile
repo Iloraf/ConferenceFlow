@@ -39,6 +39,3 @@ COPY --chown=appuser:appuser run.py ./run.py
 
 
 COPY --chown=appuser:appuser deployment/cflow/gunicorn.conf.py .
-
-
-CMD ["gunicorn", "-c", "gunicorn.conf.py", "run:app"]

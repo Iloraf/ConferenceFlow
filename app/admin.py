@@ -1,4 +1,3 @@
-# app/admin.py (routes supplémentaires pour le dashboard)
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -226,63 +225,6 @@ def notify_reviewers():
     reviewers = User.query.filter_by(is_reviewer=True).all()
     
     return render_template('admin/notify_reviewers.html', reviewers=reviewers)
-
-@admin.route('/affiliations/import', methods=['GET', 'POST'])
-@login_required
-def import_affiliations():
-    """Import des affiliations depuis un fichier CSV."""
-    
-    if not current_user.is_admin:
-        flash("Accès refusé.", "danger")
-        return redirect(url_for("main.index"))
-    
-    if request.method == 'POST':
-        # Vérification du fichier uploadé
-        if 'csv_file' not in request.files:
-            flash('Aucun fichier sélectionné.', 'error')
-            return redirect(request.url)
-        
-        file = request.files['csv_file']
-        if file.filename == '':
-            flash('Aucun fichier sélectionné.', 'error')
-            return redirect(request.url)
-        
-        if not file.filename.lower().endswith('.csv'):
-            flash('Veuillez sélectionner un fichier CSV.', 'error')
-            return redirect(request.url)
-        
-        try:
-            # Lecture et traitement du CSV
-            import_results = process_affiliations_csv(file)
-            
-            # Messages de retour
-            if import_results['success'] > 0:
-                flash(f"Import réussi : {import_results['success']} affiliations importées.", 'success')
-            
-            if import_results['updated'] > 0:
-                flash(f"{import_results['updated']} affiliations mises à jour.", 'info')
-            
-            if import_results['errors']:
-                for error in import_results['errors'][:5]: 
-                    flash(f"Erreur ligne {error['line']}: {error['message']}", 'warning')
-                
-                if len(import_results['errors']) > 5:
-                    flash(f"... et {len(import_results['errors']) - 5} autres erreurs.", 'warning')
-            
-            if import_results['skipped'] > 0:
-                flash(f"{import_results['skipped']} lignes ignorées (doublons ou erreurs).", 'info')
-            
-            return redirect(url_for('admin.list_affiliations'))
-            
-        except Exception as e:
-            current_app.logger.error(f"Erreur lors de l'import des affiliations: {e}")
-            flash(f"Erreur lors de l'import : {str(e)}", 'error')
-            return redirect(request.url)
-    
-    # GET : Affichage du formulaire
-    total_affiliations = Affiliation.query.count()
-    return render_template('admin/import_affiliations.html', 
-                         total_affiliations=total_affiliations)
 
 @admin.route('/affiliations')
 @login_required
@@ -1337,18 +1279,13 @@ def send_review_reminders():
     
     return redirect(url_for('admin.communications_ready_for_review'))
 
-
-
-
-
-
 @admin.route('/communications/ready-for-review')
 @login_required
 def communications_ready_for_review():
     """Liste des communications prêtes pour review."""
     if not current_user.is_admin:
         abort(403)
-    
+
     # Communications qui ont besoin de reviewers
     # 1. Articles soumis pas encore en review
     communications_soumis = Communication.query.filter(
@@ -1371,10 +1308,10 @@ def communications_ready_for_review():
             ReviewAssignment.communication_id == comm.id,
             ReviewAssignment.status != 'declined'
         ).count()
-    
-    # Ajouter si elle a besoin de reviewers (moins de 2 reviewers actifs)
-    if active_assignments < 2:
-        ready_communications.append(comm)
+        
+        # Ajouter si elle a besoin de reviewers (moins de 2 reviewers actifs)
+        if active_assignments < 2:
+            ready_communications.append(comm)
 
     # Articles par statut avec vérification du nombre de reviewers
     en_review_real = 0
@@ -1389,10 +1326,10 @@ def communications_ready_for_review():
             ReviewAssignment.communication_id == comm.id,
             ReviewAssignment.status != 'declined'
         ).count()
-    
-    # Compter comme "vraiment en review" seulement si 2+ reviewers actifs
-    if active_assignments >= 2:
-        en_review_real += 1
+        
+        # Compter comme "vraiment en review" seulement si 2+ reviewers actifs
+        if active_assignments >= 2:
+            en_review_real += 1
 
     articles_stats = {
         'soumis_non_assignes': len(ready_communications),
@@ -1589,54 +1526,102 @@ def send_review_notifications(comm_id):
     
     return redirect(url_for('admin.suggest_reviewers', comm_id=comm_id))
 
-
-################  IMPORT AFFILIATIONS  ##########
-
-@admin.route("/import-affiliations-csv")
+@admin.route("/affiliations/import", methods=["GET", "POST"])
 @login_required
-def import_affiliations_csv():
-    """Importe les affiliations depuis le fichier labos.csv."""
+def import_affiliations():
+    """Page unifiée pour l'import des affiliations."""
     if not current_user.is_admin:
         flash("Accès refusé.", "danger")
         return redirect(url_for("main.index"))
     
-    try:
-        # Debug : vérifier le chemin du fichier
-        csv_path = os.path.join(current_app.root_path, '..', 'config', 'labos.csv')
-        flash(f"🔍 Recherche du fichier : {csv_path}", "info")
+    if request.method == 'POST':
+        source = request.form.get('source', 'upload')
         
-        if not os.path.exists(csv_path):
-            flash(f"❌ Fichier non trouvé : {csv_path}", "danger")
-            return redirect(url_for("admin.admin_dashboard"))
+        if source == 'upload':
+            # Import via upload de fichier
+            if 'csv_file' not in request.files:
+                flash('Aucun fichier sélectionné.', 'error')
+                return redirect(request.url)
+            
+            file = request.files['csv_file']
+            if file.filename == '':
+                flash('Aucun fichier sélectionné.', 'error')
+                return redirect(request.url)
+            
+            if not file.filename.lower().endswith('.csv'):
+                flash('Veuillez sélectionner un fichier CSV.', 'error')
+                return redirect(request.url)
+            
+            try:
+                import_results = process_affiliations_csv(file)
+                flash_import_results(import_results)
+                return redirect(url_for('admin.list_affiliations'))
+                
+            except Exception as e:
+                current_app.logger.error(f"Erreur lors de l'import des affiliations: {e}")
+                flash(f"Erreur lors de l'import : {str(e)}", 'error')
+                return redirect(request.url)
         
-        flash(f"✅ Fichier trouvé", "success")
-        
-        # Compter les affiliations avant import
-        count_before = Affiliation.query.count()
-        flash(f"📊 Affiliations avant import : {count_before}", "info")
-        
-        # Utiliser la fonction existante dans models.py
-        from .models import import_affiliations_from_csv
-        
-        affiliations_imported = import_affiliations_from_csv(csv_path)  # AVEC le chemin !
-        
-        # Compter après import
-        count_after = Affiliation.query.count()
-        flash(f"📊 Affiliations après import : {count_after}", "info")
-        
-        if affiliations_imported > 0:
-            flash(f"✅ {affiliations_imported} affiliations importées", "success")
-        else:
-            flash("ℹ️ Aucune nouvelle affiliation importée", "warning")
-        
-    except Exception as e:
-        import traceback
-        flash(f"❌ Erreur lors de l'import : {str(e)}", "danger")
-        flash(f"🔧 Détail de l'erreur : {traceback.format_exc()}", "warning")
-        current_app.logger.error(f"Erreur import affiliations: {e}")
+        elif source == 'default':
+            # Import depuis le fichier par défaut dans app/static/content/
+            try:
+                csv_path = os.path.join(current_app.static_folder, 'content', 'affiliations.csv')
+                
+                if not os.path.exists(csv_path):
+                    flash(f"Fichier affiliations.csv non trouvé dans app/static/content/", "error")
+                    flash("Veuillez d'abord placer votre fichier affiliations.csv dans le dossier app/static/content/", "info")
+                    return redirect(request.url)
+                
+                # Compter avant import
+                count_before = Affiliation.query.count()
+                
+                # Lire le fichier et l'importer
+                with open(csv_path, 'rb') as f:
+                    import_results = process_affiliations_csv(f)
+                
+                # Messages de retour
+                flash_import_results(import_results)
+                flash(f"Import depuis {csv_path}", "info")
+                
+                return redirect(url_for('admin.list_affiliations'))
+                
+            except Exception as e:
+                import traceback
+                flash(f"Erreur lors de l'import : {str(e)}", "error")
+                current_app.logger.error(f"Erreur import affiliations: {e}")
+                current_app.logger.error(traceback.format_exc())
+                return redirect(request.url)
     
-    return redirect(url_for("admin.admin_dashboard"))
+    # GET : Affichage du formulaire
+    total_affiliations = Affiliation.query.count()
+    
+    # Vérifier si le fichier par défaut existe
+    default_file_path = os.path.join(current_app.static_folder, 'content', 'affiliations.csv')
+    default_file_exists = os.path.exists(default_file_path)
+    
+    return render_template('admin/import_affiliations.html', 
+                         total_affiliations=total_affiliations,
+                         default_file_exists=default_file_exists,
+                         default_file_path=default_file_path)
 
+
+def flash_import_results(import_results):
+    """Affiche les messages flash pour les résultats d'import."""
+    if import_results['success'] > 0:
+        flash(f"Import réussi : {import_results['success']} affiliations importées.", 'success')
+    
+    if import_results['updated'] > 0:
+        flash(f"{import_results['updated']} affiliations mises à jour.", 'info')
+    
+    if import_results['errors']:
+        for error in import_results['errors'][:5]: 
+            flash(f"Erreur ligne {error['line']}: {error['message']}", 'warning')
+        
+        if len(import_results['errors']) > 5:
+            flash(f"... et {len(import_results['errors']) - 5} autres erreurs.", 'warning')
+    
+    if import_results['skipped'] > 0:
+        flash(f"{import_results['skipped']} lignes ignorées (doublons ou erreurs).", 'info')
 
 
 
@@ -2225,9 +2210,6 @@ def test_zone():
     }
     
     return render_template("admin/test_zone.html", stats=stats, file_status=file_status)
-
-
-# À ajouter dans routes.py
 
 @admin.route("/setup-status")
 @login_required
@@ -4037,7 +4019,12 @@ def run_email_tests():
         if 'biot_fourier' in selected_tests:
             result = run_biot_fourier_test(test_objects['communication'], dry_run)
             results.append(result)
-        
+
+        if 'hal_collection' in selected_tests:
+            result = run_hal_collection_test(test_email, dry_run) 
+            results.append(result)
+
+            
         # Test de configuration
         config_result = test_email_configuration()
         results.append(config_result)
@@ -4275,6 +4262,66 @@ def test_email_configuration():
     except Exception as e:
         return {
             'test': 'Configuration emails',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+    
+def run_hal_collection_test(test_email, dry_run):
+    """Test de l'email de demande de collection HAL."""
+    try:
+        if dry_run:
+            return {
+                'test': 'Demande collection HAL',
+                'success': True,
+                'message': f'Email de demande collection HAL prêt à envoyer à {test_email}'
+            }
+        
+        # Charger la configuration
+        from app.config_loader import ConfigLoader
+        config_loader = ConfigLoader()
+        config = config_loader.load_conference_config()
+        
+        # Créer les données d'email (même logique que dans hal_routes.py)
+        import os
+        admin_first_name = os.getenv('ADMIN_FIRST_NAME', 'Admin')
+        admin_last_name = os.getenv('ADMIN_LAST_NAME', 'Test')
+        admin_email = os.getenv('ADMIN_EMAIL', test_email)
+        
+        organizing_lab = config.get('conference', {}).get('organizing_lab', {})
+        lab_short_name = organizing_lab.get('short_name', 'LEMTA')
+        
+        email_data = {
+            'contact_name': f"{admin_first_name} {admin_last_name}",
+            'contact_title': f"Responsable du congrès, {lab_short_name}",
+            'contact_email': admin_email,
+            'hal_login': os.getenv('HAL_LOGIN', 'test-login'),
+            'conference_name': config.get('conference', {}).get('full_name', 'SFT 2026'),
+            'conference_dates': '2-5 juin 2026',
+            'conference_location': config.get('conference', {}).get('location', {}).get('city', 'Nancy'),
+            'organizing_lab_name': organizing_lab.get('name', 'LEMTA'),
+            'collection_id': 'SFT2026',
+            'estimated_docs': 200,
+            'submission_deadline': 'Mars 2026',
+            'deposit_start': 'Avril 2026'
+        }
+        
+        # Envoyer l'email de test
+        from app.emails import send_hal_collection_request
+        send_hal_collection_request(
+            recipient_email=test_email,
+            email_data=email_data,
+            custom_message="[TEST] Email de test automatique depuis l'interface admin"
+        )
+        
+        return {
+            'test': 'Demande collection HAL',
+            'success': True,
+            'message': f'Email de demande collection HAL envoyé à {test_email}'
+        }
+        
+    except Exception as e:
+        return {
+            'test': 'Demande collection HAL',
             'success': False,
             'message': f'Erreur: {str(e)}'
         }

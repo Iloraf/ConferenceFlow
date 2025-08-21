@@ -149,46 +149,60 @@
       </div>
     </div>
 
-    <!-- Gestion du contenu -->
-    <div class="col-lg-4 mb-4">
-      <div class="card border-0 shadow-sm h-100 hover-lift">
-        <div class="card-body">
-          <div class="d-flex align-items-center mb-3">
-            <div class="bg-info bg-opacity-10 rounded-circle p-3 me-3">
-              <i class="fas fa-folder-open text-info fa-2x"></i>
-            </div>
-            <div>
-              <h5 class="card-title mb-1">Gestion du contenu</h5>
-              <p class="text-muted small mb-0">Fichiers CSV et configuration</p>
-            </div>
-          </div>
-          
-          <div class="mb-3">
-            <div class="row text-center">
-              <div class="col-6">
-                <div class="d-flex justify-content-between align-items-center">
-                  <span class="text-muted small">Affiliations</span>
-                  <strong class="text-info">{{ affiliations_count|default(0) }}</strong>
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="d-flex justify-content-between align-items-center">
-                  <span class="text-muted small">Fichiers CSV</span>
-                  <strong class="text-info">{{ csv_files_count|default(0) }}</strong>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('admin.manage_content') }}" class="btn btn-info">
-              <i class="fas fa-cog me-2"></i>Gérer le contenu
+<!-- Gestion des données et contenu -->
+<div class="col-lg-4 mb-4">
+  <div class="card border-0 shadow-sm h-100 hover-lift">
+    <div class="card-body">
+      <div class="d-flex align-items-center mb-3">
+        <div class="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+          <i class="fas fa-database text-info fa-2x"></i>
+        </div>
+        <div>
+          <h5 class="card-title mb-1">Gestion des données</h5>
+          <p class="text-muted small mb-0">Affiliations, contenu, configuration</p>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <div class="row text-center">
+          <div class="col-6">
+            <div class="border-end">
+              <strong class="d-block">{{ affiliations_count or 0 }}</strong>
+              <small class="text-muted">Affiliations</small>
+            </div>
+          </div>
+          <div class="col-6">
+            <strong class="d-block text-info">{{ content_pages_count or 0 }}</strong>
+            <small class="text-muted">Pages contenu</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-grid gap-2">
+        <!-- Bouton principal - Gestion contenu -->
+        <a href="{{ url_for('admin.manage_content') }}" class="btn btn-info">
+          <i class="fas fa-edit me-2"></i>Gérer le contenu
+        </a>
+        
+        <!-- Boutons secondaires -->
+        <div class="row g-1">
+          <div class="col-6">
+            <a href="{{ url_for('admin.import_affiliations') }}" class="btn btn-outline-info btn-sm w-100">
+              <i class="fas fa-building me-1"></i>Affiliations
             </a>
-            
+          </div>
+          <div class="col-6">
+            <a href="{{ url_for('admin.list_affiliations') }}" class="btn btn-outline-info btn-sm w-100">
+              <i class="fas fa-list me-1"></i>Liste
+            </a>
           </div>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
     
     <!-- Gestion des reviews -->
     <div class="col-lg-4 mb-4">
@@ -395,7 +409,11 @@
         <a href="{{ url_for('hal.dashboard') }}" class="btn btn-dark w-100">
           <i class="fas fa-tachometer-alt me-2"></i>Tableau de bord HAL
         </a>
-        
+
+ <a href="{{ url_for('hal.request_collection') }}" class="btn btn-outline-dark w-100">
+        <i class="fas fa-envelope me-2"></i>Demander la collection
+    </a>
+	
         <a href="{{ url_for('hal.list_communications') }}" class="btn btn-outline-dark w-100">
           <i class="fas fa-list me-2"></i>Gérer les communications
         </a>

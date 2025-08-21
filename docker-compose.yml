@@ -22,6 +22,10 @@ services:
     build:
       dockerfile: ./deployment/cflow/Dockerfile
       context: .
+    env_file:
+      - .env
+    depends_on:
+      - db
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-conference_user}:${DB_PASSWORD:-conference_password}@db:5432/${DB_NAME:-conference_flow}
     ports:
