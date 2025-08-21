@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Demande de Collection HAL - {{ conference.short_name }}<script>
+// Validation du formulaire et amélioration UX
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    form.addEventListener('submit', function(e) {
+        // Confirmation avant envoi
+        const recipient = document.getElementById('recipient_email').value;
+        const confirmed = confirm(`Confirmer l'envoi de la demande de collection HAL à ${recipient} ?`);
+        
+        if (!confirmed) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // Désactiver le bouton et changer le texte
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Envoi en cours...';
+    });
+    
+    // Validation en temps réel
+    const emailInput = document.getElementById('recipient_email');
+    emailInput.addEventListener('input', function() {
+        const email = this.value;
+        const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        
+        if (isValid) {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+            submitBtn.disabled = false;
+        } else {
+            this.classList.remove('is-valid');
+            this.classList.add('is-invalid');
+            submitBtn.disabled = true;
+        }
+    });
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            
+            <!-- En-tête -->
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-database me-2"></i>
+                        Demande de création de collection HAL
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Cette page vous permet d'envoyer une demande officielle à HAL pour créer la collection 
+                        <strong>{{ email_data.collection_id }}</strong> dédiée à votre congrès.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulaire -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-envelope me-2"></i>
+                                Paramètres d'envoi
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <div class="mb-3">
+                                    <label for="recipient_email" class="form-label">
+                                        <strong>Destinataire</strong>
+                                    </label>
+                                    <input type="email" 
+                                           class="form-control" 
+                                           id="recipient_email" 
+                                           name="recipient_email" 
+                                           value="hal@ccsd.cnrs.fr"
+                                           required>
+                                    <div class="form-text">
+                                        Email officiel de l'équipe HAL pour les demandes de collections
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="custom_message" class="form-label">
+                                        <strong>Message supplémentaire (optionnel)</strong>
+                                    </label>
+                                    <textarea class="form-control" 
+                                              id="custom_message" 
+                                              name="custom_message" 
+                                              rows="4"
+                                              placeholder="Ajoutez ici toute information complémentaire..."></textarea>
+                                    <div class="form-text">
+                                        Ce message sera ajouté au modèle standard de demande
+                                    </div>
+                                </div>
+
+                                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                    <a href="{{ url_for('hal.dashboard') }}" class="btn btn-outline-secondary me-md-2">
+                                        <i class="fas fa-arrow-left me-2"></i>Annuler
+                                    </a>
+                                    <button type="submit" class="btn btn-dark" id="submitBtn">
+                                        <i class="fas fa-paper-plane me-2"></i>
+                                        Envoyer la demande
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aperçu du message -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-eye me-2"></i>
+                                Aperçu de la demande
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="small">
+                                <p><strong>Objet :</strong><br>
+                                Demande de création de collection HAL - {{ email_data.conference_name }}</p>
+                                
+                                <p><strong>Expéditeur :</strong><br>
+                                {{ email_data.contact_name }}<br>
+                                {{ email_data.contact_email }}</p>
+                                
+                                <p><strong>Informations principales :</strong></p>
+                                <ul class="small">
+                                    <li><strong>Collection :</strong> {{ email_data.collection_id }}</li>
+                                    <li><strong>Congrès :</strong> {{ email_data.conference_dates }}</li>
+                                    <li><strong>Lieu :</strong> {{ email_data.conference_location }}</li>
+                                    <li><strong>Documents estimés :</strong> ~{{ email_data.estimated_docs }}</li>
+                                    <li><strong>Login HAL :</strong> {{ email_data.hal_login }}</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <button type="button" 
+                                        class="btn btn-outline-primary btn-sm w-100" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#previewModal">
+                                    <i class="fas fa-search me-1"></i>
+                                    Voir le message complet
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Statut collection -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Statut actuel
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Collection non créée</strong><br>
+                                <small>La collection {{ email_data.collection_id }} n'existe pas encore sur HAL.</small>
+                            </div>
+                            
+                            <div class="text-center">
+                                <a href="https://hal.science/{{ email_data.collection_id }}" 
+                                   target="_blank" 
+                                   class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-external-link-alt me-1"></i>
+                                    Vérifier sur HAL
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal aperçu complet -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">Aperçu du message complet</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="bg-light p-3 rounded">
+                    <div class="mb-3">
+                        <strong>Objet :</strong> Demande de création de collection HAL - {{ email_data.conference_name }}
+                    </div>
+                    
+                    <hr>
+                    
+                    <div style="white-space: pre-line; font-family: monospace; font-size: 0.9em;">
+Bonjour,
+
+Je suis {{ email_data.contact_name }}, {{ email_data.contact_title }}, membre de l'équipe d'organisation du Congrès de la Société Française de Thermique 2026 qui se déroulera à {{ email_data.conference_location }} le {{ email_data.conference_dates }}.
+
+Dans le cadre de ce congrès, nous souhaitons déposer l'ensemble des communications acceptées (articles complets, work in progress et posters) dans une collection dédiée sur HAL.
+
+<strong>Informations sur la collection demandée :</strong>
+* <strong>Nom de la collection :</strong> {{ email_data.conference_name }} - 34ème Congrès de la Société Française de Thermique
+* <strong>Identifiant souhaité :</strong> {{ email_data.collection_id }}
+* <strong>Type de documents :</strong> Articles de conférences, communications, posters
+* <strong>Nombre estimé de documents :</strong> ~{{ email_data.estimated_docs }} publications
+* <strong>Domaine scientifique :</strong> Sciences de l'ingénieur (thermique, énergétique)
+
+<strong>Contexte organisationnel :</strong>
+* <strong>Organisateur principal :</strong> Société Française de Thermique
+* <strong>Institution d'accueil :</strong> Université de Lorraine
+* <strong>Contact organisateur :</strong> {{ email_data.contact_email }}
+* <strong>Mon login HAL :</strong> {{ email_data.hal_login }}
+
+<strong>Objectifs :</strong>
+* Centraliser toutes les publications du congrès
+* Faciliter la diffusion des travaux de recherche
+* Automatiser le dépôt via l'API SWORD
+* Assurer une visibilité maximale aux contributions
+
+<strong>Planning :</strong>
+* <strong>Soumissions :</strong> Novembre 2025 - {{ email_data.submission_deadline }}
+* <strong>Congrès :</strong> {{ email_data.conference_dates }}
+* <strong>Dépôts HAL prévus :</strong> À partir de {{ email_data.deposit_start }}
+
+Pourriez-vous me confirmer la création de cette collection et m'indiquer les éventuelles étapes supplémentaires à suivre ?
+
+Je reste à votre disposition pour tout complément d'information.
+
+Cordialement,
+{{ email_data.contact_name }}
+{{ email_data.contact_title }}
+Email : {{ email_data.contact_email }}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

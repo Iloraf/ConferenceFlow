@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}Communications HAL - {{ conference.short_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-file-alt"></i> Gestion HAL des communications</h2>
+                    <p class="text-muted">Dépôt et suivi des communications dans la collection SFT2026</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('hal.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Retour
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <label class="form-label">Filtrer par statut HAL</label>
+                            <select id="status-filter" class="form-select" onchange="filterCommunications()">
+                                <option value="all">Tous</option>
+                                <option value="ready">Prêt pour dépôt</option>
+                                <option value="deposited">Déjà déposé</option>
+                                <option value="error">Erreur</option>
+                                <option value="unauthorized">Non autorisé</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Type de communication</label>
+                            <select id="type-filter" class="form-select" onchange="filterCommunications()">
+                                <option value="all">Tous types</option>
+                                <option value="article">Articles complets</option>
+                                <option value="wip">Work in Progress</option>
+                                <option value="poster">Posters</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Actions en masse</label>
+                            <br>
+                            <button class="btn btn-success" onclick="bulkDeposit()">
+                                <i class="fas fa-upload"></i> Déposer sélectionnés
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des communications -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list"></i> Communications ({{ communications|length }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="communications-table">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th>Titre</th>
+                                    <th>Auteur principal</th>
+                                    <th>Type</th>
+                                    <th>Statut HAL</th>
+                                    <th>Autorisation</th>
+                                    <th>HAL ID</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for comm_data in communications %}
+                                {% set comm = comm_data.communication %}
+                                {% set hal_deposit = comm_data.hal_deposit %}
+                                <tr class="comm-row" 
+                                    data-status="{{ 'deposited' if hal_deposit and hal_deposit.status == 'success' else ('error' if hal_deposit and hal_deposit.status == 'error' else ('ready' if comm_data.can_deposit else 'unauthorized')) }}"
+                                    data-type="{{ comm.type or 'article' }}">
+                                    <td>
+                                        {% if comm_data.can_deposit and not (hal_deposit and hal_deposit.status == 'success') %}
+                                        <input type="checkbox" class="comm-checkbox" value="{{ comm.id }}">
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ comm.title[:60] }}{% if comm.title|length > 60 %}...{% endif %}</strong>
+                                            <br>
+                                            <small class="text-muted">ID: {{ comm.id }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if comm.authors %}
+                                            {{ comm.authors[0].full_name }}
+                                            {% if comm.authors|length > 1 %}
+                                                <br><small class="text-muted">+{{ comm.authors|length - 1 }} autres</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Aucun auteur</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ comm.type or 'article' }}</span>
+                                    </td>
+                                    <td>
+                                        {% if hal_deposit %}
+                                            {% set status_info = hal_deposit.get_status_display() %}
+                                            <span class="badge bg-{{ status_info.class }}">
+                                                {{ status_info.text }}
+                                            </span>
+                                            {% if hal_deposit.error_message %}
+                                                <br><small class="text-danger">{{ hal_deposit.error_message[:50] }}...</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">Pas de dépôt</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if comm.hal_authorization %}
+                                            <span class="badge bg-success">Autorisé</span>
+                                            {% if comm_data.missing_idhal %}
+                                                <br><small class="text-warning">IDHAL manquant</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-danger">Non autorisé</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if hal_deposit and hal_deposit.hal_id %}
+                                            <a href="{{ hal_deposit.hal_url }}" target="_blank" class="text-decoration-none">
+                                                {{ hal_deposit.hal_id }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if comm_data.can_deposit and not (hal_deposit and hal_deposit.status == 'success') %}
+                                                <button class="btn btn-outline-primary" 
+                                                        onclick="depositCommunication({{ comm.id }})">
+                                                    <i class="fas fa-upload"></i>
+                                                </button>
+                                            {% endif %}
+                                            
+                                            {% if hal_deposit and hal_deposit.hal_id %}
+                                                <button class="btn btn-outline-info" 
+                                                        onclick="checkStatus({{ hal_deposit.id }})">
+                                                    <i class="fas fa-sync"></i>
+                                                </button>
+                                            {% endif %}
+                                            
+                                            <button class="btn btn-outline-secondary" 
+                                                    onclick="showDetails({{ comm.id }})">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de détails -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détails de la communication</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-content">
+                <!-- Contenu chargé dynamiquement -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Filtrage des communications
+function filterCommunications() {
+    const statusFilter = document.getElementById('status-filter').value;
+    const typeFilter = document.getElementById('type-filter').value;
+    const rows = document.querySelectorAll('.comm-row');
+    
+    rows.forEach(row => {
+        const status = row.dataset.status;
+        const type = row.dataset.type;
+        
+        const statusMatch = statusFilter === 'all' || status === statusFilter;
+        const typeMatch = typeFilter === 'all' || type === typeFilter;
+        
+        row.style.display = (statusMatch && typeMatch) ? '' : 'none';
+    });
+}
+
+// Sélection en masse
+function toggleSelectAll() {
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.comm-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+// Dépôt d'une communication
+function depositCommunication(commId) {
+    if (!confirm('Confirmer le dépôt sur HAL ?')) return;
+    
+    const button = event.target.closest('button');
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    fetch(`/hal/admin/hal/deposit/${commId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Dépôt HAL réussi !');
+            location.reload();
+        } else {
+            alert('Erreur: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Erreur technique: ' + error);
+    })
+    .finally(() => {
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-upload"></i>';
+    });
+}
+
+// Vérification du statut
+function checkStatus(depositId) {
+    fetch(`/hal/admin/hal/status/${depositId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Erreur technique: ' + error);
+        });
+}
+
+// Affichage des détails
+function showDetails(commId) {
+    // TODO: Charger les détails de la communication
+    document.getElementById('modal-content').innerHTML = 
+        '<p>Chargement des détails de la communication ' + commId + '...</p>';
+    new bootstrap.Modal(document.getElementById('detailsModal')).show();
+}
+
+// Dépôt en masse
+function bulkDeposit() {
+    const selected = Array.from(document.querySelectorAll('.comm-checkbox:checked'))
+                         .map(cb => cb.value);
+    
+    if (selected.length === 0) {
+        alert('Aucune communication sélectionnée');
+        return;
+    }
+    
+    if (!confirm(`Confirmer le dépôt de ${selected.length} communication(s) sur HAL ?`)) {
+        return;
+    }
+    
+    // TODO: Implémenter le dépôt en masse
+    alert('Fonctionnalité en développement');
+}
+</script>
+{% endblock %}

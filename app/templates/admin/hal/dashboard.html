@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}Intégration HAL - {{ conference.short_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- En-tête -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 text-dark mb-2">
+                        <i class="fas fa-database me-2"></i>
+                        Intégration HAL - Conference Flow
+                    </h1>
+                    <p class="text-muted mb-0">
+                        Gestion des dépôts dans la collection SFT2026 (Mode TEST)
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Retour Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions principales -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-envelope me-2"></i>
+                        Configuration Collection
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Demander la création de la collection SFT2026 auprès de l'équipe HAL.
+                    </p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('hal.request_collection') }}" class="btn btn-warning">
+                            <i class="fas fa-paper-plane me-2"></i>
+                            Demander la collection
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plug me-2"></i>
+                        Test de Connexion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Vérifier la connectivité à l'API HAL et l'accès à la collection.
+                    </p>
+                    <div class="d-grid">
+                        <button id="test-connection" class="btn btn-primary">
+                            <i class="fas fa-wifi me-2"></i>
+                            Tester la connexion
+                        </button>
+                    </div>
+                    <div id="connection-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-external-link-alt me-2"></i>
+                        Collection HAL
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Consulter la collection SFT2026 directement sur HAL.
+                    </p>
+                    <div class="d-grid">
+                        <a href="https://hal.science/SFT2026" target="_blank" class="btn btn-info">
+                            <i class="fas fa-globe me-2"></i>
+                            Voir sur HAL
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-secondary">
+                <div class="card-body text-center">
+                    <i class="fas fa-file-alt fa-2x mb-2"></i>
+                    <h3>{{ stats.total_communications }}</h3>
+                    <p class="mb-0">Communications totales</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h3>{{ stats.successful_deposits }}</h3>
+                    <p class="mb-0">Dépôts réussis</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h3>{{ stats.pending_deposits }}</h3>
+                    <p class="mb-0">En attente</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <h3>{{ stats.failed_deposits }}</h3>
+                    <p class="mb-0">Échecs</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions et liens -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        Gestion des Communications
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('hal.list_communications') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-list me-2"></i>
+                            Liste des communications
+                        </a>
+                        <a href="{{ url_for('admin.communications_dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-chart-bar me-2"></i>
+                            Dashboard communications
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Informations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Mode TEST activé</strong><br>
+                        Tous les dépôts se font sur l'environnement de test HAL.
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Collection requis</strong><br>
+                        La collection SFT2026 doit être créée par l'équipe HAL avant le premier dépôt.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dépôts récents -->
+    {% if recent_deposits %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Dépôts récents
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Communication</th>
+                                    <th>Statut</th>
+                                    <th>Date</th>
+                                    <th>HAL ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for deposit in recent_deposits %}
+                                <tr>
+                                    <td>{{ deposit.communication.title[:50] }}...</td>
+                                    <td>
+                                        {% if deposit.status == 'success' %}
+                                            <span class="badge bg-success">Succès</span>
+                                        {% elif deposit.status == 'pending' %}
+                                            <span class="badge bg-warning">En attente</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Erreur</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ deposit.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        {% if deposit.hal_id %}
+                                            <a href="https://hal.science/{{ deposit.hal_id }}" target="_blank">
+                                                {{ deposit.hal_id }}
+                                            </a>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Test de connexion HAL
+document.getElementById('test-connection').addEventListener('click', function() {
+    const button = this;
+    const result = document.getElementById('connection-result');
+    
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Test en cours...';
+    
+    fetch('{{ url_for("hal.test_connection") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                result.innerHTML = '<div class="alert alert-success mt-2"><i class="fas fa-check me-2"></i>' + data.message + '</div>';
+            } else {
+                result.innerHTML = '<div class="alert alert-danger mt-2"><i class="fas fa-times me-2"></i>' + data.message + '</div>';
+            }
+        })
+        .catch(error => {
+            result.innerHTML = '<div class="alert alert-danger mt-2"><i class="fas fa-times me-2"></i>Erreur: ' + error + '</div>';
+        })
+        .finally(() => {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-wifi me-2"></i>Tester la connexion';
+        });
+});
+</script>
+{% endblock %}
+
