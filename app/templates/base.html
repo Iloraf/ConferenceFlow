@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>{{ conference.short_name }} {{ conference_location.city }}</title>   
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='content/favicon.ico') }}">
+
+    <title>{{ conference.short_name }} {{ conference_location.city }}</title>   
     <!-- PWA -->
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#022949">
