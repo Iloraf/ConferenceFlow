@@ -54,44 +54,33 @@ def get_user_input():
     
     config = {}
     
-    # Mode AVANT la base de données pour déterminer l'hostname
+    # Mode de déploiement
     print("\n⚙️  Mode de déploiement :")
-    is_production = input("Mode production ? [y/N]: ").strip().lower()
-    config['flask_env'] = "production" if is_production in ['y', 'yes', 'o', 'oui'] else "development"
-    config['flask_debug'] = "False" if is_production in ['y', 'yes', 'o', 'oui'] else "True"
+    print("1. Développement local (SQLite)")
+    print("2. Production Docker (PostgreSQL)")
     
-    # Docker partout - hostname toujours "db"
-    default_host = "db"
-    host_explanation = "Production (Docker)" if config['flask_env'] == 'production' else "Développement (Docker)"'o', 'oui'] else "True"
+    choice = input("Votre choix [1]: ").strip() or "1"
     
-    # Déterminer l'hostname automatiquement
-    if config['flask_env'] == 'production':
-        default_host = "db"  # Docker Compose en production
-        host_explanation = "Production (Docker Compose)"
+    if choice == "2":
+        config['flask_env'] = "production"
+        config['flask_debug'] = "False"
+        config['use_sqlite'] = False
+        
+        # Configuration PostgreSQL pour production
+        print(f"\n🗄️  Configuration PostgreSQL (Production Docker) :")
+        config['db_host'] = "db"
+        print(f"✓ Host PostgreSQL : db")
+        config['db_port'] = input("Port PostgreSQL [5432]: ").strip() or "5432"
+        config['db_name'] = input("Nom de la base [conference_flow]: ").strip() or "conference_flow"
+        config['db_user'] = input("Utilisateur PostgreSQL [conference_user]: ").strip() or "conference_user"
+        config['db_password'] = generate_secure_password(16)
+        print(f"✓ Mot de passe PostgreSQL généré : {config['db_password']}")
     else:
-        default_host = "localhost"  # Développement local
-        host_explanation = "Développement (PostgreSQL local)"
-    
-    # Base de données - Configuration automatique
-    print(f"\n🗄️  Configuration PostgreSQL ({host_explanation}) :")
-    config['db_host'] = default_host
-    print(f"✓ Host PostgreSQL : {default_host}")
-    config['db_port'] = input("Port PostgreSQL [5432]: ").strip() or "5432"
-    
-    # Adapter les noms par défaut selon l'environnement
-    if config['flask_env'] == 'production':
-        default_db_name = "conference_flow"
-        default_db_user = "conference_user"
-    else:
-        default_db_name = "conferenceflow_dev"
-        default_db_user = "postgres"
-    
-    config['db_name'] = input(f"Nom de la base [{default_db_name}]: ").strip() or default_db_name
-    config['db_user'] = input(f"Utilisateur PostgreSQL [{default_db_user}]: ").strip() or default_db_user
-    
-    # Génération automatique du mot de passe PostgreSQL
-    config['db_password'] = generate_secure_password(16)
-    print(f"✓ Mot de passe PostgreSQL généré : {config['db_password']}")
+        config['flask_env'] = "development" 
+        config['flask_debug'] = "True"
+        config['use_sqlite'] = True
+        print("\n🗄️  Configuration SQLite (Développement) :")
+        print("✓ Base de données : SQLite (./instance/conferenceflow.db)")
     
     # Admin
     print("\n👤 Compte administrateur :")
@@ -121,15 +110,25 @@ def get_user_input():
     
     return config
 
-
 def create_env_file(config):
     """Crée le fichier .env avec la configuration."""
     # Générer une clé secrète
     secret_key = secrets.token_hex(32)
-
-
-    database_url = f"postgresql://{config['db_user']}:{config['db_password']}@{config['db_host']}:{config['db_port']}/{config['db_name']}"
     
+    # URL de base de données selon le mode
+    if config.get('use_sqlite', True):
+        import os
+        project_root = os.getcwd()
+        database_url = f"sqlite:///{project_root}/instance/conferenceflow.db"
+        db_section = "# Base de données SQLite (développement)\n# Pas de configuration PostgreSQL nécessaire"
+    else:
+        database_url = f"postgresql://{config['db_user']}:{config['db_password']}@{config['db_host']}:{config['db_port']}/{config['db_name']}"
+        db_section = f"""# Configuration PostgreSQL (production)
+DB_USER={config['db_user']}
+DB_PASSWORD={config['db_password']}
+DB_NAME={config['db_name']}
+DB_HOST={config['db_host']}
+DB_PORT={config['db_port']}"""
     
     env_content = f"""# Configuration Flask
 SECRET_KEY={secret_key}
@@ -138,12 +137,15 @@ FLASK_ENV={config['flask_env']}
 FLASK_DEBUG={config['flask_debug']}
 BASE_URL={config['base_url']}
 
-# Configuration Email
+{db_section}
+
+# Configuration Email SMTP (technique)
 MAIL_USERNAME={config['mail_username']}
 MAIL_PASSWORD={config['mail_password']}
 MAIL_SERVER={config['mail_server']}
 MAIL_PORT={config['mail_port']}
 MAIL_USE_TLS=True
+MAIL_USE_SSL=False
 
 # Limites de fichiers
 MAX_CONTENT_LENGTH=52428800
@@ -162,6 +164,10 @@ MAX_LOGIN_ATTEMPTS=5
 # Configuration HAL
 HAL_API_URL=https://api.archives-ouvertes.fr
 HAL_TEST_MODE=true
+
+# ConferenceFlow
+APP_NAME=ConferenceFlow
+APP_VERSION=1.0.0
 
 # Mode debug email
 MAIL_DEBUG={config['flask_debug']}
@@ -195,13 +201,22 @@ def main():
     print("✓ Fichier .env créé avec succès")
     
     print("\n🎉 Configuration terminée !")
-    print("\n📋 Prochaines étapes :")
-    print("1. Vérifiez le fichier .env créé")
-    print("2. Pour développement local : python init_app.py && python run.py")
-    print("3. Pour Docker : docker-compose up --build")
+    
+    if config.get('use_sqlite', True):
+        print("\n📋 Prochaines étapes (développement) :")
+        print("1. Vérifiez le fichier .env créé")
+        print("2. pip install -r requirements.txt")
+        print("3. python run.py")
+        print("4. Accédez à http://localhost:5000")
+    else:
+        print("\n📋 Prochaines étapes (production) :")
+        print("1. Vérifiez le fichier .env créé")
+        print("2. docker-compose up --build")
+        
     print(f"\n👤 Compte admin configuré : {config['admin_email']}")
     if 'admin_password' in config:
         print(f"🔑 Mot de passe : {config['admin_password']}")
 
 if __name__ == "__main__":
     main()
+
