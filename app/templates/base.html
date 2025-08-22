@@ -7,16 +7,30 @@
 
     <title>{{ conference.short_name }} {{ conference_location.city }}</title>   
     <!-- PWA -->
-    <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#022949">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#007bff">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <!-- PWA Icons -->
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192x192.png') }}">
+    
+    <!-- Mobile CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+
     
     <!-- CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sft-style.css') }}">
-        
+
+
+
+    
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -242,7 +256,25 @@
         </div>
     </footer>
 
+ <!-- PWA Elements -->
+    <div id="network-status" class="network-status"></div>
+    
+    <button id="install-btn" class="pwa-install-prompt" style="display: none;">
+        📱 Installer Conference Flow sur votre téléphone
+        <button onclick="window.conferenceFlowPWA.installApp()">Installer</button>
+    </button>
+    
+    <button id="update-btn" class="btn btn-warning" style="display: none;">
+        🔄 Mise à jour disponible - Cliquer pour actualiser
+    </button>
+    
+    <!-- PWA JavaScript -->
+    <script src="{{ url_for('static', filename='js/pwa.js') }}"></script>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

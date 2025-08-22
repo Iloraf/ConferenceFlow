@@ -1,6 +1,7 @@
 """
-Client HAL spécialisé pour Conference Flow - SFT 2026
+Client HAL spécialisé pour Conference Flow
 Mode TEST uniquement pour le développement
+Configuration dynamique et sécurisée depuis conference.yml
 """
 
 import requests
@@ -15,6 +16,10 @@ from typing import Dict, List, Optional, Tuple
 import logging
 from flask import current_app
 
+class HALConfigError(Exception):
+    """Exception levée en cas d'erreur de configuration HAL"""
+    pass
+
 class HALClient:
     """Client HAL intégré à Conference Flow"""
     
@@ -24,6 +29,9 @@ class HALClient:
         
         Args:
             test_mode: True pour utiliser l'environnement de test (OBLIGATOIRE pour dev)
+            
+        Raises:
+            HALConfigError: Si la configuration HAL est incorrecte
         """
         self.test_mode = test_mode
         self.logger = logging.getLogger(__name__)
@@ -39,23 +47,54 @@ class HALClient:
         if not self.username or not self.password:
             raise ValueError("HAL_USERNAME et HAL_PASSWORD requis dans .env")
         
+        # NOUVEAU : Charger collection_id depuis conference.yml (OBLIGATOIRE)
+        self.collection_id = self._load_collection_id()
+        
         # URLs selon l'environnement (TEST uniquement)
         self.base_url = "https://api-preprod.archives-ouvertes.fr/sword"
-        self.collection_id = "SFT2026"
         
         # Authentification
         credentials = f"{self.username}:{self.password}"
         encoded_credentials = base64.b64encode(credentials.encode()).decode()
         self.headers = {
             'Authorization': f'Basic {encoded_credentials}',
-            'User-Agent': 'ConferenceFlow-HAL/1.0'
+            'User-Agent': f'ConferenceFlow-HAL/1.0 ({self.collection_id})'
         }
         
-        self.logger.info(f"HAL Client initialisé en mode TEST")
+        self.logger.info(f"HAL Client initialisé en mode TEST pour collection {self.collection_id}")
+    
+    def _load_collection_id(self) -> str:
+        """
+        Charge l'ID de collection HAL depuis conference.yml
+        LÈVE UNE EXCEPTION si la configuration est manquante ou incorrecte
+        """
+        try:
+            config = current_app.conference_config
+            hal_config = config.get('integrations', {}).get('hal', {})
+            
+            if not hal_config:
+                raise HALConfigError("Configuration HAL manquante dans conference.yml")
+            
+            collection_id = hal_config.get('collection_id')
+            
+            if not collection_id:
+                raise HALConfigError("collection_id manquant dans conference.yml > integrations > hal")
+            
+            if not isinstance(collection_id, str) or len(collection_id.strip()) == 0:
+                raise HALConfigError("collection_id invalide dans conference.yml")
+            
+            collection_id = collection_id.strip()
+            self.logger.info(f"Collection HAL chargée depuis conference.yml: {collection_id}")
+            return collection_id
+            
+        except AttributeError:
+            raise HALConfigError("Configuration Conference Flow non disponible (current_app.conference_config)")
+        except Exception as e:
+            raise HALConfigError(f"Erreur lors du chargement collection_id: {e}")
     
     def check_connection(self) -> Tuple[bool, str]:
         """
-        Vérifie la connexion à HAL et l'accès à la collection SFT2026
+        Vérifie la connexion à HAL et l'accès à la collection configurée
         
         Returns:
             Tuple[bool, str]: (succès, message)
@@ -70,16 +109,16 @@ class HALClient:
             elif response.status_code != 200:
                 return False, f"Erreur service HAL: {response.status_code}"
             
-            # Test 2: Collection SFT2026
+            # Test 2: Collection configurée
             collection_response = requests.get(f"{self.base_url}/{self.collection_id}", 
                                              headers=self.headers, timeout=30)
             
             if collection_response.status_code == 200:
-                return True, "Connexion HAL OK - Collection SFT2026 accessible"
+                return True, f"Connexion HAL OK - Collection {self.collection_id} accessible"
             elif collection_response.status_code == 404:
-                return True, "Connexion HAL OK - Collection SFT2026 pas encore visible"
+                return True, f"Connexion HAL OK - Collection {self.collection_id} pas encore visible (normal en test)"
             else:
-                return False, f"Erreur collection: {collection_response.status_code}"
+                return False, f"Erreur collection {self.collection_id}: {collection_response.status_code}"
                 
         except requests.RequestException as e:
             return False, f"Erreur connexion: {str(e)}"
@@ -94,6 +133,10 @@ class HALClient:
         Returns:
             Tuple[bool, Dict]: (succès, données_réponse)
         """
+        # SÉCURITÉ : Vérifier que le XML contient la bonne collection
+        if self.collection_id not in xml_content:
+            self.logger.warning(f"XML ne contient pas la collection {self.collection_id}")
+        
         url = f"{self.base_url}/hal"
         
         headers = self.headers.copy()
@@ -105,7 +148,7 @@ class HALClient:
         })
         
         try:
-            self.logger.info("Test de dépôt HAL en cours...")
+            self.logger.info(f"Test de dépôt HAL en cours pour collection {self.collection_id}...")
             response = requests.post(url, 
                                    data=xml_content.encode('utf-8'), 
                                    headers=headers,
@@ -151,13 +194,40 @@ class HALClient:
                     'id': hal_id,
                     'version': version,
                     'status': status.text if status is not None else 'inconnu',
-                    'comment': comment.text if comment is not None else ''
+                    'comment': comment.text if comment is not None else '',
+                    'collection': self.collection_id
                 }
             else:
                 return False, {'error': f'Status HTTP: {response.status_code}'}
                 
         except Exception as e:
             return False, {'error': str(e)}
+    
+    def get_collection_info(self) -> Dict:
+        """
+        Retourne les informations sur la collection configurée
+        
+        Returns:
+            Dict: Informations de collection
+        """
+        try:
+            config = current_app.conference_config
+            hal_config = config.get('integrations', {}).get('hal', {})
+            conference_info = config.get('conference', {})
+            
+            return {
+                'collection_id': self.collection_id,
+                'conference_name': conference_info.get('full_name', 'Conférence inconnue'),
+                'enabled': hal_config.get('enabled', False),
+                'test_mode': hal_config.get('test_mode', True),
+                'auto_deposit': hal_config.get('auto_deposit', False)
+            }
+        except Exception as e:
+            self.logger.error(f"Erreur récupération infos collection: {e}")
+            return {
+                'collection_id': self.collection_id,
+                'error': str(e)
+            }
     
     def _calculate_md5(self, content: str) -> str:
         """Calcule le MD5 d'un contenu"""
@@ -173,7 +243,10 @@ class HALClient:
                 'sword': 'http://purl.org/net/sword/'
             }
             
-            result = {'status_code': response.status_code}
+            result = {
+                'status_code': response.status_code,
+                'collection': self.collection_id
+            }
             
             # Extraire les informations principales
             hal_id = root.find('atom:id', namespaces)
@@ -199,7 +272,11 @@ class HALClient:
             return result
             
         except ET.ParseError:
-            return {'status_code': response.status_code, 'raw_response': response.content.decode()}
+            return {
+                'status_code': response.status_code, 
+                'raw_response': response.content.decode(),
+                'collection': self.collection_id
+            }
     
     def _parse_error(self, response) -> str:
         """Parse une erreur SWORD"""
@@ -220,4 +297,5 @@ class HALClient:
             
         except:
             return f"Erreur HTTP {response.status_code}: {response.content.decode()[:200]}"
+
 

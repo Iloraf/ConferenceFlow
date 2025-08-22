@@ -213,7 +213,9 @@ class Affiliation(db.Model):
     nom_complet = db.Column(db.String(200), nullable=False)
     adresse = db.Column(db.Text, nullable=True)
     citation = db.Column(db.String(500), nullable=True)
-    identifiant_hal = db.Column(db.String(50), unique=True, nullable=True)
+    struct_id_hal = db.Column(db.String(20), nullable=True) 
+    acronym_hal = db.Column(db.String(50), nullable=True)
+    type_hal = db.Column(db.String(20), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -1113,3 +1115,6 @@ class HALDeposit(db.Model):
             'error': {'text': 'Erreur de dépôt', 'class': 'danger'}
         }
         return status_map.get(self.status, {'text': 'Statut inconnu', 'class': 'secondary'})
+
+
+

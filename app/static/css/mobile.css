@@ -1,0 +1,131 @@
+
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --success-color: #28a745;
+  --warning-color: #ffc107;
+  --danger-color: #dc3545;
+  --mobile-padding: 1rem;
+  --mobile-margin: 0.5rem;
+}
+
+/* Styles de base mobile */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 var(--mobile-padding);
+  }
+  
+  .card {
+    margin-bottom: var(--mobile-margin);
+    border-radius: 0.5rem;
+  }
+  
+  .btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 0.5rem;
+  }
+  
+  /* Navigation mobile */
+  .navbar {
+    padding: 0.5rem var(--mobile-padding);
+  }
+  
+  .navbar-brand {
+    font-size: 1.1rem;
+  }
+  
+  /* Formulaires mobiles */
+  .form-control {
+    padding: 0.75rem;
+    font-size: 1rem;
+    border-radius: 0.5rem;
+  }
+  
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  /* Tables responsive */
+  .table-responsive {
+    border-radius: 0.5rem;
+    overflow-x: auto;
+  }
+  
+  /* Boutons d'action */
+  .btn-group-vertical .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Styles PWA spécifiques */
+.pwa-install-prompt {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  background: var(--primary-color);
+  color: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: none;
+}
+
+.network-status {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 1001;
+  display: none;
+}
+
+/* Styles pour les communications */
+.communication-card {
+  transition: transform 0.2s;
+}
+
+.communication-card:active {
+  transform: scale(0.98);
+}
+
+/* Styles pour les boutons d'action rapide */
+.fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  font-size: 1.5rem;
+  z-index: 1000;
+}
+
+.fab:hover {
+  background: #0056b3;
+  transform: scale(1.05);
+}
+
+/* Animation d'installation */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.pwa-install-prompt.show {
+  display: block;
+  animation: slideUp 0.3s ease-out;
+}

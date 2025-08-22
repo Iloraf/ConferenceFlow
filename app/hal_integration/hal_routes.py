@@ -1,12 +1,40 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from app.models import Communication, db, HALDeposit, CommunicationStatus
-from .hal_client import HALClient
-from .hal_xml_generator import HALXMLGenerator
+from .hal_client import HALClient, HALConfigError
+from .hal_xml_generator import HALXMLGenerator, HALConfigError as HALXMLConfigError
 from datetime import datetime
 import json
 
 hal_bp = Blueprint('hal', __name__)
+
+def _get_hal_collection_info():
+    """
+    Récupère les informations de collection HAL depuis conference.yml
+    LÈVE UNE EXCEPTION si la configuration est incorrecte
+    """
+    try:
+        config = current_app.conference_config
+        hal_config = config.get('integrations', {}).get('hal', {})
+        
+        if not hal_config:
+            raise HALConfigError("Configuration HAL manquante dans conference.yml")
+        
+        collection_id = hal_config.get('collection_id')
+        if not collection_id:
+            raise HALConfigError("collection_id manquant dans la configuration HAL")
+        
+        conference_info = config.get('conference', {})
+        conference_name = conference_info.get('full_name', 'Conférence inconnue')
+        
+        return {
+            'collection_id': collection_id.strip(),
+            'conference_name': conference_name,
+            'enabled': hal_config.get('enabled', False),
+            'test_mode': hal_config.get('test_mode', True)
+        }
+    except Exception as e:
+        raise HALConfigError(f"Erreur configuration HAL: {e}")
 
 @hal_bp.route('/admin/hal/dashboard')
 @login_required
@@ -16,28 +44,37 @@ def dashboard():
         flash("Accès refusé", "danger")
         return redirect(url_for("main.index"))
     
-    # Statistiques des dépôts HAL
-    total_communications = Communication.query.filter(
-        Communication.status.in_([
-            CommunicationStatus.ACCEPTE,
-            CommunicationStatus.WIP_SOUMIS,
-            CommunicationStatus.POSTER_SOUMIS
-        ])
-    ).count()
+    try:
+        # Récupérer les infos de collection depuis conference.yml
+        collection_info = _get_hal_collection_info()
+        
+        # Statistiques des dépôts HAL
+        total_communications = Communication.query.filter(
+            Communication.status.in_([
+                CommunicationStatus.ACCEPTE,
+                CommunicationStatus.WIP_SOUMIS,
+                CommunicationStatus.POSTER_SOUMIS
+            ])
+        ).count()
+        
+        hal_deposits = HALDeposit.query.all()
+        
+        stats = {
+            'total_communications': total_communications,
+            'total_deposits': len(hal_deposits),
+            'pending_deposits': len([d for d in hal_deposits if d.status == 'pending']),
+            'successful_deposits': len([d for d in hal_deposits if d.status == 'success']),
+            'failed_deposits': len([d for d in hal_deposits if d.status == 'error']),
+        }
+        
+        return render_template('admin/hal/dashboard.html', 
+                             stats=stats, 
+                             recent_deposits=hal_deposits[:10],
+                             collection_info=collection_info)
     
-    hal_deposits = HALDeposit.query.all()
-    
-    stats = {
-        'total_communications': total_communications,
-        'total_deposits': len(hal_deposits),
-        'pending_deposits': len([d for d in hal_deposits if d.status == 'pending']),
-        'successful_deposits': len([d for d in hal_deposits if d.status == 'success']),
-        'failed_deposits': len([d for d in hal_deposits if d.status == 'error']),
-    }
-    
-    return render_template('admin/hal/dashboard.html', 
-                         stats=stats, 
-                         recent_deposits=hal_deposits[:10])
+    except HALConfigError as e:
+        flash(f"Erreur configuration HAL: {e}", "danger")
+        return redirect(url_for("admin.dashboard"))
 
 @hal_bp.route('/admin/hal/test-connection')
 @login_required 
@@ -50,11 +87,20 @@ def test_connection():
         client = HALClient(test_mode=True)
         success, message = client.check_connection()
         
+        # Ajouter les infos de collection
+        collection_info = client.get_collection_info()
+        
         return jsonify({
             'success': success,
-            'message': message
+            'message': message,
+            'collection_info': collection_info
         })
         
+    except HALConfigError as e:
+        return jsonify({
+            'success': False,
+            'message': f'Erreur configuration HAL: {e}'
+        })
     except Exception as e:
         return jsonify({
             'success': False,
@@ -69,35 +115,43 @@ def list_communications():
         flash("Accès refusé", "danger")
         return redirect(url_for("main.index"))
     
-    # Récupérer toutes les communications acceptées selon votre enum
-    from app.models import CommunicationStatus
-    communications = Communication.query.filter(
-        Communication.status.in_([
-            CommunicationStatus.ACCEPTE,
-            CommunicationStatus.WIP_SOUMIS,
-            CommunicationStatus.POSTER_SOUMIS
-        ])
-    ).all()
-    
-    # Enrichir avec les données HAL
-    comm_with_hal = []
-    for comm in communications:
-        hal_deposit = HALDeposit.query.filter_by(communication_id=comm.id).first()
+    try:
+        # Vérifier la configuration HAL
+        collection_info = _get_hal_collection_info()
         
-        # Vérifier l'IDHAL de l'auteur principal
-        main_author = comm.authors[0] if comm.authors else None
-        has_idhal = main_author and hasattr(main_author, 'idhal') and main_author.idhal
+        # Récupérer toutes les communications acceptées selon votre enum
+        communications = Communication.query.filter(
+            Communication.status.in_([
+                CommunicationStatus.ACCEPTE,
+                CommunicationStatus.WIP_SOUMIS,
+                CommunicationStatus.POSTER_SOUMIS
+            ])
+        ).all()
         
-        comm_data = {
-            'communication': comm,
-            'hal_deposit': hal_deposit,
-            'can_deposit': comm.hal_authorization and has_idhal,
-            'missing_idhal': not has_idhal
-        }
-        comm_with_hal.append(comm_data)
+        # Enrichir avec les données HAL
+        comm_with_hal = []
+        for comm in communications:
+            hal_deposit = HALDeposit.query.filter_by(communication_id=comm.id).first()
+            
+            # Vérifier l'IDHAL de l'auteur principal
+            main_author = comm.authors[0] if comm.authors else None
+            has_idhal = main_author and hasattr(main_author, 'idhal') and main_author.idhal
+            
+            comm_data = {
+                'communication': comm,
+                'hal_deposit': hal_deposit,
+                'can_deposit': comm.hal_authorization and has_idhal,
+                'missing_idhal': not has_idhal
+            }
+            comm_with_hal.append(comm_data)
+        
+        return render_template('admin/hal/communications.html', 
+                             communications=comm_with_hal,
+                             collection_info=collection_info)
     
-    return render_template('admin/hal/communications.html', 
-                         communications=comm_with_hal)
+    except HALConfigError as e:
+        flash(f"Erreur configuration HAL: {e}", "danger")
+        return redirect(url_for("admin.dashboard"))
 
 @hal_bp.route('/admin/hal/deposit/<int:communication_id>', methods=['POST'])
 @login_required
@@ -121,6 +175,9 @@ def deposit_communication(communication_id):
         return jsonify({'error': 'Communication déjà déposée'}), 400
     
     try:
+        # Vérifier la configuration HAL avant de procéder
+        collection_info = _get_hal_collection_info()
+        
         # Générer le XML
         xml_generator = HALXMLGenerator()
         xml_content = xml_generator.generate_for_communication(communication)
@@ -130,7 +187,8 @@ def deposit_communication(communication_id):
             deposit = HALDeposit(
                 communication_id=communication_id,
                 xml_content=xml_content,
-                test_mode=True
+                test_mode=True,
+                collection_id=collection_info['collection_id']  # NOUVEAU : utiliser la collection configurée
             )
             db.session.add(deposit)
         else:
@@ -138,6 +196,7 @@ def deposit_communication(communication_id):
             deposit.xml_content = xml_content
             deposit.status = 'pending'
             deposit.error_message = None
+            deposit.collection_id = collection_info['collection_id']  # NOUVEAU : mettre à jour
         
         # Effectuer le dépôt
         client = HALClient(test_mode=True)
@@ -155,9 +214,10 @@ def deposit_communication(communication_id):
             
             return jsonify({
                 'success': True,
-                'message': 'Dépôt HAL réussi',
+                'message': f'Dépôt HAL réussi dans la collection {collection_info["collection_id"]}',
                 'hal_id': deposit.hal_id,
-                'hal_url': deposit.hal_url
+                'hal_url': deposit.hal_url,
+                'collection_id': collection_info['collection_id']
             })
         else:
             deposit.status = 'error'
@@ -170,7 +230,12 @@ def deposit_communication(communication_id):
                 'success': False,
                 'message': f'Échec dépôt HAL: {deposit.error_message}'
             })
-            
+    
+    except (HALConfigError, HALXMLConfigError) as e:
+        return jsonify({
+            'success': False,
+            'message': f'Erreur configuration HAL: {e}'
+        })
     except Exception as e:
         if 'deposit' in locals():
             deposit.status = 'error'
@@ -213,15 +278,99 @@ def check_deposit_status(deposit_id):
                 'success': False,
                 'message': status_data.get('error')
             })
-            
+    
+    except HALConfigError as e:
+        return jsonify({
+            'success': False,
+            'message': f'Erreur configuration HAL: {e}'
+        })
     except Exception as e:
         return jsonify({
             'success': False,
             'message': str(e)
         })
 
-# Template pour le dashboard HAL
-hal_dashboard_template = '''
+@hal_bp.route('/admin/hal/request-collection', methods=['GET', 'POST'])
+@login_required
+def request_collection():
+    """Page pour demander la création de la collection HAL"""
+    if not current_user.is_admin:
+        flash("Accès refusé", "danger")
+        return redirect(url_for("main.index"))
+    
+    try:
+        # Charger la configuration depuis conference.yml
+        config = current_app.conference_config
+        collection_info = _get_hal_collection_info()
+        
+        # Extraire les informations du responsable depuis .env (générées par configure.py)
+        import os
+        
+        # Utiliser les variables admin générées par configure.py
+        admin_first_name = os.getenv('ADMIN_FIRST_NAME', 'Admin')
+        admin_last_name = os.getenv('ADMIN_LAST_NAME', 'Responsable')
+        admin_email = os.getenv('ADMIN_EMAIL', 'admin@example.com')
+        
+        # Construire le nom complet et titre depuis conference.yml
+        contact_name = f"{admin_first_name} {admin_last_name}"
+        
+        # Construire le titre à partir des infos du laboratoire organisateur
+        organizing_lab = config.get('conference', {}).get('organizing_lab', {})
+        lab_short_name = organizing_lab.get('short_name', 'Laboratoire organisateur')
+        contact_title = f"Responsable du congrès, {lab_short_name}"
+        
+        # Login HAL - à ajouter manuellement dans .env si nécessaire
+        hal_login = os.getenv('HAL_LOGIN', os.getenv('HAL_USERNAME', 'organizer-login'))
+        
+        # Données pour le template d'email
+        email_data = {
+            'contact_name': contact_name,
+            'contact_title': contact_title,
+            'contact_email': admin_email,
+            'hal_login': hal_login,
+            'conference_name': collection_info['conference_name'],
+            'conference_dates': f"{config.get('dates', {}).get('conference', {}).get('start', '2026-06-02')} au {config.get('dates', {}).get('conference', {}).get('end', '2026-06-05')}",
+            'conference_location': config.get('conference', {}).get('location', {}).get('city', 'Ville non spécifiée'),
+            'organizing_lab_name': organizing_lab.get('name', 'Laboratoire organisateur'),
+            'organizing_lab_short': lab_short_name,
+            'collection_id': collection_info['collection_id'],  # NOUVEAU : utiliser la collection configurée
+            'estimated_docs': 200,
+            'submission_deadline': config.get('dates', {}).get('submission', {}).get('final', 'Mars 2026'),
+            'deposit_start': config.get('dates', {}).get('conference', {}).get('start', 'Avril 2026')
+        }
+        
+        if request.method == 'POST':
+            # Récupérer les données du formulaire
+            recipient_email = request.form.get('recipient_email', 'hal@ccsd.cnrs.fr')
+            custom_message = request.form.get('custom_message', '')
+            
+            try:
+                # Envoyer l'email
+                from app.emails import send_hal_collection_request
+                send_hal_collection_request(
+                    recipient_email=recipient_email,
+                    email_data=email_data,
+                    custom_message=custom_message
+                )
+                
+                flash(f'Demande de collection HAL {collection_info["collection_id"]} envoyée avec succès !', 'success')
+                return redirect(url_for('hal.dashboard'))
+                
+            except Exception as e:
+                flash(f'Erreur lors de l\'envoi : {str(e)}', 'danger')
+        
+        return render_template('admin/hal/request_collection.html', 
+                             email_data=email_data,
+                             collection_info=collection_info)
+    
+    except HALConfigError as e:
+        flash(f"Erreur configuration HAL: {e}", "danger")
+        return redirect(url_for("admin.dashboard"))
+
+# NOUVEAU : Template de dashboard mis à jour
+def get_hal_dashboard_template():
+    """Template du dashboard HAL avec configuration dynamique"""
+    return '''
 {% extends "admin/base.html" %}
 
 {% block title %}Tableau de bord HAL{% endblock %}
@@ -230,8 +379,11 @@ hal_dashboard_template = '''
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-12">
-            <h2><i class="fas fa-database"></i> Intégration HAL - SFT 2026</h2>
-            <p class="text-muted">Gestion des dépôts dans la collection SFT2026 (Mode TEST)</p>
+            <h2><i class="fas fa-database"></i> Intégration HAL - {{ collection_info.conference_name }}</h2>
+            <p class="text-muted">
+                Gestion des dépôts dans la collection {{ collection_info.collection_id }}
+                {% if collection_info.test_mode %}<span class="badge bg-warning">Mode TEST</span>{% endif %}
+            </p>
         </div>
     </div>
     
@@ -240,7 +392,7 @@ hal_dashboard_template = '''
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h5>Test de connexion HAL</h5>
+                    <h5>Test de connexion HAL - Collection {{ collection_info.collection_id }}</h5>
                 </div>
                 <div class="card-body">
                     <button id="test-connection" class="btn btn-primary">
@@ -299,8 +451,11 @@ hal_dashboard_template = '''
                     <a href="{{ url_for('hal.list_communications') }}" class="btn btn-primary">
                         <i class="fas fa-list"></i> Gérer les communications
                     </a>
-                    <a href="https://hal.science/SFT2026" target="_blank" class="btn btn-info">
-                        <i class="fas fa-external-link-alt"></i> Voir collection SFT2026
+                    <a href="https://hal.science/{{ collection_info.collection_id }}" target="_blank" class="btn btn-info">
+                        <i class="fas fa-external-link-alt"></i> Voir collection {{ collection_info.collection_id }}
+                    </a>
+                    <a href="{{ url_for('hal.request_collection') }}" class="btn btn-secondary">
+                        <i class="fas fa-envelope"></i> Demander la collection
                     </a>
                 </div>
             </div>
@@ -320,7 +475,11 @@ document.getElementById('test-connection').addEventListener('click', function() 
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                result.innerHTML = '<div class="alert alert-success"><i class="fas fa-check"></i> ' + data.message + '</div>';
+                let message = data.message;
+                if (data.collection_info) {
+                    message += '<br><small>Collection: ' + data.collection_info.collection_id + '</small>';
+                }
+                result.innerHTML = '<div class="alert alert-success"><i class="fas fa-check"></i> ' + message + '</div>';
             } else {
                 result.innerHTML = '<div class="alert alert-danger"><i class="fas fa-times"></i> ' + data.message + '</div>';
             }
@@ -337,73 +496,3 @@ document.getElementById('test-connection').addEventListener('click', function() 
 {% endblock %}
 '''
 
-@hal_bp.route('/admin/hal/request-collection', methods=['GET', 'POST'])
-@login_required
-def request_collection():
-    """Page pour demander la création de la collection HAL"""
-    if not current_user.is_admin:
-        flash("Accès refusé", "danger")
-        return redirect(url_for("main.index"))
-    
-    # Charger la configuration depuis conference.yml
-    from app.config_loader import ConfigLoader
-    config_loader = ConfigLoader()
-    config = config_loader.load_conference_config()
-    
-    # Extraire les informations du responsable depuis .env (générées par configure.py)
-    import os
-    
-    # Utiliser les variables admin générées par configure.py
-    admin_first_name = os.getenv('ADMIN_FIRST_NAME', 'Admin')
-    admin_last_name = os.getenv('ADMIN_LAST_NAME', 'Responsable')
-    admin_email = os.getenv('ADMIN_EMAIL', 'admin@example.com')
-    
-    # Construire le nom complet et titre depuis conference.yml
-    contact_name = f"{admin_first_name} {admin_last_name}"
-    
-    # Construire le titre à partir des infos du laboratoire organisateur
-    organizing_lab = config.get('conference', {}).get('organizing_lab', {})
-    lab_short_name = organizing_lab.get('short_name', 'Laboratoire organisateur')
-    contact_title = f"Responsable du congrès, {lab_short_name}"
-    
-    # Login HAL - à ajouter manuellement dans .env si nécessaire
-    hal_login = os.getenv('HAL_LOGIN', os.getenv('HAL_USERNAME', 'organizer-login'))
-    
-    # Données pour le template d'email
-    email_data = {
-        'contact_name': contact_name,
-        'contact_title': contact_title,
-        'contact_email': admin_email,
-        'hal_login': hal_login,
-        'conference_name': config.get('conference', {}).get('full_name', 'SFT 2026'),
-        'conference_dates': f"{config.get('dates', {}).get('conference', {}).get('start', '2026-06-02')} au {config.get('dates', {}).get('conference', {}).get('end', '2026-06-05')}",
-        'conference_location': config.get('conference', {}).get('location', {}).get('city', 'Nancy'),
-        'organizing_lab_name': organizing_lab.get('name', 'Laboratoire organisateur'),
-        'organizing_lab_short': lab_short_name,
-        'collection_id': config.get('integrations', {}).get('hal', {}).get('collection_id', 'SFT2026'),
-        'estimated_docs': 200,
-        'submission_deadline': config.get('dates', {}).get('submission', {}).get('final', 'Mars 2026'),
-        'deposit_start': config.get('dates', {}).get('conference', {}).get('start', 'Avril 2026')
-    }
-    
-    if request.method == 'POST':
-        # Récupérer les données du formulaire
-        recipient_email = request.form.get('recipient_email', 'hal@ccsd.cnrs.fr')
-        custom_message = request.form.get('custom_message', '')
-        
-        try:
-            # Envoyer l'email
-            from app.emails import send_hal_collection_request
-            send_hal_collection_request(
-                recipient_email=recipient_email,
-                email_data=email_data,
-                custom_message=custom_message
-            )
-            
-            flash('Demande de collection HAL envoyée avec succès !', 'success')
-            return redirect(url_for('hal.dashboard'))
-            
-        except Exception as e:
-            flash(f'Erreur lors de l\'envoi : {str(e)}', 'danger')
-    
-    return render_template('admin/hal/request_collection.html', email_data=email_data)

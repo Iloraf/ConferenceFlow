@@ -323,21 +323,21 @@ integrations:
     document_types:
       article:
         hal_typology: "COMM"  # Communication dans un congrès (inproceedings)
-        hal_audience: "2"     # International
+        hal_audience: "1"     # International
         hal_domain: "spi.energe"
         required: true
         description: "Article complet de congrès (inproceedings)"
         
       wip:
         hal_typology: "OTHERREPORT"  # Document de travail / Autre publication scientifique
-        hal_audience: "2"            # International 
+        hal_audience: "1"            # International 
         hal_domain: "spi.energe"
         required: false
         description: "Work in Progress - Document de travail"
         
       poster:
         hal_typology: "POSTER"  # Poster de conférence
-        hal_audience: "2"       # International
+        hal_audience: "1"       # International
         hal_domain: "spi.energe" 
         required: false
         description: "Poster de conférence"

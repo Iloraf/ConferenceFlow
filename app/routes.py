@@ -750,13 +750,6 @@ def decline_review_assignment(assignment_id):
             except Exception as e:
                 print(f"❌ DEBUG: Erreur notification refus: {e}")
                 current_app.logger.error(f"Erreur notification refus: {e}")
-
-
-            #try:
-            #    from .emails import send_review_decline_notification
-            #    send_review_decline_notification(assignment, reason, other_reason)
-            #except Exception as e:
-            #    current_app.logger.error(f"Erreur notification refus: {e}")
             
             flash('Review refusée. L\'équipe organisatrice a été notifiée.', 'success')
             return redirect(url_for('main.reviewer_dashboard'))
@@ -771,3 +764,16 @@ def decline_review_assignment(assignment_id):
                          assignment=assignment,
                          communication=assignment.communication)
 
+@main.route('/api/push-subscription', methods=['POST'])
+@login_required
+def save_push_subscription():
+    """Sauvegarde l'abonnement aux notifications push."""
+    try:
+        subscription_data = request.get_json()
+        
+        # Sauvegarder en base (créer table si besoin)
+        # PushSubscription.create(user_id=current_user.id, data=subscription_data)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
