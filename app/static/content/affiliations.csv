@@ -1,16 +1,23 @@
-sigle;nom_complet;adresse;citation;identifiant_hal
-LEMTA;Laboratoire Énergies & Mécanique Théorique et Appliquée;2 avenue de la Forêt de Haye, 54518 Vandœuvre-lès-Nancy, France;LEMTA - Laboratoire Énergies & Mécanique Théorique et Appliquée, UMR CNRS 7563, Université de Lorraine;lemta-00000001
-LRGP;Laboratoire Réactions et Génie des Procédés;1 rue Grandville, BP 20451, 54001 Nancy Cedex, France;LRGP - Laboratoire Réactions et Génie des Procédés, UMR CNRS 7274, Université de Lorraine;lrgp-00000001
-CRAN;Centre de Recherche en Automatique de Nancy;Campus Sciences, Boulevard des Aiguillettes, 54506 Vandœuvre-lès-Nancy, France;CRAN - Centre de Recherche en Automatique de Nancy, UMR CNRS 7039, Université de Lorraine;cran-00000001
-I2M;Institut de Mécanique et d'Ingénierie;Esplanade des Arts et Métiers, 33405 Talence Cedex, France;I2M - Institut de Mécanique et d'Ingénierie, UMR CNRS 5295, Université de Bordeaux;i2m-00000001
-LaTEP;Laboratoire de Thermique, Énergétique et Procédés;Rue Jules Ferry, BP 7511, 64075 Pau Cedex, France;LaTEP - Laboratoire de Thermique, Énergétique et Procédés, EA 1932, Université de Pau et des Pays de l'Adour;latep-00000001
-LTEN;Laboratoire de Thermique et Énergie de Nantes;Rue Christian Pauc, BP 50609, 44306 Nantes Cedex 3, France;LTEN - Laboratoire de Thermique et Énergie de Nantes, EA 4476, Polytech Nantes;lten-00000001
-LOCIE;Laboratoire Optimisation de la Conception et Ingénierie de l'Environnement;Campus Scientifique Savoie Technolac, 73376 Le Bourget-du-Lac Cedex, France;LOCIE - Laboratoire Optimisation de la Conception et Ingénierie de l'Environnement, UMR CNRS 5271, Université Savoie Mont Blanc;locie-00000001
-PROMES;Procédés, Matériaux et Énergie Solaire;7 rue du Four Solaire, 66120 Font-Romeu-Odeillo-Via, France;PROMES - Procédés, Matériaux et Énergie Solaire, UPR CNRS 8521;promes-00000001
-LIMSI;Laboratoire d'Informatique pour la Mécanique et les Sciences de l'Ingénieur;Rue John von Neumann, 91405 Orsay Cedex, France;LIMSI - Laboratoire d'Informatique pour la Mécanique et les Sciences de l'Ingénieur, UPR CNRS 3251;limsi-00000001
-LAPLACE;Laboratoire Plasma et Conversion d'Énergie;118 route de Narbonne, 31062 Toulouse Cedex 9, France;LAPLACE - Laboratoire Plasma et Conversion d'Énergie, UMR CNRS 5213, Université de Toulouse;laplace-00000001
-LEGI;Laboratoire des Écoulements Géophysiques et Industriels;1023 avenue Centrale, 38400 Saint-Martin-d'Hères, France;LEGI - Laboratoire des Écoulements Géophysiques et Industriels, UMR CNRS 5519, Université Grenoble Alpes;legi-00000001
-FAST;Fluides, Automatique et Systèmes Thermiques;Bâtiment 502, Campus Universitaire, 91405 Orsay Cedex, France;FAST - Fluides, Automatique et Systèmes Thermiques, UMR CNRS 7608, Université Paris-Saclay;fast-00000001
-TREFLE;Transferts, Écoulements, Fluides, Énergétique;Esplanade des Arts et Métiers, 33405 Talence Cedex, France;TREFLE - Transferts, Écoulements, Fluides, Énergétique, UMR CNRS 8508, Arts et Métiers;trefle-00000001
-CETHIL;Centre d'Énergétique et de Thermique de Lyon;Bâtiment Sadi Carnot, 9 rue de la Physique, 69621 Villeurbanne Cedex, France;CETHIL - Centre d'Énergétique et de Thermique de Lyon, UMR CNRS 5008, INSA de Lyon;cethil-00000001
-LMT;Laboratoire de Mécanique et Technologie;61 avenue du Président Wilson, 94235 Cachan Cedex, France;LMT - Laboratoire de Mécanique et Technologie, UMR CNRS 8535, ENS Paris-Saclay;lmt-00000001
+sigle;nom_complet;adresse;citation;struct_id_hal;acronym_hal;type_hal
+IUSTI;Institut Universitaire des Systèmes Thermiques Industriels;"Marseille, Aix-Marseille Université; CNRS";"IUSTI, Marseille";949;IUSTI;laboratory
+LOCIE;Laboratoire Optimisation de la Conception et Ingénierie de l'Environnement;"Chambéry (Le Bourget-du-Lac), Université Savoie Mont Blanc; CNRS";"LOCIE, Chambéry";1174528;LOCIE;laboratory
+ICUBE;Laboratoire des sciences de l'ingénieur de l'informatique et de l'imagerie;"Strasbourg, Université de Strasbourg; CNRS; INSA Strasbourg; ENGEES; Inria";"ICube, Strasbourg";217648;ICube;laboratory
+CETHIL;Centre de Thermique de Lyon;"Lyon/Villeurbanne, INSA Lyon; Université de Lyon; CNRS";"CETHIL, Lyon/Villeurbanne";442221;CETHIL;laboratory
+LASIE;Laboratoire des Sciences de l'Ingénieur pour l'Environnement;"La Rochelle, La Rochelle Université; CNRS";"LaSIE, La Rochelle";185979;LaSIE;laboratory
+INSTITUTP;Institut Pprime;"Poitiers; Chasseneuil-du-Poitou, CNRS; Université de Poitiers; ISAE-ENSMA";"INSTITUTP, Poitiers; Chasseneuil-du-Poitou";;;laboratory
+LATEP;Laboratoire de Thermique Énergétique et Procédés;"Pau, Université de Pau et des Pays de l'Adour";"LaTEP, Pau";33789;LaTEP;laboratory
+LTNLTEN;Laboratoire de Thermique et Énergie de Nantes;"Nantes, Nantes Université";"LTNLTEN, Nantes";;;laboratory
+I2M;Institut de Mécanique et d'Ingénierie de Bordeaux;"Bordeaux/Talence, Université de Bordeaux; Bordeaux INP; Arts et Métiers; CNRS";"I2M, Bordeaux/Talence";1002421;I2M;laboratory
+FEMTOST;Franche-Comté Électronique Mécanique Thermique et Optique Sciences et Technologies;"Besançon; Belfort; Montbéliard, Université Bourgogne Franche-Comté; CNRS; ENSMM; UTBM";"FEMTO-ST, Besançon; Belfort; Montbéliard";866;FEMTO-ST;laboratory
+CERTES;Centre d'Études et de Recherche en Thermique Environnement et Systèmes;"Créteil, Université Paris-Est Créteil; Université Gustave Eiffel";"CERTES, Créteil";;;laboratory
+IRDL;Institut de Recherche Dupuy de Lôme;"Lorient; Brest; Quimper; Vannes, Université Bretagne Sud; ENSTA Bretagne; ENIB; Université de Bretagne Occidentale";"IRDL, Lorient; Brest; Quimper; Vannes";1251173;IRDL;laboratory
+ITHEMM;Institut de Thermique Mécanique Matériaux;"Reims, Université de Reims Champagne-Ardenne";"ITheMM, Reims";1003313;ITheMM;laboratory
+ONERA;Office National d'Études et de Recherches Aérospatiales;"Toulouse, ONERA (Établissement public)";"ONERA, Toulouse";;;laboratory
+CNAM;Conservatoire National des Arts et Métiers Laboratoires énergie/thermique;"Paris, CNAM";"CNAM, Paris";;;laboratory
+LAMIH;Laboratoire d'Automatique de Mécanique et d'Informatique Industrielles et Humaines;"Valenciennes, Université Polytechnique Hauts-de-France; CNRS";"LAMIH, Valenciennes";;;laboratory
+CORIA;Complexe de Recherche Interprofessionnel en Aérothermochimie;"Saint-Étienne-du-Rouvray (Rouen), CNRS; Normandie Université; INSA Rouen Normandie; Université de Rouen Normandie";"CORIA, Saint-Étienne-du-Rouvray";962;CORIA;laboratory
+LEGI;Laboratoire des Écoulements Géophysiques et Industriels;"Grenoble, Université Grenoble Alpes; CNRS; Grenoble INP–UGA";"LEGI, Grenoble";1043048;LEGI;laboratory
+SIMAP;Science et Ingénierie des Matériaux et Procédés;"Grenoble, Université Grenoble Alpes; CNRS; Grenoble INP–UGA";"SIMaP, Grenoble";1043114;SIMaP;laboratory
+M2P2;Mécanique Modélisation et Procédés Propres;"Marseille, Aix-Marseille Université; CNRS; Centrale Méditerranée";"M2P2, Marseille";199963;M2P2;laboratory
+TREFLEI2M;Transferts Écoulements Fluides Énergétique (équipe au sein d'I2M);"Bordeaux/Talence, Université de Bordeaux; Bordeaux INP; Arts et Métiers; CNRS";"TREFLEI2M, Bordeaux/Talence";;;laboratory
+FAST;Fluides Automatique et Systèmes Thermiques;"Orsay (Plateau de Saclay), CNRS; Université Paris-Saclay";"FAST, Orsay";1051120;FAST;laboratory

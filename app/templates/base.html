@@ -21,16 +21,11 @@
     <!-- Mobile CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
 
-    
     <!-- CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sft-style.css') }}">
 
-
-
-    
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -40,7 +35,7 @@
 </div>
 
     <!-- Navigation principale -->
-  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
                 <i class="fas fa-fire-flame-curved me-2"></i>{{ conference.short_name }} {{ conference_location.city }}
@@ -159,6 +154,7 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Footer complet -->
     <footer class="bg-dark text-white mt-5 py-4">
         <div class="container">
             <div class="row">
@@ -234,11 +230,18 @@
 
             <!-- Copyright et mentions légales -->
             <div class="text-center mt-3 pt-3 border-top border-white-25">
-                <p class="mb-2 small text-muted">
-                    © {{ conference.year|default('2026') }} {{ conference.organizer.name|default('Société Française de Thermique') }} - Tous droits réservés
-                </p>
+                <!-- Conference Flow - version discrète -->
+                <div class="mt-2">
+                    <p class="mb-1 small text-white-50">
+                        Propulsé par <strong>Conference Flow</strong> © 2025 
+                        <a href="mailto:olivier@olivier-farges.xyz" class="text-white-50 text-decoration-none">Olivier Farges</a> - 
+                        <a href="#" onclick="showSourceInfo()" class="text-white-50 text-decoration-none">
+                            <i class="fas fa-balance-scale"></i> GPL v3
+                        </a>
+                    </p>
+                </div>
                 
-                <!-- Mentions légales -->
+                <!-- Mentions légales existantes -->
                 {% if legal %}
                 <div class="mt-2">
                     <small class="text-muted d-block mb-1">
@@ -256,7 +259,46 @@
         </div>
     </footer>
 
- <!-- PWA Elements -->
+    <!-- Modal Conference Flow -->
+    <div class="modal fade" id="sourceInfoModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-code text-primary"></i> Conference Flow
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Conference Flow</strong> est un système libre de gestion de conférence scientifique.</p>
+                    
+                    <div class="row">
+                        <div class="col-6">
+                            <h6><i class="fas fa-user"></i> Auteur</h6>
+                            <p>Olivier Farges</p>
+                        </div>
+                        <div class="col-6">
+                            <h6><i class="fas fa-balance-scale"></i> Licence</h6>
+                            <p><a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank">GPL v3</a></p>
+                        </div>
+                    </div>
+                    
+                    <p class="small text-muted mt-3">
+                        <i class="fas fa-heart text-danger"></i>
+                        Développé pour la communauté scientifique
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <a href="mailto:farges.olivier@gmail.com" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-envelope"></i> Contact
+                    </a>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PWA Elements -->
     <div id="network-status" class="network-status"></div>
     
     <button id="install-btn" class="pwa-install-prompt" style="display: none;">
@@ -273,8 +315,14 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
-
+    <script>
+    function showSourceInfo() {
+        var modal = new bootstrap.Modal(document.getElementById('sourceInfoModal'));
+        modal.show();
+    }
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>
 </html>
+

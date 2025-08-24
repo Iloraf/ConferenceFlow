@@ -74,16 +74,24 @@
                         <div class="form-text">L'email ne peut pas être modifié</div>
                     </div>
 
-
 <div class="mb-3">
-
                         <label for="affiliation" class="form-label">Affiliation</label>
-  <input type="text" id="affiliation-search" class="form-control" 
-           placeholder="Rechercher une affiliation (acronyme ou nom)...">
-    <small class="text-muted">
-        <span id="affiliation-count">{{ affiliations|length }}</span> affiliation(s) affichée(s)
-    </small>
-</div>
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <input type="text" id="affiliation-search" class="form-control me-2" 
+                                   placeholder="Rechercher une affiliation (acronyme ou nom)...">
+                            <a href="{{ url_for('main.create_affiliation') }}" class="btn btn-outline-success btn-sm flex-shrink-0" title="Créer une nouvelle affiliation">
+                                <i class="fas fa-plus me-1"></i>Nouvelle
+                            </a>
+                        </div>
+                        
+                        <small class="text-muted">
+                            <span id="affiliation-count">{{ affiliations|length }}</span> affiliation(s) affichée(s)
+                            • <strong>Votre affiliation manque ?</strong> Cliquez sur "Nouvelle" pour l'ajouter
+                        </small>
+                    </div>
+		    
+
 
 <div id="affiliations-list" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0;">
     {% for aff in affiliations %}

@@ -1,3 +1,21 @@
+"""
+Conference Flow - Système de gestion de conférence scientifique
+Copyright (C) 2025 Olivier Farges olivier@olivier-farges.xyz
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey
@@ -229,11 +247,17 @@ class Affiliation(db.Model):
     def find_by_sigle(cls, sigle):
         """Trouve une affiliation par son sigle."""
         return cls.query.filter_by(sigle=sigle.upper()).first()
-    
+
     @classmethod
-    def find_by_hal_id(cls, hal_id):
-        """Trouve une affiliation par son identifiant HAL."""
-        return cls.query.filter_by(identifiant_hal=hal_id).first()
+    def find_by_struct_id_hal(cls, struct_id_hal):
+        """Trouve une affiliation par son struct_id_hal."""
+        return cls.query.filter_by(struct_id_hal=struct_id_hal).first()
+
+    @classmethod  
+    def find_by_acronym_hal(cls, acronym_hal):
+        """Trouve une affiliation par son acronyme HAL."""
+        return cls.query.filter_by(acronym_hal=acronym_hal).first()
+
 
 #  THEMATIQUES ######
 class ThematiqueHelper:
@@ -971,28 +995,7 @@ def init_thematiques():
 
 
 
-
-# class Review(db.Model):
-#     """Modèle pour le contenu des reviews."""
-#     id = db.Column(db.Integer, primary_key=True)
-#     communication_id = db.Column(db.Integer, db.ForeignKey('communication.id'), nullable=False)
-#     reviewer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    
-#     # Contenu de la review
-#     comments = db.Column(db.Text)
-#     decision = db.Column(db.String(20))  # accept, revise, reject
-#     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
-#     completed = db.Column(db.Boolean, default=False)
-    
-#     # Relations
-#     communication = db.relationship('Communication', backref='reviews')
-#     reviewer = db.relationship('User', backref='submitted_reviews')
-    
-#     def __repr__(self):
-#         return f'<Review {self.id}: {self.decision}>'
-
-
-def import_affiliations_from_csv(csv_path='static/uploads/data/labos.csv'):
+def import_affiliations_from_csv(csv_path='static/content/affiliations.csv'):
     """Importe les affiliations depuis le fichier CSV."""
     import csv
     import os

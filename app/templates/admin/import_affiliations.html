@@ -3,6 +3,21 @@
 {% block title %}Import des Affiliations - {{ conference.short_name }}{% endblock %}
 
 {% block content %}
+
+<div class="container-fluid">
+
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-folder-open me-2"></i>Import des affiliations</h1>
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour au dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+    </div>
+
 <div class="container mt-4">
     <div class="row">
         <div class="col-md-8 mx-auto">
@@ -10,15 +25,20 @@
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0">
                         <i class="fas fa-upload me-2"></i>
-                        Import des Affiliations
+                        Gestion de l'import
                     </h4>
-                </div>
+
+
+
+		</div>
                 <div class="card-body">
                     
                     <!-- Statistiques actuelles -->
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        <strong>{{ total_affiliations }}</strong> affiliations actuellement en base
+
+
+			<strong>{{ total_affiliations }}</strong> affiliations actuellement en base
                     </div>
 
                     <!-- Options d'import -->
@@ -117,8 +137,9 @@
                                 </button>
                             </h6>
                         </div>
-                        <div class="card-body">
-                            <div class="row">
+			<div class="card-body">
+
+<div class="row">
                                 <div class="col-md-6">
                                     <p><strong>Colonnes obligatoires :</strong></p>
                                     <ul>
@@ -131,7 +152,9 @@
                                     <ul>
                                         <li><code>adresse</code> - Adresse complète</li>
                                         <li><code>citation</code> - Forme de citation</li>
-                                        <li><code>identifiant_hal</code> - ID HAL</li>
+                                        <li><code>struct_id_hal</code> - ID structure HAL</li>
+                                        <li><code>acronym_hal</code> - Acronyme HAL</li>
+                                        <li><code>type_hal</code> - Type HAL (laboratory, institution...)</li>
                                     </ul>
                                 </div>
                             </div>
@@ -139,10 +162,12 @@
                             <div id="csv-example" style="display: none;" class="mt-3">
                                 <div class="alert alert-light">
                                     <p><strong>Exemple de contenu CSV :</strong></p>
-                                    <pre><code>sigle;nom_complet;adresse;citation;identifiant_hal
-LORIA;Laboratoire Lorrain de Recherche en Informatique et ses Applications;Nancy, France;LORIA, Nancy;12345
-INRIA;Institut National de Recherche en Informatique et Automatique;Paris, France;INRIA;67890</code></pre>
+                                    <pre><code>sigle;nom_complet;adresse;citation;struct_id_hal;acronym_hal;type_hal
+LORIA;Laboratoire Lorrain de Recherche en Informatique et ses Applications;Nancy, France;LORIA, Nancy;441569;LORIA;laboratory
+INRIA;Institut National de Recherche en Informatique et Automatique;Paris, France;INRIA;441569-1;INRIA;institution
+LEMTA;Laboratoire d'Énergétique et de Mécanique Théorique et Appliquée;Nancy, France;LEMTA;205988;LEMTA;laboratory</code></pre>
                                 </div>
+                            </div>
                             </div>
 
                             <div class="alert alert-warning mt-3">

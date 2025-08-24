@@ -1,3 +1,21 @@
+"""
+Conference Flow - Système de gestion de conférence scientifique
+Copyright (C) 2025 Olivier Farges olivier@olivier-farges.xyz
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -274,7 +292,6 @@ def view_affiliation(affiliation_id):
     affiliation = Affiliation.query.get_or_404(affiliation_id)
     return render_template('admin/view_affiliation.html', affiliation=affiliation)
 
-
 @admin.route("/admin/export/users")
 @login_required
 def export_users_csv():
@@ -283,9 +300,20 @@ def export_users_csv():
         flash("Accès réservé aux administrateurs.", "danger")
         return redirect(url_for("main.index"))
 
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["email", "first_name", "last_name", "is_admin", "is_reviewer", "created_at"])
+    from io import BytesIO
+    import csv
+    
+    # Utiliser BytesIO au lieu de StringIO
+    output = BytesIO()
+    
+    # Créer le contenu CSV en tant que string d'abord
+    csv_content = StringIO()
+    writer = csv.writer(csv_content)
+    writer.writerow([
+        "email", "first_name", "last_name", 
+        "idhal", "orcid",  # Nouveaux champs HAL
+        "is_admin", "is_reviewer", "created_at"
+    ])
 
     users = User.query.all()
     for user in users:
@@ -293,14 +321,20 @@ def export_users_csv():
             user.email, 
             user.first_name or "", 
             user.last_name or "", 
+            user.idhal or "",        # ID HAL
+            user.orcid or "",        # ORCID
             user.is_admin, 
             user.is_reviewer,
             user.created_at.strftime("%Y-%m-%d %H:%M:%S") if hasattr(user, 'created_at') and user.created_at else ""
         ])
 
+    # Convertir en bytes et l'écrire dans BytesIO
+    csv_string = csv_content.getvalue()
+    output.write(csv_string.encode('utf-8'))
     output.seek(0)
+
     return send_file(
-        StringIO(output.getvalue()),
+        output,
         mimetype="text/csv",
         as_attachment=True,
         download_name="users_export.csv"
@@ -309,14 +343,31 @@ def export_users_csv():
 @admin.route("/admin/export/affiliations")
 @login_required
 def export_affiliations_csv():
-    """Export des affiliations en CSV."""
+    """Export des affiliations en CSV avec support des champs HAL."""
     if not current_user.is_admin:
         flash("Accès réservé aux administrateurs.", "danger")
         return redirect(url_for("main.index"))
 
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["sigle", "nom_complet", "adresse", "citation", "identifiant_hal"])
+    from io import BytesIO
+    import csv
+    
+    # Utiliser BytesIO au lieu de StringIO
+    output = BytesIO()
+    
+    # Créer le contenu CSV en tant que string d'abord
+    csv_content = StringIO()
+    writer = csv.writer(csv_content)
+    
+    # En-têtes CSV avec les champs HAL
+    writer.writerow([
+        "sigle", 
+        "nom_complet", 
+        "adresse", 
+        "citation", 
+        "struct_id_hal",       # ID structure HAL spécifique  
+        "acronym_hal",         # Acronyme HAL
+        "type_hal"             # Type HAL
+    ])
 
     affiliations = Affiliation.query.all()
     for affiliation in affiliations:
@@ -325,12 +376,18 @@ def export_affiliations_csv():
             affiliation.nom_complet,
             affiliation.adresse or "",
             affiliation.citation or "",
-            affiliation.identifiant_hal or ""
+            affiliation.struct_id_hal or "",        
+            affiliation.acronym_hal or "",          
+            affiliation.type_hal or ""              
         ])
 
+    # Convertir en bytes et l'écrire dans BytesIO
+    csv_string = csv_content.getvalue()
+    output.write(csv_string.encode('utf-8'))
     output.seek(0)
+
     return send_file(
-        StringIO(output.getvalue()),
+        output,
         mimetype="text/csv",
         as_attachment=True,
         download_name="affiliations_export.csv"
@@ -347,7 +404,7 @@ def system_settings():
     return render_template('admin/system_settings.html')
 
 def process_affiliations_csv(file):
-    """Traite le fichier CSV des affiliations."""
+    """Traite le fichier CSV des affiliations avec support des nouveaux champs HAL."""
     
     results = {
         'success': 0,
@@ -364,7 +421,15 @@ def process_affiliations_csv(file):
         
         # Vérification des colonnes requises
         required_columns = ['sigle', 'nom_complet']
-        optional_columns = ['adresse', 'citation', 'identifiant_hal']
+        
+        # Colonnes optionnelles pour Conference Flow avec champs HAL
+        optional_columns = [
+            'adresse', 
+            'citation', 
+            'struct_id_hal',
+            'acronym_hal',
+            'type_hal'
+        ]
         
         if not all(col in csv_reader.fieldnames for col in required_columns):
             raise ValueError(f"Colonnes requises manquantes. Attendues: {required_columns}")
@@ -377,12 +442,16 @@ def process_affiliations_csv(file):
             line_number += 1
             
             try:
-                # Nettoyage des données
+                # Nettoyage des données existantes
                 sigle = row.get('sigle', '').strip().upper()
                 nom_complet = row.get('nom_complet', '').strip()
                 adresse = row.get('adresse', '').strip() or None
                 citation = row.get('citation', '').strip() or None
-                identifiant_hal = row.get('identifiant_hal', '').strip() or None
+                
+                # Nettoyage des champs HAL
+                struct_id_hal = row.get('struct_id_hal', '').strip() or None
+                acronym_hal = row.get('acronym_hal', '').strip() or None
+                type_hal = row.get('type_hal', '').strip() or None
                 
                 # Validation des données obligatoires
                 if not sigle:
@@ -404,13 +473,13 @@ def process_affiliations_csv(file):
                 # Vérification des doublons
                 existing_affiliation = None
                 
-                # Recherche par sigle
+                # 1. Recherche par sigle (priorité 1)
                 if sigle:
                     existing_affiliation = Affiliation.query.filter_by(sigle=sigle).first()
                 
-                # Si pas trouvé par sigle, recherche par identifiant HAL
-                if not existing_affiliation and identifiant_hal:
-                    existing_affiliation = Affiliation.query.filter_by(identifiant_hal=identifiant_hal).first()
+                # 2. Si pas trouvé par sigle, recherche par struct_id_hal
+                if not existing_affiliation and struct_id_hal:
+                    existing_affiliation = Affiliation.query.filter_by(struct_id_hal=struct_id_hal).first()
                 
                 # Mise à jour ou création
                 if existing_affiliation:
@@ -418,20 +487,28 @@ def process_affiliations_csv(file):
                     existing_affiliation.nom_complet = nom_complet
                     existing_affiliation.adresse = adresse
                     existing_affiliation.citation = citation
-                    if identifiant_hal:
-                        existing_affiliation.identifiant_hal = identifiant_hal
+                    
+                    # Mise à jour des champs HAL
+                    if struct_id_hal:
+                        existing_affiliation.struct_id_hal = struct_id_hal
+                    if acronym_hal:
+                        existing_affiliation.acronym_hal = acronym_hal
+                    if type_hal:
+                        existing_affiliation.type_hal = type_hal
                     
                     results['updated'] += 1
                     current_app.logger.debug(f"Affiliation mise à jour: {sigle}")
                 
                 else:
-                    # Création d'une nouvelle affiliation
+                    # Création d'une nouvelle affiliation avec tous les champs
                     new_affiliation = Affiliation(
                         sigle=sigle,
                         nom_complet=nom_complet,
                         adresse=adresse,
                         citation=citation,
-                        identifiant_hal=identifiant_hal
+                        struct_id_hal=struct_id_hal,          
+                        acronym_hal=acronym_hal,              
+                        type_hal=type_hal                     
                     )
                     
                     db.session.add(new_affiliation)
@@ -441,20 +518,19 @@ def process_affiliations_csv(file):
             except Exception as e:
                 results['errors'].append({
                     'line': line_number,
-                    'message': f"Erreur de traitement: {str(e)}"
+                    'message': f'Erreur de traitement: {str(e)}'
                 })
                 results['skipped'] += 1
                 current_app.logger.error(f"Erreur ligne {line_number}: {e}")
-                continue
         
-        # Sauvegarde en base
+        # Commit des changements
         db.session.commit()
-        current_app.logger.info(f"Import terminé: {results}")
         
+    except UnicodeDecodeError:
+        raise ValueError("Erreur d'encodage du fichier. Utilisez l'encodage UTF-8.")
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erreur générale lors de l'import: {e}")
-        raise e
+        raise ValueError(f"Erreur lors du traitement du fichier CSV: {str(e)}")
     
     return results
 
@@ -2199,11 +2275,11 @@ def test_zone():
     
     # Vérifier la présence des fichiers importants
     import os
-    csv_path = os.path.join(current_app.root_path, 'static', 'uploads', 'data', 'labos.csv')
+    csv_path = os.path.join(current_app.root_path, 'static', 'content', 'affiliations.csv')
     pdfs_dir = os.path.join(current_app.static_folder, "uploads", "test_pdfs")
     
     file_status = {
-        'labos_csv_exists': os.path.exists(csv_path),
+        'affiliations_csv_exists': os.path.exists(csv_path),
         'test_pdfs_exist': os.path.exists(pdfs_dir) and len(os.listdir(pdfs_dir)) > 0 if os.path.exists(pdfs_dir) else False,
         'csv_path': csv_path,
         'pdfs_dir': pdfs_dir
@@ -4325,3 +4401,314 @@ def run_hal_collection_test(test_email, dry_run):
             'success': False,
             'message': f'Erreur: {str(e)}'
         }
+
+
+@admin.route("/send-test-email")
+@login_required
+def send_test_email():
+    """Page de test des emails."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    # Rediriger vers la page de test des emails
+    return redirect(url_for('admin.test_emails'))
+
+
+@admin.route("/affiliations/enrich-hal", methods=["GET", "POST"])
+@login_required
+def enrich_affiliations_hal():
+    """Enrichit les affiliations avec les données HAL via l'API."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    if request.method == "POST":
+        # Lancer l'enrichissement
+        try:
+            results = hal_enrich_affiliations()
+            
+            if results['enriched'] > 0:
+                flash(f"✅ {results['enriched']} laboratoires enrichis avec les données HAL", "success")
+            if results['duplicates_avoided'] > 0:
+                flash(f"🔍 {results['duplicates_avoided']} doublons d'ID HAL évités", "info")
+            if results['errors']:
+                flash(f"⚠️ {len(results['errors'])} erreurs lors de l'enrichissement", "warning")
+                for error in results['errors'][:3]:  # Afficher les 3 premières erreurs
+                    flash(f"• {error}", "warning")
+            if results['not_found'] > 0:
+                flash(f"ℹ️ {results['not_found']} laboratoires non trouvés dans HAL", "info")
+                
+        except Exception as e:
+            flash(f"❌ Erreur lors de l'enrichissement : {str(e)}", "danger")
+        
+        return redirect(url_for('admin.enrich_affiliations_hal'))
+    
+    # GET : Afficher la page avec preview
+    affiliations_to_enrich = get_affiliations_needing_enrichment()
+    
+    return render_template('admin/enrich_affiliations_hal.html', 
+                         affiliations=affiliations_to_enrich,
+                         total=len(affiliations_to_enrich))
+
+
+
+def get_affiliations_needing_enrichment():
+    """Retourne les affiliations qui pourraient être enrichies."""
+    return Affiliation.query.filter(
+        db.or_(
+            Affiliation.struct_id_hal.is_(None),
+            Affiliation.struct_id_hal == '',
+            Affiliation.acronym_hal.is_(None),
+            Affiliation.acronym_hal == ''
+        )
+    ).all()
+
+
+def hal_enrich_affiliations():
+    """Enrichit les affiliations en appelant l'API HAL."""
+    import requests
+    import time
+    from urllib.parse import quote
+    
+    results = {
+        'enriched': 0,
+        'not_found': 0,
+        'errors': []
+    }
+    
+    # API HAL pour recherche de structures
+    HAL_API_BASE = "https://api.archives-ouvertes.fr/search/"
+    
+    affiliations_to_enrich = get_affiliations_needing_enrichment()
+    
+    for affiliation in affiliations_to_enrich:
+        try:
+            # Recherche par nom complet d'abord
+            search_terms = [
+                affiliation.nom_complet,
+                affiliation.sigle
+            ]
+            
+            hal_data = None
+            
+            for term in search_terms:
+                if not term:
+                    continue
+                    
+                # Recherche dans HAL
+                hal_data = search_hal_structure(term)
+                if hal_data:
+                    break
+                
+                # Pause pour éviter de surcharger l'API
+                time.sleep(0.5)
+            
+            if hal_data:
+                # Enrichir l'affiliation avec les données HAL
+                affiliation.struct_id_hal = hal_data.get('struct_id')
+                affiliation.acronym_hal = hal_data.get('acronym')
+                affiliation.type_hal = hal_data.get('type', 'laboratory')
+                
+                db.session.commit()
+                results['enriched'] += 1
+                
+                current_app.logger.info(f"Enrichi {affiliation.sigle} avec HAL ID {hal_data.get('struct_id')}")
+            else:
+                results['not_found'] += 1
+                
+        except Exception as e:
+            error_msg = f"Erreur pour {affiliation.sigle}: {str(e)}"
+            results['errors'].append(error_msg)
+            current_app.logger.error(error_msg)
+    
+    return results
+
+def search_hal_structure(search_term):
+    """Recherche une structure dans HAL via l'API avec une meilleure précision."""
+    import requests
+    from urllib.parse import quote
+    
+    try:
+        # URL de recherche HAL
+        encoded_term = quote(search_term)
+        url = f"https://api.archives-ouvertes.fr/search/?q=structName_s:({encoded_term})&fl=structId_i,structAcronym_s,structName_s,structType_s&rows=10"
+        
+        headers = {
+            'User-Agent': 'Conference-Flow/1.0 (contact@example.com)'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data.get('response', {}).get('numFound', 0) > 0:
+            docs = data['response']['docs']
+            
+            # Fonction pour calculer un score de correspondance
+            def calculate_match_score(doc, search_term):
+                struct_name = doc.get('structName_s', [''])[0].lower()
+                struct_acronym = doc.get('structAcronym_s', [''])[0].lower()
+                search_lower = search_term.lower()
+                
+                score = 0
+                
+                # Score pour correspondance exacte du sigle/acronyme (priorité maximale)
+                if struct_acronym and struct_acronym == search_lower:
+                    score += 100
+                elif struct_acronym and search_lower == struct_acronym:
+                    score += 90
+                
+                # Score pour correspondance exacte dans le nom complet
+                if search_lower in struct_name:
+                    # Correspondance exacte du terme complet
+                    if search_lower == struct_name:
+                        score += 80
+                    # Le terme apparaît comme mot complet
+                    elif f" {search_lower} " in f" {struct_name} ":
+                        score += 60
+                    # Le terme apparaît au début ou à la fin
+                    elif struct_name.startswith(search_lower) or struct_name.endswith(search_lower):
+                        score += 50
+                    # Le terme apparaît quelque part
+                    else:
+                        score += 30
+                
+                # Pénalité si le nom est très différent (évite les faux positifs)
+                search_words = set(search_lower.split())
+                name_words = set(struct_name.split())
+                common_words = search_words.intersection(name_words)
+                
+                if len(search_words) > 0:
+                    word_match_ratio = len(common_words) / len(search_words)
+                    if word_match_ratio < 0.3:  # Moins de 30% de mots en commun
+                        score -= 20
+                
+                return score
+            
+            # Calculer les scores pour tous les résultats
+            scored_results = []
+            for doc in docs:
+                score = calculate_match_score(doc, search_term)
+                if score > 20:  # Seuil minimum de pertinence
+                    scored_results.append((score, doc))
+            
+            # Trier par score décroissant
+            scored_results.sort(key=lambda x: x[0], reverse=True)
+            
+            if scored_results:
+                best_score, best_doc = scored_results[0]
+                
+                # Log pour debugging
+                struct_name = best_doc.get('structName_s', [''])[0]
+                struct_acronym = best_doc.get('structAcronym_s', [''])[0]
+                current_app.logger.info(f"HAL match pour '{search_term}': '{struct_name}' ({struct_acronym}) - Score: {best_score}")
+                
+                # Vérification finale : éviter les correspondances trop faibles
+                if best_score < 40:
+                    current_app.logger.warning(f"Score trop faible pour '{search_term}': {best_score} - Résultat rejeté")
+                    return None
+                
+                return {
+                    'struct_id': best_doc.get('structId_i', [None])[0],
+                    'acronym': struct_acronym,
+                    'name': struct_name,
+                    'type': best_doc.get('structType_s', ['laboratory'])[0],
+                    'match_score': best_score
+                }
+        
+        return None
+        
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Erreur API HAL pour '{search_term}': {e}")
+        return None
+    except Exception as e:
+        current_app.logger.error(f"Erreur parsing HAL pour '{search_term}': {e}")
+        return None
+
+
+def hal_enrich_affiliations():
+    """Version améliorée avec vérification des doublons d'ID HAL."""
+    import requests
+    import time
+    from urllib.parse import quote
+    
+    results = {
+        'enriched': 0,
+        'not_found': 0,
+        'errors': [],
+        'duplicates_avoided': 0
+    }
+    
+    affiliations_to_enrich = get_affiliations_needing_enrichment()
+    used_hal_ids = set()  # Pour éviter les doublons
+    
+    # D'abord, récupérer tous les struct_id_hal déjà utilisés
+    existing_hal_ids = db.session.query(Affiliation.struct_id_hal).filter(
+        Affiliation.struct_id_hal.isnot(None),
+        Affiliation.struct_id_hal != ''
+    ).all()
+    used_hal_ids.update([hal_id[0] for hal_id in existing_hal_ids])
+    
+    for affiliation in affiliations_to_enrich:
+        try:
+            # Recherche par nom complet d'abord, puis par sigle
+            search_terms = []
+            
+            # Prioriser le sigle s'il est assez spécifique
+            if affiliation.sigle and len(affiliation.sigle) >= 3:
+                search_terms.append(affiliation.sigle)
+            
+            # Ajouter le nom complet
+            if affiliation.nom_complet:
+                search_terms.append(affiliation.nom_complet)
+            
+            hal_data = None
+            best_match = None
+            
+            for term in search_terms:
+                if not term:
+                    continue
+                    
+                # Recherche dans HAL
+                hal_result = search_hal_structure(term)
+                if hal_result:
+                    # Vérifier que cet ID HAL n'est pas déjà utilisé
+                    struct_id = str(hal_result.get('struct_id'))
+                    if struct_id in used_hal_ids:
+                        current_app.logger.warning(f"ID HAL {struct_id} déjà utilisé, ignoré pour {affiliation.sigle}")
+                        results['duplicates_avoided'] += 1
+                        continue
+                    
+                    # Garder le meilleur match (score le plus élevé)
+                    if not best_match or hal_result.get('match_score', 0) > best_match.get('match_score', 0):
+                        best_match = hal_result
+                
+                # Pause pour éviter de surcharger l'API
+                time.sleep(0.7)
+            
+            if best_match:
+                # Enrichir l'affiliation avec les meilleures données HAL
+                affiliation.struct_id_hal = str(best_match.get('struct_id'))
+                affiliation.acronym_hal = best_match.get('acronym')
+                affiliation.type_hal = best_match.get('type', 'laboratory')
+                
+                # Ajouter l'ID à la liste des utilisés
+                used_hal_ids.add(str(best_match.get('struct_id')))
+                
+                db.session.commit()
+                results['enriched'] += 1
+                
+                current_app.logger.info(f"Enrichi {affiliation.sigle} avec HAL ID {best_match.get('struct_id')} (score: {best_match.get('match_score')})")
+            else:
+                results['not_found'] += 1
+                current_app.logger.info(f"Aucun résultat HAL satisfaisant pour {affiliation.sigle}")
+                
+        except Exception as e:
+            error_msg = f"Erreur pour {affiliation.sigle}: {str(e)}"
+            results['errors'].append(error_msg)
+            current_app.logger.error(error_msg)
+    
+    return results
+

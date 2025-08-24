@@ -7,15 +7,19 @@
 <div class="container">
     <header class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h2 text-primary">Affiliations</h1>
+            <h1 class="h2 text-primary">Liste des affiliations</h1>
             <p class="text-muted">{{ affiliations.total }} affiliation(s) au total</p>
         </div>
         <div>
             <a href="{{ url_for('admin.import_affiliations') }}" class="btn btn-primary">
                 <i class="fas fa-upload me-2"></i>Importer des affiliations
             </a>
+<a href="{{ url_for('admin.enrich_affiliations_hal') }}" class="btn btn-info me-2" title="Enrichir automatiquement via l'API HAL">
+                <i class="fas fa-magic me-2"></i>Enrichir avec HAL
+            </a>
+	    
                 <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> Retour Dashboard
+                    <i class="fas fa-arrow-left"></i> Retour au Dashboard
                 </a>
 	</div>
     </header>
@@ -83,13 +87,14 @@
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if affiliation.identifiant_hal %}
-                            <code class="small">{{ affiliation.identifiant_hal }}</code>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
+<td>
+    {% if affiliation.struct_id_hal %}
+    <code class="small">{{ affiliation.struct_id_hal }}</code>
+    <br><small class="text-muted">{{ affiliation.acronym_hal or affiliation.sigle }}</small>
+    {% else %}
+    <span class="text-muted">-</span>
+    {% endif %}
+</td>
                         <td class="text-center">
                             <div class="btn-group btn-group-sm">
                                 <a href="{{ url_for('admin.view_affiliation', affiliation_id=affiliation.id) }}" 

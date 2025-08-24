@@ -33,11 +33,23 @@
                 <dt class="col-sm-3">Citation :</dt>
                 <dd class="col-sm-9">{{ affiliation.citation }}</dd>
                 {% endif %}
-                
-                {% if affiliation.identifiant_hal %}
-                <dt class="col-sm-3">ID HAL :</dt>
-                <dd class="col-sm-9">{{ affiliation.identifiant_hal }}</dd>
-                {% endif %}
+
+{% if affiliation.struct_id_hal %}
+<dt class="col-sm-3">ID Structure HAL :</dt>
+<dd class="col-sm-9">{{ affiliation.struct_id_hal }}</dd>
+{% endif %}
+
+{% if affiliation.acronym_hal %}
+<dt class="col-sm-3">Acronyme HAL :</dt>
+<dd class="col-sm-9">{{ affiliation.acronym_hal }}</dd>
+{% endif %}
+
+{% if affiliation.type_hal %}
+<dt class="col-sm-3">Type HAL :</dt>
+<dd class="col-sm-9">{{ affiliation.type_hal }}</dd>
+{% endif %}
+
+		
             </dl>
             
             <a href="{{ url_for('admin.list_affiliations') }}" class="btn btn-secondary">Retour</a>
