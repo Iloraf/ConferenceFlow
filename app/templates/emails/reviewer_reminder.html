@@ -1,10 +1,8 @@
-<!-- templates/emails/reviewer_reminder.html - Rappel -->
-
 {% extends 'emails/base_email.html' %}
 
 {% block title %}Rappel - Reviews en attente{% endblock %}
 
-{% block header_title %}Rappel Reviews{% endblock %}
+{% block header_title %}{{ CONFERENCE_SHORT_NAME | default('Conference Flow') }}{% endblock %}
 {% block header_subtitle %}{{ assignments|length }} review(s) en attente{% endblock %}
 
 {% block content %}
@@ -19,36 +17,38 @@
     
     {% if assignment.due_date %}
         {% if assignment.is_overdue %}
-        <div class="alert alert-danger">
-            <strong>⚠️ EN RETARD</strong> - Échéance dépassée le {{ assignment.due_date.strftime('%d/%m/%Y') }}
+        <div style="background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 10px; border-radius: 5px; margin: 10px 0;">
+            <strong style="color: #721c24;">⚠️ EN RETARD</strong> - Échéance dépassée le {{ assignment.due_date.strftime('%d/%m/%Y') }}
         </div>
         {% else %}
-        <div class="alert alert-warning">
-            <strong>⏰ À rendre pour le {{ assignment.due_date.strftime('%d/%m/%Y') }}</strong>
+        <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin: 10px 0;">
+            <strong style="color: #856404;">⏰ À rendre pour le {{ assignment.due_date.strftime('%d/%m/%Y') }}</strong>
         </div>
         {% endif %}
     {% endif %}
     
     {% if assignment.communication.thematiques %}
     <div class="thematiques">
-        {% for thematique in assignment.communication.thematiques %}
-        <span class="thematique-badge" style="background-color: {{ thematique.couleur }};">
-            {{ thematique.code }}
-        </span>
-        {% endfor %}
+        <strong>Thématiques :</strong>
+        {% set theme_names = assignment.communication.thematiques | convert_theme_codes %}
+        <span style="color: #007bff;">{{ theme_names }}</span>
     </div>
     {% endif %}
 </div>
 {% endfor %}
 
 <div style="text-align: center; margin: 30px 0;">
-    <a href="{{ dashboard_url }}" class="btn btn-success">
+    <a href="{{ dashboard_url }}" class="btn" style="background-color: #28a745;">
         📝 Accéder à mes reviews
     </a>
 </div>
 
 <p>Merci de traiter ces évaluations dans les meilleurs délais.</p>
 
+<p>Pour toute question, contactez-nous à 
+<a href="mailto:{{ CONFERENCE_EMAIL | default('contact@conference.fr') }}" style="color: #007bff;">{{ CONFERENCE_EMAIL | default('contact@conference.fr') }}</a></p>
+
 <p>Cordialement,<br>
-<strong>L'équipe d'organisation du congrès SFT</strong></p>
+<strong>L'équipe d'organisation {{ CONFERENCE_SHORT_NAME | default('Conference Flow') }}</strong></p>
 {% endblock %}
+

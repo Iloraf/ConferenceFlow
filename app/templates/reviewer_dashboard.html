@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Mes Reviews - SFT 2026{% endblock %}
+{% block title %}Mes Reviews - {{ conference.short_name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -294,7 +294,7 @@
                     <li>Qualité scientifique et originalité</li>
                     <li>Méthodologie et rigueur</li>
                     <li>Clarté de la rédaction</li>
-                    <li>Adéquation avec les thématiques SFT</li>
+                    <li>Adéquation avec les thématiques {{ conference.organizer.short_name }}</li>
                 </ul>
             </div>
         </div>

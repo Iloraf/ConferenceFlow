@@ -3,7 +3,7 @@
 
 {% block title %}{{ email_subject }}{% endblock %}
 
-{% block header_title %}SFT 2026{% endblock %}
+{% block header_title %}{{ CONFERENCE_SHORT_NAME | default('Conference Flow') }}{% endblock %}
 {% block header_subtitle %}{{ email_subject }}{% endblock %}
 
 {% block content %}
@@ -21,11 +21,9 @@
         
         {% if communication.thematiques %}
         <div class="thematiques">
-            {% for thematique in communication.thematiques %}
-            <span class="thematique-badge" style="background-color: {{ thematique.couleur }};">
-                {{ thematique.code }}
-            </span>
-            {% endfor %}
+            <strong>Thématiques :</strong>
+            {% set theme_names = communication.thematiques | convert_theme_codes %}
+            <span style="color: #007bff;">{{ theme_names }}</span>
         </div>
         {% endif %}
     </div>
@@ -35,7 +33,7 @@
 
 <div style="text-align: center; margin: 30px 0;">
     {% if recipient.is_reviewer %}
-    <a href="{{ url_for('main.reviewer_dashboard', _external=True) }}" class="btn">
+    <a href="{{ url_for('reviewer.dashboard', _external=True) }}" class="btn">
         📊 Mon tableau de bord reviewer
     </a>
     {% else %}
@@ -46,8 +44,8 @@
 </div>
 
 <p>Pour toute question, n'hésitez pas à nous contacter à 
-<a href="mailto:congres-sft2026@univ-lorraine.fr" style="color: #007bff;">congres-sft2026@univ-lorraine.fr</a></p>
+<a href="mailto:{{ CONFERENCE_EMAIL | default('contact@conference.fr') }}" style="color: #007bff;">{{ CONFERENCE_EMAIL | default('contact@conference.fr') }}</a></p>
 
 <p>Cordialement,<br>
-<strong>L'équipe d'organisation SFT 2026</strong></p>
+<strong>L'équipe d'organisation {{ CONFERENCE_SHORT_NAME | default('Conference Flow') }}</strong></p>
 {% endblock %}

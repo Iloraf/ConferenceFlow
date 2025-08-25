@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>{{ communication.title }} - SFT 2026</title>
+    <title>{{ communication.title }} - {{ conference.short_name }}</title>
     
     <!-- PWA -->
     <link rel="manifest" href="/static/manifest.json">
@@ -205,9 +205,9 @@
         <!-- Footer -->
         <div class="card" style="background: linear-gradient(135deg, #2c3e50, #3498db); color: white;">
             <div class="text-center p-4">
-                <h5 class="mb-3"><i class="fas fa-calendar me-2"></i>SFT 2026 - Nancy</h5>
-                <p class="mb-0">Congrès Français de Thermique</p>
-                <small>1-3 juin 2026</small>
+                <h5 class="mb-3"><i class="fas fa-calendar me-2"></i> {{ conference.short_name }}- {{ location.city }}</h5>
+                <p class="mb-0">{{ conference.name }}</p>
+                <small>{{ dates.dates }}</small>
             </div>
         </div>
     </div>

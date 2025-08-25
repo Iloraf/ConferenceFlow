@@ -78,11 +78,63 @@
                             </label>
                             
                             <div class="row">
-                                <!-- Colonne 1 -->
+                                <!-- Section Confirmations de soumission -->
                                 <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h6 class="mb-0">Emails utilisateurs</h6>
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-upload me-2"></i>
+                                                Confirmations de soumission
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_resume_confirmation" 
+                                                       name="email_tests" value="resume_confirmation">
+                                                <label class="form-check-label" for="test_resume_confirmation">
+                                                    Confirmation résumé
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_article_confirmation" 
+                                                       name="email_tests" value="article_confirmation">
+                                                <label class="form-check-label" for="test_article_confirmation">
+                                                    Confirmation article
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_wip_confirmation" 
+                                                       name="email_tests" value="wip_confirmation">
+                                                <label class="form-check-label" for="test_wip_confirmation">
+                                                    Confirmation WIP
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_poster_confirmation" 
+                                                       name="email_tests" value="poster_confirmation">
+                                                <label class="form-check-label" for="test_poster_confirmation">
+                                                    Confirmation poster
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_revision_confirmation" 
+                                                       name="email_tests" value="revision_confirmation">
+                                                <label class="form-check-label" for="test_revision_confirmation">
+                                                    Confirmation révision
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Section Utilisateurs -->
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-users me-2"></i>
+                                                Emails utilisateurs
+                                            </h6>
                                         </div>
                                         <div class="card-body">
                                             <div class="form-check">
@@ -90,6 +142,13 @@
                                                        name="email_tests" value="activation">
                                                 <label class="form-check-label" for="test_activation">
                                                     Email d'activation reviewer
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_reviewer_welcome" 
+                                                       name="email_tests" value="reviewer_welcome">
+                                                <label class="form-check-label" for="test_reviewer_welcome">
+                                                    Bienvenue reviewer
                                                 </label>
                                             </div>
                                             <div class="form-check">
@@ -116,12 +175,15 @@
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <!-- Colonne 2 -->
+
+                                <!-- Section Reviews & Décisions -->
                                 <div class="col-md-6">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h6 class="mb-0">Emails reviews & décisions</h6>
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-warning text-dark">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-clipboard-check me-2"></i>
+                                                Reviews & Décisions
+                                            </h6>
                                         </div>
                                         <div class="card-body">
                                             <div class="form-check">
@@ -158,18 +220,42 @@
                                                 <label class="form-check-label" for="test_biot_fourier">
                                                     Nomination Biot-Fourier
                                                 </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
-
-					    </div>
-
-<div class="form-check">
-    <input class="form-check-input" type="checkbox" id="test_hal_collection" 
-           name="email_tests" value="hal_collection">
-    <label class="form-check-label" for="test_hal_collection">
-        Demande collection HAL
-    </label>
-</div>
-					    
+                                <!-- Section Administration -->
+                                <div class="col-md-6">
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-secondary text-white">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-tools me-2"></i>
+                                                Administration
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_admin_weekly_summary" 
+                                                       name="email_tests" value="admin_weekly_summary">
+                                                <label class="form-check-label" for="test_admin_weekly_summary">
+                                                    Résumé hebdomadaire
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_admin_alert" 
+                                                       name="email_tests" value="admin_alert">
+                                                <label class="form-check-label" for="test_admin_alert">
+                                                    Alerte admin
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="test_hal_collection" 
+                                                       name="email_tests" value="hal_collection">
+                                                <label class="form-check-label" for="test_hal_collection">
+                                                    Demande collection HAL
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -182,6 +268,12 @@
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-secondary" onclick="unselectAllTests()">
                                     <i class="fas fa-times me-1"></i>Tout désélectionner
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="selectConfirmationTests()">
+                                    <i class="fas fa-upload me-1"></i>Confirmations uniquement
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="selectBasicTests()">
+                                    <i class="fas fa-star me-1"></i>Tests de base
                                 </button>
                             </div>
                         </div>
@@ -224,6 +316,31 @@ function selectAllTests() {
 // Désélectionner tous les tests
 function unselectAllTests() {
     document.querySelectorAll('input[name="email_tests"]').forEach(cb => cb.checked = false);
+}
+
+// Sélectionner uniquement les tests de confirmation
+function selectConfirmationTests() {
+    unselectAllTests();
+    const confirmationTests = [
+        'resume_confirmation', 'article_confirmation', 'wip_confirmation', 
+        'poster_confirmation', 'revision_confirmation'
+    ];
+    confirmationTests.forEach(test => {
+        const checkbox = document.getElementById(`test_${test}`);
+        if (checkbox) checkbox.checked = true;
+    });
+}
+
+// Sélectionner les tests de base
+function selectBasicTests() {
+    unselectAllTests();
+    const basicTests = [
+        'activation', 'coauthor_new', 'decision_accept', 'resume_confirmation', 'article_confirmation'
+    ];
+    basicTests.forEach(test => {
+        const checkbox = document.getElementById(`test_${test}`);
+        if (checkbox) checkbox.checked = true;
+    });
 }
 
 // Soumission du formulaire
@@ -286,27 +403,57 @@ function displayResults(data) {
     }
     html += `</div>`;
     
-    // Détails des tests
+    // Détails des tests par catégorie
     if (data.results && data.results.length > 0) {
-        html += `<div class="row">`;
+        // Grouper les résultats par catégorie
+        const categories = {
+            'Confirmations': [],
+            'Utilisateurs': [],
+            'Reviews & Décisions': [],
+            'Administration': [],
+            'Configuration': []
+        };
         
         data.results.forEach(result => {
-            const statusClass = result.success ? 'border-success' : 'border-danger';
-            const iconClass = result.success ? 'fas fa-check-circle text-success' : 'fas fa-exclamation-circle text-danger';
-            
-            html += `<div class="col-md-6 mb-3">`;
-            html += `<div class="card ${statusClass}">`;
-            html += `<div class="card-body">`;
-            html += `<h6 class="card-title">`;
-            html += `<i class="${iconClass} me-2"></i>${result.test}`;
-            html += `</h6>`;
-            html += `<p class="card-text">${result.message}</p>`;
-            html += `</div>`;
-            html += `</div>`;
-            html += `</div>`;
+            if (result.test.includes('confirmation')) {
+                categories['Confirmations'].push(result);
+            } else if (result.test.includes('activation') || result.test.includes('co-auteur') || result.test.includes('QR') || result.test.includes('reviewer')) {
+                categories['Utilisateurs'].push(result);
+            } else if (result.test.includes('review') || result.test.includes('décision') || result.test.includes('Biot-Fourier')) {
+                categories['Reviews & Décisions'].push(result);
+            } else if (result.test.includes('admin') || result.test.includes('HAL') || result.test.includes('alerte') || result.test.includes('résumé')) {
+                categories['Administration'].push(result);
+            } else {
+                categories['Configuration'].push(result);
+            }
         });
         
-        html += `</div>`;
+        // Afficher par catégorie
+        Object.entries(categories).forEach(([category, results]) => {
+            if (results.length > 0) {
+                html += `<h6 class="mt-4 mb-3">${category}</h6>`;
+                html += `<div class="row">`;
+                
+                results.forEach(result => {
+                    const statusClass = result.success ? 'border-success' : 'border-danger';
+                    const bgClass = result.success ? 'bg-light' : 'bg-light';
+                    const iconClass = result.success ? 'fas fa-check-circle text-success' : 'fas fa-exclamation-circle text-danger';
+                    
+                    html += `<div class="col-md-6 mb-3">`;
+                    html += `<div class="card ${statusClass} ${bgClass}">`;
+                    html += `<div class="card-body">`;
+                    html += `<h6 class="card-title">`;
+                    html += `<i class="${iconClass} me-2"></i>${result.test}`;
+                    html += `</h6>`;
+                    html += `<p class="card-text small">${result.message}</p>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                    html += `</div>`;
+                });
+                
+                html += `</div>`;
+            }
+        });
     }
     
     resultsDiv.innerHTML = html;
@@ -317,3 +464,4 @@ function displayResults(data) {
 }
 </script>
 {% endblock %}
+

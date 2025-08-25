@@ -40,12 +40,12 @@
             
             <!-- En-tête de l'email -->
             <div style="border-bottom: 2px solid #007bff; padding-bottom: 15px; margin-bottom: 20px;">
-                <h2 style="color: #007bff; margin: 0;">📋 Vos assignations de reviews SFT 2026</h2>
+                <h2 style="color: #007bff; margin: 0;">📋 Vos assignations de reviews {{ conference.short_name }}</h2>
             </div>
             
             <p>Bonjour <strong>{{ reviewer.full_name or reviewer.email }}</strong>,</p>
             
-            <p>Vous avez été assigné(e) à <strong>{{ assignments|length }} review(s)</strong> pour le congrès SFT 2026.</p>
+            <p>Vous avez été assigné(e) à <strong>{{ assignments|length }} review(s)</strong> pour le {{ conference.name }}.</p>
             
             <!-- Informations importantes -->
             <div style="background-color: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0;">
@@ -92,7 +92,7 @@
             <!-- Pied de page -->
             <hr>
             <p style="color: #666; font-size: 12px;">
-                Congrès SFT 2026 - Villers-lès-Nancy<br>
+                Congrès {{ conference.short_name }} - Nancy<br>
                 Pour toute question: contact@sft2026-nancy.fr
             </p>
         </div>

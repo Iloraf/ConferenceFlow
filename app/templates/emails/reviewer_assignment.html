@@ -1,11 +1,9 @@
-<!-- templates/emails/reviewer_assignment.html - Notification d'affectation -->
-
 {% extends 'emails/base_email.html' %}
 
-{% block title %}Nouvelle affectation de review{% endblock %}
+{% block title %}Nouvelle review assignée{% endblock %}
 
-{% block header_title %}Nouvelle affectation de review{% endblock %}
-{% block header_subtitle %}Vous avez été assigné(e) comme reviewer{% endblock %}
+{% block header_title %}{{ CONFERENCE_SHORT_NAME | default('Conference Flow') }}{% endblock %}
+{% block header_subtitle %}Nouvelle affectation de review{% endblock %}
 
 {% block content %}
 <p>Bonjour <strong>{{ reviewer.first_name or reviewer.email.split('@')[0] }}</strong>,</p>
@@ -16,31 +14,31 @@
     <div class="communication-title">{{ communication.title }}</div>
     
     {% if communication.authors %}
-    <p><strong>Auteur(s) :</strong> 
+    <p><strong>👥 Auteur(s) :</strong></p>
+    <ul>
         {% for author in communication.authors %}
-            {{ author.email }}{% if author.affiliation %} ({{ author.affiliation.sigle }}){% endif %}{% if not loop.last %}, {% endif %}
+        <li>{{ author.full_name or author.email }}{% if author.affiliation %} ({{ author.affiliation.sigle }}){% endif %}</li>
         {% endfor %}
-    </p>
+    </ul>
+    {% endif %}
+
+    {% if COMMUNICATION_THEMES %}
+    <p><strong>🏷️ Thématiques :</strong> {{ COMMUNICATION_THEMES }}</p>
     {% endif %}
     
-    {% if thematiques %}
-    <div class="thematiques">
-        <strong>Thématiques :</strong><br>
-        {% for thematique in thematiques %}
-        <span class="thematique-badge" style="background-color: {{ thematique.couleur }};">
-            {{ thematique.code }} - {{ thematique.nom }}
-        </span>
-        {% endfor %}
+    {% if due_date %}
+    <div style="background-color: {% if assignment.is_overdue %}#f8d7da{% else %}#fff3cd{% endif %}; 
+                border: 1px solid {% if assignment.is_overdue %}#f5c6cb{% else %}#ffeaa7{% endif %}; 
+                padding: 15px; border-radius: 5px; margin: 15px 0;">
+        {% if assignment.is_overdue %}
+            <strong style="color: #721c24;">⚠️ EN RETARD</strong> - Échéance dépassée le {{ due_date.strftime('%d/%m/%Y') }}
+        {% else %}
+            <strong style="color: #856404;">📅 ÉCHÉANCE : {{ due_date.strftime('%d/%m/%Y') }}</strong><br>
+            <small>Merci de rendre votre évaluation avant cette date</small>
+        {% endif %}
     </div>
     {% endif %}
 </div>
-
-{% if due_date %}
-<div class="alert alert-info">
-    <strong>📅 Échéance :</strong> {{ due_date.strftime('%d/%m/%Y') }}<br>
-    <small>Merci de rendre votre évaluation avant cette date.</small>
-</div>
-{% endif %}
 
 <p><strong>Prochaines étapes :</strong></p>
 <ol>
@@ -52,7 +50,7 @@
 
 <div style="text-align: center; margin: 30px 0;">
     <a href="{{ review_url }}" class="btn">
-        📖 Consulter la communication
+        📝 Effectuer la review
     </a>
     <a href="{{ dashboard_url }}" class="btn btn-secondary">
         📊 Mon tableau de bord
@@ -61,6 +59,10 @@
 
 <p>Merci pour votre engagement et votre expertise au service de la communauté scientifique !</p>
 
+<p>Pour toute question, contactez-nous à 
+<a href="mailto:{{ CONFERENCE_EMAIL | default('contact@conference.fr') }}" style="color: #007bff;">{{ CONFERENCE_EMAIL | default('contact@conference.fr') }}</a></p>
+
 <p>Cordialement,<br>
-<strong>L'équipe d'organisation du congrès SFT</strong></p>
+<strong>L'équipe d'organisation {{ CONFERENCE_SHORT_NAME | default('Conference Flow') }}</strong></p>
 {% endblock %}
+

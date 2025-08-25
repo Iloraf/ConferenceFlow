@@ -167,6 +167,7 @@ def create_app():
     from .hal_integration.hal_routes import hal_bp
     from .emails import (
         send_email,
+        send_submission_confirmation_email,
         send_activation_email_to_user,
         send_coauthor_notification_email,
         send_existing_coauthor_notification_email,
@@ -178,6 +179,7 @@ def create_app():
     )
 
     app.send_email = send_email
+    app.send_submission_confirmation_email = send_submission_confirmation_email
     app.send_activation_email_to_user = send_activation_email_to_user
     app.send_coauthor_notification_email = send_coauthor_notification_email
     app.send_existing_coauthor_notification_email = send_existing_coauthor_notification_email
@@ -198,4 +200,15 @@ def create_app():
     return app
 
 
-
+@app.template_filter('convert_theme_codes')
+def convert_theme_codes_filter(codes_string):
+    """Filtre Jinja pour convertir les codes de thématiques en noms complets."""
+    if not codes_string:
+        return 'Non spécifiées'
+    
+    try:
+        from app.emails import _convert_codes_to_names
+        return _convert_codes_to_names(codes_string)
+    except Exception as e:
+        app.logger.warning(f"Erreur conversion thématiques dans template: {e}")
+        return codes_string or 'Non spécifiées'

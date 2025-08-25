@@ -1,11 +1,9 @@
-<!-- templates/emails/admin_weekly_summary.html - Résumé hebdomadaire admin -->
-
 {% extends 'emails/base_email.html' %}
 
 {% block title %}Résumé hebdomadaire - Reviews{% endblock %}
 
-{% block header_title %}Résumé hebdomadaire{% endblock %}
-{% block header_subtitle %}Gestion des reviews - {{ period }}{% endblock %}
+{% block header_title %}{{ CONFERENCE_SHORT_NAME | default('Conference Flow') }}{% endblock %}
+{% block header_subtitle %}Résumé hebdomadaire - {{ period }}{% endblock %}
 
 {% block content %}
 <p>Bonjour,</p>
@@ -13,40 +11,40 @@
 <p>Voici le résumé de l'activité de review pour la période du <strong>{{ period }}</strong> :</p>
 
 <div class="stats-grid">
-    <div class="stat-box">
+    <div class="stat-item">
         <div class="stat-number">{{ stats.new_assignments }}</div>
         <div class="stat-label">Nouvelles affectations</div>
     </div>
-    <div class="stat-box">
+    <div class="stat-item">
         <div class="stat-number">{{ stats.completed_reviews }}</div>
         <div class="stat-label">Reviews terminées</div>
     </div>
-    <div class="stat-box">
+    <div class="stat-item">
         <div class="stat-number" style="color: #dc3545;">{{ stats.overdue_reviews }}</div>
         <div class="stat-label">Reviews en retard</div>
     </div>
-    <div class="stat-box">
+    <div class="stat-item">
         <div class="stat-number" style="color: #ffc107;">{{ stats.pending_communications }}</div>
         <div class="stat-label">Communications sans 2 reviewers</div>
     </div>
 </div>
 
 {% if stats.overdue_reviews > 0 %}
-<div class="alert alert-warning">
+<div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
     <strong>⚠️ Attention :</strong> {{ stats.overdue_reviews }} review(s) sont en retard.
     Pensez à relancer les reviewers concernés.
 </div>
 {% endif %}
 
 {% if stats.pending_communications > 0 %}
-<div class="alert alert-info">
+<div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;">
     <strong>ℹ️ Info :</strong> {{ stats.pending_communications }} communication(s) n'ont pas encore 2 reviewers assignés.
     Utilisez l'affectation automatique si nécessaire.
 </div>
 {% endif %}
 
 {% if stats.completed_reviews == 0 and stats.new_assignments == 0 %}
-<div class="alert alert-info">
+<div style="background-color: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 20px 0;">
     <strong>📊 Période calme :</strong> Aucune activité de review cette semaine.
     Cela peut être normal selon la phase du congrès.
 </div>
@@ -61,6 +59,11 @@
     </a>
 </div>
 
+<p>Pour toute question, contactez-nous à 
+<a href="mailto:{{ CONFERENCE_EMAIL | default('contact@conference.fr') }}" style="color: #007bff;">{{ CONFERENCE_EMAIL | default('contact@conference.fr') }}</a></p>
+
 <p>Cordialement,<br>
-<strong>Système de gestion du congrès SFT</strong></p>
+<strong>Système de gestion {{ CONFERENCE_SHORT_NAME | default('Conference Flow') }}</strong></p>
 {% endblock %}
+
+

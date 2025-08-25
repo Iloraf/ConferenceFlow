@@ -3057,53 +3057,158 @@ def send_bulk_email_to_user(user, subject, content, communications=None):
         current_app.logger.error(f"Erreur envoi email groupé à {user.email}: {str(e)}")
         raise
 
-
 def send_email_to_user(user, subject, content, communication=None):
-    """Fonction utilitaire pour envoyer un email à un utilisateur avec template HTML."""
-    from flask_mail import Message
-    from app import mail
-    from flask import render_template
-    
+    """Fonction utilitaire pour envoyer un email à un utilisateur avec le nouveau système centralisé."""
     try:
-        # Déterminer le template selon le type d'utilisateur
-        if user.is_reviewer and communication and any(r.reviewer_id == user.id for r in communication.reviews):
-            # C'est un reviewer pour cette communication
-            html_body = render_template('emails/communication_reviewers.html',
-                                      reviewer=user,
-                                      communication=communication,
-                                      email_subject=subject,
-                                      email_content=content)
-        else:
-            # C'est un auteur
-            html_body = render_template('emails/communication_authors.html',
-                                      author=user,
-                                      communication=communication,
-                                      email_subject=subject,
-                                      email_content=content)
+        # Utiliser le nouveau système centralisé d'emails
+        from app.emails import send_any_email_with_themes
         
-        # Personnaliser le contenu texte pour les clients email sans HTML
-        personalized_content = content.replace('[NOM]', user.last_name or '')
-        personalized_content = personalized_content.replace('[PRENOM]', user.first_name or '')
+        # Préparer le contexte de base
+        base_context = {
+            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+            'USER_LAST_NAME': user.last_name or '',
+            'USER_EMAIL': user.email,
+            'EMAIL_CONTENT': content,
+            'call_to_action_url': url_for('main.mes_communications', _external=True)
+        }
         
+        # Si c'est lié à une communication
         if communication:
-            personalized_content = personalized_content.replace('[TITRE_COMMUNICATION]', communication.title)
-            personalized_content = personalized_content.replace('[ID_COMMUNICATION]', str(communication.id))
+            base_context.update({
+                'COMMUNICATION_TITLE': communication.title,
+                'COMMUNICATION_ID': communication.id,
+                'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
+            })
         
-        msg = Message(
-            subject=subject,
-            recipients=[user.email],
-            body=personalized_content,  # Version texte
-            html=html_body,  # Version HTML avec template
-            sender=current_app.config.get('MAIL_DEFAULT_SENDER')
-        )
+        # Envoyer via le système centralisé - utilise automatiquement emails.yml
+        # On peut créer un template générique pour ce type d'email admin
+        send_custom_admin_email(user.email, subject, content, base_context, communication)
         
-        mail.send(msg)
+        current_app.logger.info(f"Email admin envoyé à {user.email}")
         
     except Exception as e:
-        current_app.logger.error(f"Erreur envoi email à {user.email}: {str(e)}")
+        current_app.logger.error(f"Erreur envoi email admin à {user.email}: {str(e)}")
         raise
 
+# Remplacer dans app/admin.py la fonction send_email_to_user
 
+def send_email_to_user(user, subject, content, communication=None):
+    """Fonction utilitaire pour envoyer un email à un utilisateur avec le nouveau système centralisé."""
+    try:
+        # Utiliser le nouveau système centralisé d'emails
+        from app.emails import send_any_email_with_themes
+        
+        # Préparer le contexte de base
+        base_context = {
+            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+            'USER_LAST_NAME': user.last_name or '',
+            'USER_EMAIL': user.email,
+            'EMAIL_CONTENT': content,
+            'call_to_action_url': url_for('main.mes_communications', _external=True)
+        }
+        
+        # Si c'est lié à une communication
+        if communication:
+            base_context.update({
+                'COMMUNICATION_TITLE': communication.title,
+                'COMMUNICATION_ID': communication.id,
+                'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
+            })
+        
+        # Envoyer via le système centralisé - utilise automatiquement emails.yml
+        # On peut créer un template générique pour ce type d'email admin
+        send_custom_admin_email(user.email, subject, content, base_context, communication)
+        
+        current_app.logger.info(f"Email admin envoyé à {user.email}")
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi email admin à {user.email}: {str(e)}")
+        raise
+
+def send_custom_admin_email(recipient_email, subject, content, context, communication=None):
+    """Envoie un email personnalisé d'admin en utilisant le système centralisé."""
+    try:
+        from app.emails import send_email, _build_html_email, _build_text_email, prepare_email_context
+        
+        # Préparer le contexte avec conversion des thématiques
+        full_context = prepare_email_context(context, communication=communication)
+        
+        # Construire le contenu personnalisé  
+        personalized_content = content.replace('[PRENOM]', full_context.get('USER_FIRST_NAME', ''))
+        personalized_content = personalized_content.replace('[NOM]', full_context.get('USER_LAST_NAME', ''))
+        personalized_content = personalized_content.replace('[TITRE_COMMUNICATION]', full_context.get('COMMUNICATION_TITLE', ''))
+        personalized_content = personalized_content.replace('[ID_COMMUNICATION]', str(full_context.get('COMMUNICATION_ID', '')))
+        
+        # Construire l'email avec le style standard
+        config_loader = current_app.config_loader
+        signature = config_loader.get_email_signature('default', **full_context)
+        
+        # Version texte
+        text_parts = [
+            f"Bonjour {full_context.get('USER_FIRST_NAME', '')},",
+            f"\n\n{personalized_content}"
+        ]
+        
+        if communication:
+            text_parts.append(f"\n\nCommunication : {communication.title} (ID: {communication.id})")
+            if hasattr(communication, 'thematiques') and communication.thematiques:
+                from app.emails import _convert_codes_to_names
+                themes_text = _convert_codes_to_names(communication.thematiques)
+                text_parts.append(f"Thématiques : {themes_text}")
+        
+        if full_context.get('call_to_action_url'):
+            text_parts.append(f"\n\nAccéder à la plateforme : {full_context['call_to_action_url']}")
+            
+        if signature:
+            text_parts.append(f"\n\n{signature}")
+        
+        text_body = ''.join(text_parts)
+        
+        # Version HTML
+        html_parts = [
+            f"<p><strong>Bonjour {full_context.get('USER_FIRST_NAME', '')},</strong></p>",
+            f"<p>{personalized_content.replace(chr(10), '<br>')}</p>"
+        ]
+        
+        if communication:
+            html_parts.append(f"""
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #007bff;">
+                <h4 style="margin-top: 0; color: #007bff;">Communication concernée :</h4>
+                <ul>
+                    <li><strong>Titre :</strong> {communication.title}</li>
+                    <li><strong>ID :</strong> {communication.id}</li>
+            """)
+            
+            if hasattr(communication, 'thematiques') and communication.thematiques:
+                from app.emails import _convert_codes_to_names
+                themes_html = _convert_codes_to_names(communication.thematiques)
+                html_parts.append(f"<li><strong>Thématiques :</strong> {themes_html}</li>")
+            
+            html_parts.append("</ul></div>")
+        
+        if full_context.get('call_to_action_url'):
+            html_parts.append(f'''
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{full_context['call_to_action_url']}" 
+                   style="background-color: #007bff; color: white; padding: 12px 25px; 
+                          text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                    Accéder à mes communications
+                </a>
+            </div>
+            ''')
+        
+        if signature:
+            signature_html = signature.replace('\n', '<br>')
+            html_parts.append(f"<hr><p>{signature_html}</p>")
+        
+        html_body = ''.join(html_parts)
+        
+        # Envoyer l'email
+        send_email(subject, [recipient_email], text_body, html_body)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi email admin personnalisé: {e}")
+        raise
 
 @admin.route('/email-authors/<int:comm_id>')
 @login_required
@@ -4100,6 +4205,37 @@ def run_email_tests():
             result = run_hal_collection_test(test_email, dry_run) 
             results.append(result)
 
+        if 'resume_confirmation' in selected_tests:
+            result = run_submission_confirmation_test('résumé', test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+        
+        if 'article_confirmation' in selected_tests:
+            result = run_submission_confirmation_test('article', test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+        
+        if 'wip_confirmation' in selected_tests:
+            result = run_submission_confirmation_test('wip', test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+        
+        if 'poster_confirmation' in selected_tests:
+            result = run_submission_confirmation_test('poster', test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+        
+        if 'revision_confirmation' in selected_tests:
+            result = run_submission_confirmation_test('revision', test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+        
+        if 'reviewer_welcome' in selected_tests:
+            result = run_reviewer_welcome_test(test_objects['reviewer'], dry_run)
+            results.append(result)
+        
+        if 'admin_weekly_summary' in selected_tests:
+            result = run_admin_weekly_summary_test(test_email, dry_run)
+            results.append(result)
+        
+        if 'admin_alert' in selected_tests:
+            result = run_admin_alert_test(test_email, dry_run)
+            results.append(result)
             
         # Test de configuration
         config_result = test_email_configuration()
@@ -4712,3 +4848,132 @@ def hal_enrich_affiliations():
     
     return results
 
+def run_submission_confirmation_test(file_type, user, communication, dry_run):
+    """Test email de confirmation de soumission."""
+    try:
+        # Créer un faux SubmissionFile
+        fake_submission_file = type('MockSubmissionFile', (), {
+            'filename': f'test_{file_type}.pdf',
+            'version': 1
+        })()
+        
+        if not dry_run:
+            from app.emails import send_submission_confirmation_email
+            send_submission_confirmation_email(communication, file_type, fake_submission_file)
+        
+        return {
+            'test': f'Email confirmation {file_type}',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': f'Email confirmation {file_type}',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+def run_reviewer_welcome_test(user, dry_run):
+    """Test email de bienvenue reviewer."""
+    try:
+        if not dry_run:
+            from app.emails import send_activation_email_to_user
+            # Utilise la fonction d'activation qui peut servir de bienvenue
+            send_activation_email_to_user(user, "welcome_token_test")
+        
+        return {
+            'test': 'Email bienvenue reviewer',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email bienvenue reviewer',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+def run_admin_weekly_summary_test(test_email, dry_run):
+    """Test email résumé hebdomadaire admin."""
+    try:
+        if not dry_run:
+            # Créer un faux contexte de résumé
+            fake_context = {
+                'ADMIN_NAME': 'Admin Test',
+                'NEW_SUBMISSIONS': 5,
+                'TOTAL_SUBMISSIONS': 42,
+                'PENDING_ABSTRACTS': 12,
+                'PENDING_ARTICLES': 8,
+                'NEW_USERS': 3,
+                'TOTAL_USERS': 156,
+                'ACTIVE_REVIEWERS': 23,
+                'ASSIGNED_REVIEWS': 15,
+                'COMPLETED_REVIEWS': 12,
+                'OVERDUE_REVIEWS': 2,
+                'COMPLETION_RATE': 80,
+                'ATTENTION_POINTS': 'Quelques reviews en retard à suivre',
+                'RECOMMENDED_ACTIONS': 'Relancer les reviewers en retard'
+            }
+            
+            from app.emails import _build_text_email, _build_html_email, send_email
+            from flask import current_app
+            
+            config_loader = current_app.config_loader
+            subject = config_loader.get_email_subject('admin_weekly_summary', **fake_context)
+            content_config = config_loader.get_email_content('admin_weekly_summary', **fake_context)
+            signature = config_loader.get_email_signature('system', **fake_context)
+            
+            body = _build_text_email(content_config, fake_context, signature)
+            html = _build_html_email(content_config, fake_context, signature, '#6c757d')
+            
+            send_email(subject, [test_email], body, html)
+        
+        return {
+            'test': 'Email résumé hebdomadaire',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email résumé hebdomadaire',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+def run_admin_alert_test(test_email, dry_run):
+    """Test email alerte admin."""
+    try:
+        if not dry_run:
+            fake_context = {
+                'ADMIN_NAME': 'Admin Test',
+                'ALERT_TYPE': 'Review refusée',
+                'ALERT_TIMESTAMP': '24/08/2025 à 14:30',
+                'ALERT_PRIORITY': 'Élevée',
+                'ALERT_DESCRIPTION': 'Un reviewer a refusé une assignation',
+                'SUGGESTED_ACTIONS': 'Réassigner à un autre reviewer'
+            }
+            
+            from app.emails import _build_text_email, _build_html_email, send_email
+            from flask import current_app
+            
+            config_loader = current_app.config_loader
+            subject = config_loader.get_email_subject('admin_alert', **fake_context)
+            content_config = config_loader.get_email_content('admin_alert', **fake_context)
+            signature = config_loader.get_email_signature('system', **fake_context)
+            
+            body = _build_text_email(content_config, fake_context, signature)
+            html = _build_html_email(content_config, fake_context, signature, '#dc3545', 'Alerte système')
+            
+            send_email(subject, [test_email], body, html)
+        
+        return {
+            'test': 'Email alerte admin',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email alerte admin',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }

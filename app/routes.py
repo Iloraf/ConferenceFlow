@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -360,10 +360,19 @@ def start_submission(type):
             # Traiter le fichier (maintenant obligatoire)
             file_type = 'résumé' if type == 'article' else 'wip'
             submission_file = save_file(file, file_type, comm.id)
-            flash(f"Communication créée avec fichier {file_type}.", "success")
-            
             db.session.commit()
+            
+            try:
+                current_app.send_submission_confirmation_email(comm, file_type, submission_file)
+                flash(f"Communication créée avec fichier {file_type}. Email de confirmation envoyé.", "success")
+            except Exception as e:
+                # Ne pas faire échouer la soumission si l'email échoue
+                current_app.logger.error(f"Erreur envoi email confirmation: {e}")
+                flash(f"Communication créée avec fichier {file_type}. Erreur envoi email.", "warning")
+            
             return redirect(url_for("main.update_submission", comm_id=comm.id))
+
+
             
         except ValueError as e:
             db.session.rollback()
@@ -414,9 +423,11 @@ def update_submission(comm_id):
         try:
             submission_file = save_file(file, file_type, comm.id)
             
-            # Faire avancer le statut selon le nouveau système
+ # Faire avancer le statut selon le nouveau système
             new_status = comm.get_next_status_after_upload(file_type)
-            if new_status != comm.status:
+            status_changed = new_status != comm.status
+            
+            if status_changed:
                 comm.status = new_status
                 
                 # Mettre à jour les dates selon le type
@@ -430,8 +441,22 @@ def update_submission(comm_id):
             comm.updated_at = datetime.utcnow()
             db.session.commit()
             
-            flash(f"Fichier {file_type} ajouté (v{submission_file.version}).", "success")
+            notification_type = file_type if status_changed else 'revision'
             
+            try:
+                if status_changed:
+                    # Premier dépôt de ce type
+                    current_app.send_submission_confirmation_email(comm, file_type, submission_file)
+                    flash(f"Fichier {file_type} ajouté (v{submission_file.version}). Email de confirmation envoyé.", "success")
+                else:
+                    # Révision/mise à jour
+                    current_app.send_submission_confirmation_email(comm, 'revision', submission_file)
+                    flash(f"Fichier {file_type} révisé (v{submission_file.version}). Email de confirmation envoyé.", "success")
+            except Exception as e:
+                # Ne pas faire échouer la soumission si l'email échoue
+                current_app.logger.error(f"Erreur envoi email confirmation: {e}")
+                flash(f"Fichier {file_type} ajouté (v{submission_file.version}). Erreur envoi email.", "warning")
+           
         except ValueError as e:
             flash(str(e), "danger")
         

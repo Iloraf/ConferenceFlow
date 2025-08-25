@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Review - {{ communication.title }} - SFT 2026{% endblock %}
+{% block title %}Review - {{ communication.title }} - {{ conference.short_name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -268,7 +268,7 @@
                     <li>Originalité et innovation</li>
                     <li>Qualité scientifique et méthodologique</li>
                     <li>Clarté de la présentation</li>
-                    <li>Pertinence par rapport aux thématiques SFT</li>
+                    <li>Pertinence par rapport aux thématiques {{ conference.organizer.short_name }}</li>
                     <li>Qualité des résultats et discussions</li>
                 </ul>
             </div>
