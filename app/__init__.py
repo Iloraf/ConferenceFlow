@@ -62,6 +62,21 @@ def datetime_filter(timestamp, format='%d/%m/%Y %H:%M'):
         return datetime.fromtimestamp(timestamp).strftime(format)
     return str(timestamp)
 
+def convert_theme_codes_filter(codes_string):
+    """Filtre Jinja pour convertir les codes de thématiques en noms complets."""
+    if not codes_string:
+        return 'Non spécifiées'
+    
+    try:
+        from app.emails import _convert_codes_to_names
+        return _convert_codes_to_names(codes_string)
+    except Exception as e:
+        # Utiliser print ou logging standard au lieu de app.logger
+        import logging
+        logging.warning(f"Erreur conversion thématiques dans template: {e}")
+        return codes_string or 'Non spécifiées'
+
+
 
 def create_app():
     app = Flask(__name__)
@@ -99,6 +114,7 @@ def create_app():
 
     app.jinja_env.filters['nl2br'] = nl2br_filter
     app.jinja_env.filters['datetime'] = datetime_filter
+    app.jinja_env.filters['convert_theme_codes'] = convert_theme_codes_filter
     
     db.init_app(app)
     migrate.init_app(app, db)
@@ -161,7 +177,7 @@ def create_app():
     from .routes import main
     from .auth import auth
     from .admin import admin
-    from .registration_routes import registration
+    #from .registration_routes import registration
     from .communication_public import public_comm
     from .conference_books import books
     from .hal_integration.hal_routes import hal_bp
@@ -170,10 +186,10 @@ def create_app():
         send_submission_confirmation_email,
         send_activation_email_to_user,
         send_coauthor_notification_email,
-        send_existing_coauthor_notification_email,
+    #    send_existing_coauthor_notification_email,
         send_review_reminder_email,
         send_qr_code_reminder_email,
-        send_decision_notification_email,
+    #    send_decision_notification_email,
         send_biot_fourier_audition_notification,
         send_hal_collection_request
     )
@@ -182,10 +198,10 @@ def create_app():
     app.send_submission_confirmation_email = send_submission_confirmation_email
     app.send_activation_email_to_user = send_activation_email_to_user
     app.send_coauthor_notification_email = send_coauthor_notification_email
-    app.send_existing_coauthor_notification_email = send_existing_coauthor_notification_email
+    #app.send_existing_coauthor_notification_email = send_existing_coauthor_notification_email
     app.send_review_reminder_email = send_review_reminder_email
     app.send_qr_code_reminder_email = send_qr_code_reminder_email
-    app.send_decision_notification_email = send_decision_notification_email 
+    #app.send_decision_notification_email = send_decision_notification_email 
     app.send_biot_fourier_audition_notification = send_biot_fourier_audition_notification
     app.send_hal_collection_request = send_hal_collection_request
     
@@ -193,22 +209,10 @@ def create_app():
     app.register_blueprint(conference)
     app.register_blueprint(auth, url_prefix="/auth")
     app.register_blueprint(admin, url_prefix="/admin")
-    app.register_blueprint(registration, url_prefix="/registration")
+    #app.register_blueprint(registration, url_prefix="/registration")
     app.register_blueprint(books, url_prefix="/admin/books")
     app.register_blueprint(public_comm, url_prefix="/public")
     app.register_blueprint(hal_bp, url_prefix="/hal")
     return app
 
 
-@app.template_filter('convert_theme_codes')
-def convert_theme_codes_filter(codes_string):
-    """Filtre Jinja pour convertir les codes de thématiques en noms complets."""
-    if not codes_string:
-        return 'Non spécifiées'
-    
-    try:
-        from app.emails import _convert_codes_to_names
-        return _convert_codes_to_names(codes_string)
-    except Exception as e:
-        app.logger.warning(f"Erreur conversion thématiques dans template: {e}")
-        return codes_string or 'Non spécifiées'

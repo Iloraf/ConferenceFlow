@@ -4977,3 +4977,234 @@ def run_admin_alert_test(test_email, dry_run):
             'success': False,
             'message': f'Erreur: {str(e)}'
         }
+
+
+# Corrections à apporter dans app/admin.py
+
+def create_test_objects_for_admin(test_email):
+    """Crée des objets factices pour les tests admin."""
+    from datetime import datetime
+    
+    # Utilisateur test
+    test_user = type('MockUser', (), {
+        'email': test_email,
+        'first_name': 'Jean',
+        'last_name': 'Dupont',
+        'full_name': 'Jean Dupont',
+        'specialites_codes': 'COND,MULTI',
+        'is_reviewer': True,
+        'affiliations': []
+    })()
+    
+    # Communication test - CORRIGÉE avec user au lieu de email
+    test_communication = type('MockCommunication', (), {
+        'id': 999,
+        'title': 'Test de communication pour validation du système d\'emails',
+        'type': 'article',
+        'status': type('MockStatus', (), {'value': 'submitted'})(),
+        'authors': [test_user],
+        'thematiques': 'COND,SIMUL',  # Ajouté
+        'thematiques_codes': 'COND,SIMUL',
+        'user': test_user,  # IMPORTANT: ajout de l'attribut user
+        'last_modified': datetime.now()  # Ajouté pour les emails de confirmation
+    })()
+    
+    # Assignment de review test
+    test_assignment = type('MockAssignment', (), {
+        'communication': test_communication,
+        'reviewer': test_user,
+        'due_date': datetime(2025, 9, 15),
+        'is_overdue': False
+    })()
+    
+    return {
+        'user': test_user,
+        'communication': test_communication,
+        'reviewer': test_user,
+        'assignment': test_assignment
+    }
+
+# Ajouter les fonctions de test manquantes pour les confirmations
+
+def run_submission_confirmation_test(submission_type, user, communication, dry_run):
+    """Test email de confirmation de soumission."""
+    try:
+        if not dry_run:
+            from app.emails import send_submission_confirmation_email
+            send_submission_confirmation_email(user, communication, submission_type)
+        
+        return {
+            'test': f'Email confirmation {submission_type}',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': f'Email confirmation {submission_type}',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+# Dans la fonction run_email_tests(), ajouter les nouveaux tests :
+
+@admin.route("/test-emails/run", methods=["POST"])
+@login_required  
+def run_email_tests():
+    """Exécute les tests d'emails selon la configuration."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    try:
+        test_email = request.form.get('test_email')
+        selected_tests = request.form.getlist('email_tests')
+        dry_run = request.form.get('dry_run') == 'on'
+        
+        if not test_email:
+            return jsonify({
+                'success': False,
+                'message': 'Adresse email de test requise'
+            }), 400
+        
+        if not selected_tests:
+            return jsonify({
+                'success': False,
+                'message': 'Sélectionnez au moins un test'
+            }), 400
+        
+        # Résultats des tests
+        results = []
+        
+        # Créer des objets de test
+        test_objects = create_test_objects_for_admin(test_email)
+        
+        # Tests existants...
+        if 'activation' in selected_tests:
+            result = run_activation_test(test_objects['user'], dry_run)
+            results.append(result)
+        
+        # NOUVEAUX TESTS DE CONFIRMATION
+        if 'submission_resume' in selected_tests:
+            result = run_submission_confirmation_test('résumé', test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+            
+        if 'submission_article' in selected_tests:
+            result = run_submission_confirmation_test('article', test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+            
+        if 'submission_wip' in selected_tests:
+            result = run_submission_confirmation_test('wip', test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+            
+        if 'submission_poster' in selected_tests:
+            result = run_submission_confirmation_test('poster', test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+            
+        if 'submission_revision' in selected_tests:
+            result = run_submission_confirmation_test('revision', test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+        
+        if 'reviewer_welcome' in selected_tests:
+            result = run_reviewer_welcome_test(test_objects['user'], dry_run)
+            results.append(result)
+            
+        if 'admin_summary' in selected_tests:
+            result = run_admin_summary_test(test_email, dry_run)
+            results.append(result)
+            
+        if 'admin_alert' in selected_tests:
+            result = run_admin_alert_test(test_email, dry_run)
+            results.append(result)
+        
+        # Tests existants continuent...
+        if 'coauthor_new' in selected_tests:
+            result = run_coauthor_new_test(test_objects['user'], test_objects['communication'], dry_run)
+            results.append(result)
+            
+        # ... reste du code existant
+        
+        # Test de configuration
+        config_result = test_email_configuration()
+        results.append(config_result)
+        
+        # Compter les succès/échecs
+        success_count = len([r for r in results if r['success']])
+        total_count = len(results)
+        
+        return jsonify({
+            'success': True,
+            'message': f'{success_count}/{total_count} tests réussis',
+            'results': results,
+            'dry_run': dry_run
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur test emails: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }), 500
+
+# Ajouter les nouvelles fonctions de test manquantes
+
+def run_reviewer_welcome_test(user, dry_run):
+    """Test email bienvenue reviewer."""
+    try:
+        if not dry_run:
+            from app.emails import send_reviewer_welcome_email
+            send_reviewer_welcome_email(user)
+        
+        return {
+            'test': 'Bienvenue reviewer',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Bienvenue reviewer',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+def run_admin_summary_test(test_email, dry_run):
+    """Test résumé hebdomadaire admin."""
+    try:
+        if not dry_run:
+            from app.emails import send_admin_weekly_summary
+            stats = {
+                'submissions': 42,
+                'reviews': 28,
+                'pending_reviews': 14,
+                'overdue_reviews': 3
+            }
+            send_admin_weekly_summary(test_email, stats)
+        
+        return {
+            'test': 'Résumé hebdomadaire admin',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Résumé hebdomadaire admin',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+def run_admin_alert_test(test_email, dry_run):
+    """Test alerte admin."""
+    try:
+        if not dry_run:
+            from app.emails import send_admin_alert_email
+            send_admin_alert_email(test_email, 'URGENT', 'Test d\'alerte système depuis l\'interface admin')
+        
+        return {
+            'test': 'Alerte admin',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Alerte admin',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
