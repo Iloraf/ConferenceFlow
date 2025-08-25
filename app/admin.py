@@ -2951,87 +2951,121 @@ def send_email_to_user(user, subject, content, communication=None):
 def send_custom_admin_email(recipient_email, subject, content, context, communication=None):
     """Envoie un email personnalisé d'admin en utilisant le système centralisé."""
     try:
-        from app.emails import send_email, _build_html_email, _build_text_email, prepare_email_context
+        # UTILISER LE SYSTÈME CENTRALISÉ au lieu de construire manuellement
+        from app.emails import send_any_email_with_themes
         
-        # Préparer le contexte avec conversion des thématiques
-        full_context = prepare_email_context(context, communication=communication)
+        # Préparer le contexte avec le contenu personnalisé
+        full_context = context.copy()
         
-        # Construire le contenu personnalisé  
-        personalized_content = content.replace('[PRENOM]', full_context.get('USER_FIRST_NAME', ''))
-        personalized_content = personalized_content.replace('[NOM]', full_context.get('USER_LAST_NAME', ''))
-        personalized_content = personalized_content.replace('[TITRE_COMMUNICATION]', full_context.get('COMMUNICATION_TITLE', ''))
-        personalized_content = personalized_content.replace('[ID_COMMUNICATION]', str(full_context.get('COMMUNICATION_ID', '')))
+        # Remplacer les variables dans le contenu
+        personalized_content = content.replace('[PRENOM]', context.get('USER_FIRST_NAME', ''))
+        personalized_content = personalized_content.replace('[NOM]', context.get('USER_LAST_NAME', ''))
+        personalized_content = personalized_content.replace('[TITRE_COMMUNICATION]', context.get('COMMUNICATION_TITLE', ''))
+        personalized_content = personalized_content.replace('[ID_COMMUNICATION]', str(context.get('COMMUNICATION_ID', '')))
         
-        # Construire l'email avec le style standard
-        config_loader = current_app.config_loader
-        signature = config_loader.get_email_signature('default', **full_context)
+        # Ajouter le contenu personnalisé au contexte
+        full_context['ADMIN_MESSAGE'] = personalized_content
         
-        # Version texte
-        text_parts = [
-            f"Bonjour {full_context.get('USER_FIRST_NAME', '')},",
-            f"\n\n{personalized_content}"
-        ]
+        # UTILISER LE SYSTÈME CENTRALISÉ avec un template générique
+        send_any_email_with_themes(
+            template_name='information_generale',  # Ou créer un template 'admin_custom'
+            recipient_email=recipient_email,
+            base_context=full_context,
+            communication=communication,
+            color_scheme='blue'
+        )
         
-        if communication:
-            text_parts.append(f"\n\nCommunication : {communication.title} (ID: {communication.id})")
-            if hasattr(communication, 'thematiques') and communication.thematiques:
-                from app.emails import _convert_codes_to_names
-                themes_text = _convert_codes_to_names(communication.thematiques)
-                text_parts.append(f"Thématiques : {themes_text}")
-        
-        if full_context.get('call_to_action_url'):
-            text_parts.append(f"\n\nAccéder à la plateforme : {full_context['call_to_action_url']}")
-            
-        if signature:
-            text_parts.append(f"\n\n{signature}")
-        
-        text_body = ''.join(text_parts)
-        
-        # Version HTML
-        html_parts = [
-            f"<p><strong>Bonjour {full_context.get('USER_FIRST_NAME', '')},</strong></p>",
-            f"<p>{personalized_content.replace(chr(10), '<br>')}</p>"
-        ]
-        
-        if communication:
-            html_parts.append(f"""
-            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #007bff;">
-                <h4 style="margin-top: 0; color: #007bff;">Communication concernée :</h4>
-                <ul>
-                    <li><strong>Titre :</strong> {communication.title}</li>
-                    <li><strong>ID :</strong> {communication.id}</li>
-            """)
-            
-            if hasattr(communication, 'thematiques') and communication.thematiques:
-                from app.emails import _convert_codes_to_names
-                themes_html = _convert_codes_to_names(communication.thematiques)
-                html_parts.append(f"<li><strong>Thématiques :</strong> {themes_html}</li>")
-            
-            html_parts.append("</ul></div>")
-        
-        if full_context.get('call_to_action_url'):
-            html_parts.append(f'''
-            <div style="text-align: center; margin: 30px 0;">
-                <a href="{full_context['call_to_action_url']}" 
-                   style="background-color: #007bff; color: white; padding: 12px 25px; 
-                          text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-                    Accéder à mes communications
-                </a>
-            </div>
-            ''')
-        
-        if signature:
-            signature_html = signature.replace('\n', '<br>')
-            html_parts.append(f"<hr><p>{signature_html}</p>")
-        
-        html_body = ''.join(html_parts)
-        
-        # Envoyer l'email
-        send_email(subject, [recipient_email], text_body, html_body)
+        current_app.logger.info(f"Email admin personnalisé envoyé à {recipient_email}")
         
     except Exception as e:
         current_app.logger.error(f"Erreur envoi email admin personnalisé: {e}")
-        raise
+        raise   
+###########################################################################################################################################
+# def send_custom_admin_email(recipient_email, subject, content, context, communication=None):                                            #
+#     """Envoie un email personnalisé d'admin en utilisant le système centralisé."""                                                      #
+#     try:                                                                                                                                #
+#         from app.emails import send_email, _build_html_email, _build_text_email, prepare_email_context                                  #
+#                                                                                                                                         #
+#         # Préparer le contexte avec conversion des thématiques                                                                          #
+#         full_context = prepare_email_context(context, communication=communication)                                                      #
+#                                                                                                                                         #
+#         # Construire le contenu personnalisé                                                                                            #
+#         personalized_content = content.replace('[PRENOM]', full_context.get('USER_FIRST_NAME', ''))                                     #
+#         personalized_content = personalized_content.replace('[NOM]', full_context.get('USER_LAST_NAME', ''))                            #
+#         personalized_content = personalized_content.replace('[TITRE_COMMUNICATION]', full_context.get('COMMUNICATION_TITLE', ''))       #
+#         personalized_content = personalized_content.replace('[ID_COMMUNICATION]', str(full_context.get('COMMUNICATION_ID', '')))        #
+#                                                                                                                                         #
+#         # Construire l'email avec le style standard                                                                                     #
+#         config_loader = current_app.config_loader                                                                                       #
+#         signature = config_loader.get_email_signature('default', **full_context)                                                        #
+#                                                                                                                                         #
+#         # Version texte                                                                                                                 #
+#         text_parts = [                                                                                                                  #
+#             f"Bonjour {full_context.get('USER_FIRST_NAME', '')},",                                                                      #
+#             f"\n\n{personalized_content}"                                                                                               #
+#         ]                                                                                                                               #
+#                                                                                                                                         #
+#         if communication:                                                                                                               #
+#             text_parts.append(f"\n\nCommunication : {communication.title} (ID: {communication.id})")                                    #
+#             if hasattr(communication, 'thematiques') and communication.thematiques:                                                     #
+#                 from app.emails import _convert_codes_to_names                                                                          #
+#                 themes_text = _convert_codes_to_names(communication.thematiques)                                                        #
+#                 text_parts.append(f"Thématiques : {themes_text}")                                                                       #
+#                                                                                                                                         #
+#         if full_context.get('call_to_action_url'):                                                                                      #
+#             text_parts.append(f"\n\nAccéder à la plateforme : {full_context['call_to_action_url']}")                                    #
+#                                                                                                                                         #
+#         if signature:                                                                                                                   #
+#             text_parts.append(f"\n\n{signature}")                                                                                       #
+#                                                                                                                                         #
+#         text_body = ''.join(text_parts)                                                                                                 #
+#                                                                                                                                         #
+#         # Version HTML                                                                                                                  #
+#         html_parts = [                                                                                                                  #
+#             f"<p><strong>Bonjour {full_context.get('USER_FIRST_NAME', '')},</strong></p>",                                              #
+#             f"<p>{personalized_content.replace(chr(10), '<br>')}</p>"                                                                   #
+#         ]                                                                                                                               #
+#                                                                                                                                         #
+#         if communication:                                                                                                               #
+#             html_parts.append(f"""                                                                                                      #
+#             <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #007bff;"> #
+#                 <h4 style="margin-top: 0; color: #007bff;">Communication concernée :</h4>                                               #
+#                 <ul>                                                                                                                    #
+#                     <li><strong>Titre :</strong> {communication.title}</li>                                                             #
+#                     <li><strong>ID :</strong> {communication.id}</li>                                                                   #
+#             """)                                                                                                                        #
+#                                                                                                                                         #
+#             if hasattr(communication, 'thematiques') and communication.thematiques:                                                     #
+#                 from app.emails import _convert_codes_to_names                                                                          #
+#                 themes_html = _convert_codes_to_names(communication.thematiques)                                                        #
+#                 html_parts.append(f"<li><strong>Thématiques :</strong> {themes_html}</li>")                                             #
+#                                                                                                                                         #
+#             html_parts.append("</ul></div>")                                                                                            #
+#                                                                                                                                         #
+#         if full_context.get('call_to_action_url'):                                                                                      #
+#             html_parts.append(f'''                                                                                                      #
+#             <div style="text-align: center; margin: 30px 0;">                                                                           #
+#                 <a href="{full_context['call_to_action_url']}"                                                                          #
+#                    style="background-color: #007bff; color: white; padding: 12px 25px;                                                  #
+#                           text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">                        #
+#                     Accéder à mes communications                                                                                        #
+#                 </a>                                                                                                                    #
+#             </div>                                                                                                                      #
+#             ''')                                                                                                                        #
+#                                                                                                                                         #
+#         if signature:                                                                                                                   #
+#             signature_html = signature.replace('\n', '<br>')                                                                            #
+#             html_parts.append(f"<hr><p>{signature_html}</p>")                                                                           #
+#                                                                                                                                         #
+#         html_body = ''.join(html_parts)                                                                                                 #
+#                                                                                                                                         #
+#         # Envoyer l'email                                                                                                               #
+#         send_email(subject, [recipient_email], text_body, html_body)                                                                    #
+#                                                                                                                                         #
+#     except Exception as e:                                                                                                              #
+#         current_app.logger.error(f"Erreur envoi email admin personnalisé: {e}")                                                         #
+#         raise                                                                                                                           #
+###########################################################################################################################################
 
 
 

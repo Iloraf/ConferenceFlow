@@ -41,7 +41,7 @@ def _convert_codes_to_names(codes_string):
         return 'Non spécifiées'
     
     try:
-        from app.helpers import ThematiqueHelper
+        from app.models import ThematiqueHelper
         
         # Séparer les codes et nettoyer
         codes = [code.strip().upper() for code in codes_string.split(',') if code.strip()]
@@ -137,7 +137,7 @@ def _build_html_email(template_name, context, color_scheme='blue'):
         # Bouton d'action
         if context.get('call_to_action_url'):
             button_text = content_config.get('call_to_action', 'Accéder à la plateforme')
-            button_text = config_loader.format_template(button_text, **context)
+            #button_text = config_loader.format_template(button_text, **context)
             html_parts.append(f'''
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{context['call_to_action_url']}" 
@@ -173,16 +173,20 @@ def _build_info_section(context, primary_color):
         info_parts.append(f"<li><strong>Thématiques :</strong> {context['COMMUNICATION_THEMES']}</li>")
     
     # Informations reviewer
-    if context.get('REVIEWER_SPECIALTIES'):
-        info_parts.append(f"<li><strong>Spécialités :</strong> {context['REVIEWER_SPECIALTIES']}</li>")
+    #######################################################################################################
+    # if context.get('REVIEWER_SPECIALTIES'):                                                             #
+    #     info_parts.append(f"<li><strong>Spécialités :</strong> {context['REVIEWER_SPECIALTIES']}</li>") #
+    #######################################################################################################
     if context.get('REVIEWER_AFFILIATIONS'):
         info_parts.append(f"<li><strong>Affiliations :</strong> {context['REVIEWER_AFFILIATIONS']}</li>")
     
     # Informations utilisateur
     if context.get('USER_EMAIL'):
         info_parts.append(f"<li><strong>Email :</strong> {context['USER_EMAIL']}</li>")
-    if context.get('USER_SPECIALTIES'):
-        info_parts.append(f"<li><strong>Spécialités :</strong> {context['USER_SPECIALTIES']}</li>")
+    ###################################################################################################
+    # if context.get('USER_SPECIALTIES'):                                                             #
+    #     info_parts.append(f"<li><strong>Spécialités :</strong> {context['USER_SPECIALTIES']}</li>") #
+    ###################################################################################################
     
     if info_parts:
         return f"""
