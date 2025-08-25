@@ -968,32 +968,6 @@ def pending_activation_reviewers():
                          reviewers=pending_reviewers)
 
 
-@admin.route('/reviewers/send-activation/<int:user_id>')
-@login_required
-def send_activation_email(user_id):
-    """Envoie l'email d'activation à un reviewer."""
-    if not current_user.is_admin:
-        abort(403)
-    
-    user = User.query.get_or_404(user_id)
-    
-    if user.is_activated:
-        flash(f'{user.email} est déjà activé', 'warning')
-        return redirect(url_for('admin.pending_activation_reviewers'))
-    
-    # Générer le token d'activation
-    token = user.generate_activation_token()
-    db.session.commit()
-    
-    # Envoyer l'email avec votre fonction
-    try:
-        current_app.send_activation_email_to_user(user, token)
-        flash(f'Email d\'activation envoyé à {user.email}', 'success')
-    except Exception as e:
-        flash(f'Erreur lors de l\'envoi de l\'email : {str(e)}', 'danger')
-        current_app.logger.error(f"Erreur envoi email activation: {e}")
-    
-    return redirect(url_for('admin.pending_activation_reviewers'))
 
 
 
@@ -1304,56 +1278,6 @@ def inject_admin_helpers():
     
     return dict(get_pending_reviewers_count=get_pending_reviewers_count)
 
-@admin.route('/reviews/send-reminders', methods=['POST'])
-@login_required
-def send_review_reminders():
-    """Envoie des rappels aux reviewers en retard ou avec reviews en attente."""
-    if not current_user.is_admin:
-        abort(403)
-    
-    # Récupérer toutes les assignations en attente
-    pending_assignments = ReviewAssignment.query.filter_by(status='assigned').all()
-    
-    if not pending_assignments:
-        flash('Aucune review en attente.', 'info')
-        return redirect(url_for('admin.communications_ready_for_review'))
-    
-    # Grouper par reviewer
-    reviewers_assignments = {}
-    for assignment in pending_assignments:
-        reviewer_id = assignment.reviewer_id
-        if reviewer_id not in reviewers_assignments:
-            reviewers_assignments[reviewer_id] = {
-                'reviewer': assignment.reviewer,
-                'assignments': []
-            }
-        reviewers_assignments[reviewer_id]['assignments'].append(assignment)
-    
-    # Envoyer les rappels
-    sent_count = 0
-    errors = []
-    
-    for reviewer_id, data in reviewers_assignments.items():
-        try:
-            current_app.send_review_reminder_email(data['reviewer'], data['assignments'])
-            sent_count += 1
-            current_app.logger.info(f"Rappel envoyé à {data['reviewer'].email}")
-        except Exception as e:
-            error_msg = f"Erreur pour {data['reviewer'].email}: {str(e)}"
-            errors.append(error_msg)
-            current_app.logger.error(error_msg)
-    
-    # Messages de retour
-    if sent_count > 0:
-        flash(f'Rappels envoyés à {sent_count} reviewer(s).', 'success')
-    
-    if errors:
-        for error in errors[:3]:  # Limiter à 3 erreurs affichées
-            flash(error, 'warning')
-        if len(errors) > 3:
-            flash(f"... et {len(errors) - 3} autres erreurs.", 'warning')
-    
-    return redirect(url_for('admin.communications_ready_for_review'))
 
 @admin.route('/communications/ready-for-review')
 @login_required
@@ -1557,50 +1481,6 @@ def assign_reviewers(comm_id):
     
     return redirect(url_for('admin.suggest_reviewers', comm_id=comm_id))
 
-@admin.route('/communications/<int:comm_id>/notify-reviewers', methods=['POST'])
-@login_required
-def send_review_notifications(comm_id):
-    """Envoie les notifications par email aux reviewers assignés."""
-    if not current_user.is_admin:
-        abort(403)
-    
-    communication = Communication.query.get_or_404(comm_id)
-    
-    # Récupérer les assignations sans notification
-    assignments = ReviewAssignment.query.filter_by(
-        communication_id=comm_id,
-        notification_sent_at=None
-    ).all()
-    
-    if not assignments:
-        flash('Tous les reviewers ont déjà été notifiés.', 'info')
-        return redirect(url_for('admin.suggest_reviewers', comm_id=comm_id))
-    
-    notified_count = 0
-    
-    for assignment in assignments:
-        try:
-            # Créer l'objet Review s'il n'existe pas
-            review = assignment.get_or_create_review()
-            
-            # Envoyer l'email de notification
-            current_app.send_review_notification_email(assignment.reviewer, communication, assignment)
-            
-            # Marquer comme notifié
-            assignment.notification_sent_at = datetime.utcnow()
-            notified_count += 1
-            
-        except Exception as e:
-            current_app.logger.error(f"Erreur notification reviewer {assignment.reviewer.email}: {e}")
-    
-    db.session.commit()
-    
-    if notified_count > 0:
-        flash(f'{notified_count} reviewer(s) notifié(s) par email.', 'success')
-    else:
-        flash('Erreur lors de l\'envoi des notifications.', 'danger')
-    
-    return redirect(url_for('admin.suggest_reviewers', comm_id=comm_id))
 
 @admin.route("/affiliations/import", methods=["GET", "POST"])
 @login_required
@@ -2317,63 +2197,6 @@ def setup_status():
     return redirect(url_for("admin.admin_dashboard"))
 
 
-@admin.route("/send-qr-reminders", methods=["POST"])
-@login_required
-def send_qr_reminders():
-    """Envoie des rappels QR code à tous les auteurs principaux."""
-    if not current_user.is_admin:
-        flash("Accès refusé.", "danger")
-        return redirect(url_for("main.index"))
-    
-    try:
-        
-        # Récupérer tous les auteurs principaux (premier auteur de chaque communication)
-        communications = Communication.query.all()
-        authors_communications = {}
-        
-        # Grouper les communications par auteur principal
-        for comm in communications:
-            if comm.authors:  # S'assurer qu'il y a des auteurs
-                main_author = comm.authors[0]  # Premier auteur = auteur principal
-                if main_author.id not in authors_communications:
-                    authors_communications[main_author.id] = {
-                        'user': main_author,
-                        'communications': []
-                    }
-                authors_communications[main_author.id]['communications'].append(comm)
-        
-        # Envoyer les emails
-        sent_count = 0
-        errors = []
-        
-        for author_data in authors_communications.values():
-            try:
-                current_app.send_qr_code_reminder_email(
-                    author_data['user'], 
-                    author_data['communications']
-                )
-                sent_count += 1
-                current_app.logger.info(f"Email QR envoyé à {author_data['user'].email}")
-            except Exception as e:
-                error_msg = f"Erreur pour {author_data['user'].email}: {str(e)}"
-                errors.append(error_msg)
-                current_app.logger.error(error_msg)
-        
-        # Messages de retour
-        if sent_count > 0:
-            flash(f'Rappels QR code envoyés à {sent_count} auteur(s) principal(aux).', 'success')
-        
-        if errors:
-            for error in errors[:3]:  # Limiter à 3 erreurs affichées
-                flash(error, 'warning')
-            if len(errors) > 3:
-                flash(f"... et {len(errors) - 3} autres erreurs.", 'warning')
-                
-    except Exception as e:
-        current_app.logger.error(f"Erreur générale envoi QR reminders: {e}")
-        flash(f"Erreur lors de l'envoi : {str(e)}", "danger")
-    
-    return redirect(url_for('admin.admin_dashboard'))
 
 
 @admin.route('/reviews/completed')
@@ -2532,7 +2355,7 @@ def send_decision_notification(comm_id):
         return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
     
     try:
-        current_app.send_decision_notification_email(
+        current_app.send_decision_email(
             communication, 
             communication.final_decision, 
             communication.decision_comments
@@ -3210,103 +3033,6 @@ def send_custom_admin_email(recipient_email, subject, content, context, communic
         current_app.logger.error(f"Erreur envoi email admin personnalisé: {e}")
         raise
 
-@admin.route('/email-authors/<int:comm_id>')
-@login_required
-def email_authors(comm_id):
-    """Page pour composer et envoyer un email aux auteurs d'une communication."""
-    if not current_user.is_admin:
-        abort(403)
-    
-    communication = Communication.query.get_or_404(comm_id)
-    
-    # Importer la fonction depuis emails.py
-    from app.emails import get_admin_email_templates
-    
-    # Récupérer les templates depuis la configuration
-    email_templates = get_admin_email_templates()
-    
-    # Ajouter des variables spécifiques à cette communication dans les templates
-    # pour que les placeholders soient correctement remplacés
-    context_variables = {
-        'COMMUNICATION_TITLE': communication.title,
-        'COMMUNICATION_ID': communication.id,
-        'COMMUNICATION_TYPE': communication.type.title()
-    }
-    
-    # Remplacer les variables dans les templates pour l'affichage JavaScript
-    processed_templates = {}
-    for template_key, template_data in email_templates.items():
-        processed_templates[template_key] = {
-            'subject': template_data['subject'],
-            'content': template_data['content']
-        }
-        
-        # Remplacer les variables spécifiques à cette communication
-        for var_name, var_value in context_variables.items():
-            placeholder = f'[{var_name}]'
-            if placeholder in processed_templates[template_key]['subject']:
-                processed_templates[template_key]['subject'] = processed_templates[template_key]['subject'].replace(placeholder, str(var_value))
-            if placeholder in processed_templates[template_key]['content']:
-                processed_templates[template_key]['content'] = processed_templates[template_key]['content'].replace(placeholder, str(var_value))
-    
-    return render_template('admin/email_authors.html', 
-                         communication=communication,
-                         email_templates=processed_templates)
-
-
-
-@admin.route('/email-reviewers/<int:comm_id>')
-@login_required
-def email_reviewers(comm_id):
-    """Page pour composer et envoyer un email aux reviewers d'une communication."""
-    if not current_user.is_admin:
-        abort(403)
-    
-    communication = Communication.query.get_or_404(comm_id)
-    
-    if not communication.reviews:
-        flash('Cette communication n\'a pas de reviewers assignés.', 'warning')
-        return redirect(url_for('admin.communications_dashboard'))
-    
-    # Templates d'emails prédéfinis pour reviewers
-    email_templates = {
-        'assignation': {
-            'subject': f'Nouvelle review assignée: {communication.title}',
-            'content': '''Une nouvelle review vous a été assignée pour la communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
-
-Vous pouvez accéder à votre espace reviewer pour effectuer cette évaluation.
-
-Merci pour votre contribution au processus de relecture.'''
-        },
-        'rappel': {
-            'subject': f'Rappel - Review en attente: {communication.title}',
-            'content': '''Nous vous rappelons qu'une review est en attente de votre part pour la communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
-
-Merci de bien vouloir effectuer cette évaluation dans les meilleurs délais.'''
-        },
-        'rappel_urgent': {
-            'subject': f'URGENT - Review en attente: {communication.title}',
-            'content': '''Nous vous rappelons de manière urgente qu'une review est en attente depuis plusieurs jours pour la communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
-
-Cette évaluation est importante pour respecter nos délais. Merci de l'effectuer au plus vite ou de nous signaler si vous rencontrez des difficultés.'''
-        },
-        'remerciement': {
-            'subject': f'Merci pour votre review: {communication.title}',
-            'content': '''Nous vous remercions pour avoir effectué la review de la communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
-
-Votre contribution est précieuse pour maintenir la qualité scientifique de notre congrès.'''
-        },
-        'information': {
-            'subject': f'Information reviewer - SFT 2026',
-            'content': '''Nous souhaitons vous informer concernant la communication "[TITRE_COMMUNICATION]" (ID: [ID_COMMUNICATION]).
-
-[Votre information ici]'''
-        }
-    }
-    
-    return render_template('admin/email_reviewers.html', 
-                         communication=communication,
-                         email_templates=email_templates)
 
 
 @admin.route('/communication/<int:comm_id>')
@@ -3440,79 +3166,6 @@ def stats_communications():
                          review_stats=review_stats)
 
 
-@admin.route('/send-individual-email', methods=['POST'])
-@login_required
-def send_individual_email():
-    """Envoi d'email individuel aux auteurs ou reviewers d'une communication."""
-    if not current_user.is_admin:
-        abort(403)
-    
-    try:
-        communication_id = request.form.get('communication_id')
-        recipient_type = request.form.get('recipient_type')  # 'authors' ou 'reviewers'
-        subject = request.form.get('subject')
-        content = request.form.get('content')
-        copy_admin = request.form.get('copy_admin') == 'on'
-        selected_reviewers = request.form.get('selected_reviewers', '')
-        
-        if not all([communication_id, recipient_type, subject, content]):
-            flash('Tous les champs sont requis.', 'danger')
-            return redirect(request.referrer)
-        
-        communication = Communication.query.get_or_404(communication_id)
-        emails_sent = 0
-        recipients = []
-        
-        if recipient_type == 'authors':
-            # Envoyer aux auteurs
-            for author in communication.authors:
-                if author.email:
-                    send_email_to_user(author, subject, content, communication)
-                    emails_sent += 1
-                    recipients.append(f"{author.first_name} {author.last_name} ({author.email})")
-                    
-        elif recipient_type == 'reviewers':
-            # Envoyer aux reviewers sélectionnés
-            if selected_reviewers:
-                reviewer_ids = [int(id) for id in selected_reviewers.split(',') if id.strip()]
-            else:
-                reviewer_ids = [review.reviewer.id for review in communication.reviews]
-            
-            for review in communication.reviews:
-                if review.reviewer.id in reviewer_ids and review.reviewer.email:
-                    send_email_to_user(review.reviewer, subject, content, communication)
-                    emails_sent += 1
-                    recipients.append(f"{review.reviewer.first_name} {review.reviewer.last_name} ({review.reviewer.email})")
-        
-        # Envoyer une copie à l'admin si demandé
-        if copy_admin and current_user.email:
-            copy_subject = f"[COPIE] {subject}"
-            copy_content = f"COPIE de l'email envoyé concernant la communication #{communication.id}\n\nDestinataires: {', '.join(recipients)}\n\n" + content
-            
-            from flask_mail import Message
-            from app import mail
-            
-            msg = Message(
-                subject=copy_subject,
-                recipients=[current_user.email],
-                body=copy_content,
-                sender=current_app.config.get('MAIL_DEFAULT_SENDER')
-            )
-            mail.send(msg)
-        
-        # Log de l'action
-        current_app.logger.info(f"Email individuel envoyé par {current_user.email} pour communication {communication_id}: {emails_sent} destinataires")
-        
-        flash(f'Email envoyé avec succès à {emails_sent} destinataire(s).', 'success')
-        
-        if copy_admin:
-            flash('Une copie vous a été envoyée.', 'info')
-            
-    except Exception as e:
-        current_app.logger.error(f"Erreur envoi email individuel: {str(e)}")
-        flash(f'Erreur lors de l\'envoi: {str(e)}', 'danger')
-    
-    return redirect(url_for('admin.communications_dashboard'))
 
 # À remplacer dans app/admin.py - fonction manage_content
 
@@ -3921,11 +3574,7 @@ def reload_config():
     
     try:
         from app.config_loader import ConfigLoader
-        
-        # Créer une nouvelle instance du loader
         config_loader = ConfigLoader()
-        
-        # Recharger toutes les configurations
         result = config_loader.reload_all_configs()
         
         if result['success']:
@@ -4122,7 +3771,7 @@ def get_images_info():
         }), 500
 
 
-# À ajouter dans app/admin.py
+# Zone de gestion des emails admin
 
 @admin.route("/test-emails")
 @login_required
@@ -4133,6 +3782,79 @@ def test_emails_form():
     
     return render_template('admin/test_emails.html')
 
+@admin.route('/send-individual-email', methods=['POST'])
+@login_required
+def send_individual_email():
+    """Envoi d'email individuel aux auteurs ou reviewers d'une communication."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    try:
+        communication_id = request.form.get('communication_id')
+        recipient_type = request.form.get('recipient_type')  # 'authors' ou 'reviewers'
+        subject = request.form.get('subject')
+        content = request.form.get('content')
+        copy_admin = request.form.get('copy_admin') == 'on'
+        selected_reviewers = request.form.get('selected_reviewers', '')
+        
+        if not all([communication_id, recipient_type, subject, content]):
+            flash('Tous les champs sont requis.', 'danger')
+            return redirect(request.referrer)
+        
+        communication = Communication.query.get_or_404(communication_id)
+        emails_sent = 0
+        recipients = []
+        
+        if recipient_type == 'authors':
+            # Envoyer aux auteurs
+            for author in communication.authors:
+                if author.email:
+                    send_email_to_user(author, subject, content, communication)
+                    emails_sent += 1
+                    recipients.append(f"{author.first_name} {author.last_name} ({author.email})")
+                    
+        elif recipient_type == 'reviewers':
+            # Envoyer aux reviewers sélectionnés
+            if selected_reviewers:
+                reviewer_ids = [int(id) for id in selected_reviewers.split(',') if id.strip()]
+            else:
+                reviewer_ids = [review.reviewer.id for review in communication.reviews]
+            
+            for review in communication.reviews:
+                if review.reviewer.id in reviewer_ids and review.reviewer.email:
+                    send_email_to_user(review.reviewer, subject, content, communication)
+                    emails_sent += 1
+                    recipients.append(f"{review.reviewer.first_name} {review.reviewer.last_name} ({review.reviewer.email})")
+        
+        # Envoyer une copie à l'admin si demandé
+        if copy_admin and current_user.email:
+            copy_subject = f"[COPIE] {subject}"
+            copy_content = f"COPIE de l'email envoyé concernant la communication #{communication.id}\n\nDestinataires: {', '.join(recipients)}\n\n" + content
+            
+            from flask_mail import Message
+            from app import mail
+            
+            msg = Message(
+                subject=copy_subject,
+                recipients=[current_user.email],
+                body=copy_content,
+                sender=current_app.config.get('MAIL_DEFAULT_SENDER')
+            )
+            mail.send(msg)
+        
+        # Log de l'action
+        current_app.logger.info(f"Email individuel envoyé par {current_user.email} pour communication {communication_id}: {emails_sent} destinataires")
+        
+        flash(f'Email envoyé avec succès à {emails_sent} destinataire(s).', 'success')
+        
+        if copy_admin:
+            flash('Une copie vous a été envoyée.', 'info')
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi email individuel: {str(e)}")
+        flash(f'Erreur lors de l\'envoi: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.communications_dashboard'))
 
 @admin.route("/test-emails/run", methods=["POST"])
 @login_required
@@ -4260,45 +3982,47 @@ def run_email_tests():
         }), 500
 
 
-def create_test_objects_for_admin(test_email):
-    """Crée des objets factices pour les tests admin."""
-    from datetime import datetime
-    
-    # Utilisateur test
-    test_user = type('MockUser', (), {
-        'email': test_email,
-        'first_name': 'Jean',
-        'last_name': 'Dupont',
-        'full_name': 'Jean Dupont',
-        'specialites_codes': 'COND,MULTI',
-        'is_reviewer': True,
-        'affiliations': []
-    })()
-    
-    # Communication test
-    test_communication = type('MockCommunication', (), {
-        'id': 999,
-        'title': 'Test de communication pour validation du système d\'emails',
-        'type': 'article',
-        'status': type('MockStatus', (), {'value': 'submitted'})(),
-        'authors': [test_user],
-        'thematiques_codes': 'COND,SIMUL'
-    })()
-    
-    # Assignment de review test
-    test_assignment = type('MockAssignment', (), {
-        'communication': test_communication,
-        'reviewer': test_user,
-        'due_date': datetime(2025, 9, 15),
-        'is_overdue': False
-    })()
-    
-    return {
-        'user': test_user,
-        'communication': test_communication,
-        'reviewer': test_user,
-        'assignment': test_assignment
-    }
+##################################################################################
+# def create_test_objects_for_admin(test_email):                                 #
+#     """Crée des objets factices pour les tests admin."""                       #
+#     from datetime import datetime                                              #
+#                                                                                #
+#     # Utilisateur test                                                         #
+#     test_user = type('MockUser', (), {                                         #
+#         'email': test_email,                                                   #
+#         'first_name': 'Jean',                                                  #
+#         'last_name': 'Dupont',                                                 #
+#         'full_name': 'Jean Dupont',                                            #
+#         'specialites_codes': 'COND,MULTI',                                     #
+#         'is_reviewer': True,                                                   #
+#         'affiliations': []                                                     #
+#     })()                                                                       #
+#                                                                                #
+#     # Communication test                                                       #
+#     test_communication = type('MockCommunication', (), {                       #
+#         'id': 999,                                                             #
+#         'title': 'Test de communication pour validation du système d\'emails', #
+#         'type': 'article',                                                     #
+#         'status': type('MockStatus', (), {'value': 'submitted'})(),            #
+#         'authors': [test_user],                                                #
+#         'thematiques_codes': 'COND,SIMUL'                                      #
+#     })()                                                                       #
+#                                                                                #
+#     # Assignment de review test                                                #
+#     test_assignment = type('MockAssignment', (), {                             #
+#         'communication': test_communication,                                   #
+#         'reviewer': test_user,                                                 #
+#         'due_date': datetime(2025, 9, 15),                                     #
+#         'is_overdue': False                                                    #
+#     })()                                                                       #
+#                                                                                #
+#     return {                                                                   #
+#         'user': test_user,                                                     #
+#         'communication': test_communication,                                   #
+#         'reviewer': test_user,                                                 #
+#         'assignment': test_assignment                                          #
+#     }                                                                          #
+##################################################################################
 
 
 def run_activation_test(user, dry_run):
@@ -4380,13 +4104,14 @@ def run_review_reminder_test(reviewer, assignment, dry_run):
             'message': f'Erreur: {str(e)}'
         }
 
-
 def run_qr_code_test(user, communication, dry_run):
     """Test email QR code."""
     try:
         if not dry_run:
             from app.emails import send_qr_code_reminder_email
-            send_qr_code_reminder_email(user, [communication])
+            # Ajouter une URL de test pour le QR code
+            test_qr_url = "https://exemple.com/qr/test_999.png"
+            send_qr_code_reminder_email(user, communication, test_qr_url)
         
         return {
             'test': 'Email QR code',
@@ -4405,8 +4130,8 @@ def run_decision_test(communication, decision, dry_run):
     """Test email de décision."""
     try:
         if not dry_run:
-            from app.emails import send_decision_notification_email
-            send_decision_notification_email(communication, decision, f"Commentaires de test pour {decision}")
+            from app.emails import send_decision_email
+            send_decision_email(communication, decision, f"Commentaires de test pour {decision}")
         
         return {
             'test': f'Email décision ({decision})',
@@ -4419,14 +4144,15 @@ def run_decision_test(communication, decision, dry_run):
             'success': False,
             'message': f'Erreur: {str(e)}'
         }
-
 
 def run_biot_fourier_test(communication, dry_run):
     """Test email Biot-Fourier."""
     try:
         if not dry_run:
             from app.emails import send_biot_fourier_audition_notification
-            send_biot_fourier_audition_notification(communication)
+            # Passer l'utilisateur (auteur principal) ET la communication
+            user = communication.user
+            send_biot_fourier_audition_notification(user, communication)
         
         return {
             'test': 'Email Biot-Fourier',
@@ -4439,7 +4165,6 @@ def run_biot_fourier_test(communication, dry_run):
             'success': False,
             'message': f'Erreur: {str(e)}'
         }
-
 
 def test_email_configuration():
     """Test de la configuration emails."""
@@ -4477,66 +4202,24 @@ def test_email_configuration():
             'success': False,
             'message': f'Erreur: {str(e)}'
         }
-    
 def run_hal_collection_test(test_email, dry_run):
     """Test de l'email de demande de collection HAL."""
     try:
-        if dry_run:
-            return {
-                'test': 'Demande collection HAL',
-                'success': True,
-                'message': f'Email de demande collection HAL prêt à envoyer à {test_email}'
-            }
-        
-        # Charger la configuration
-        from app.config_loader import ConfigLoader
-        config_loader = ConfigLoader()
-        config = config_loader.load_conference_config()
-        
-        # Créer les données d'email (même logique que dans hal_routes.py)
-        import os
-        admin_first_name = os.getenv('ADMIN_FIRST_NAME', 'Admin')
-        admin_last_name = os.getenv('ADMIN_LAST_NAME', 'Test')
-        admin_email = os.getenv('ADMIN_EMAIL', test_email)
-        
-        organizing_lab = config.get('conference', {}).get('organizing_lab', {})
-        lab_short_name = organizing_lab.get('short_name', 'LEMTA')
-        
-        email_data = {
-            'contact_name': f"{admin_first_name} {admin_last_name}",
-            'contact_title': f"Responsable du congrès, {lab_short_name}",
-            'contact_email': admin_email,
-            'hal_login': os.getenv('HAL_LOGIN', 'test-login'),
-            'conference_name': config.get('conference', {}).get('full_name', 'SFT 2026'),
-            'conference_dates': '2-5 juin 2026',
-            'conference_location': config.get('conference', {}).get('location', {}).get('city', 'Nancy'),
-            'organizing_lab_name': organizing_lab.get('name', 'LEMTA'),
-            'collection_id': 'SFT2026',
-            'estimated_docs': 200,
-            'submission_deadline': 'Mars 2026',
-            'deposit_start': 'Avril 2026'
-        }
-        
-        # Envoyer l'email de test
-        from app.emails import send_hal_collection_request
-        send_hal_collection_request(
-            recipient_email=test_email,
-            email_data=email_data,
-            custom_message="[TEST] Email de test automatique depuis l'interface admin"
-        )
+        if not dry_run:
+            from app.emails import send_hal_collection_request
+            send_hal_collection_request(test_email, 200) 
         
         return {
             'test': 'Demande collection HAL',
             'success': True,
             'message': f'Email de demande collection HAL envoyé à {test_email}'
         }
-        
     except Exception as e:
         return {
             'test': 'Demande collection HAL',
             'success': False,
             'message': f'Erreur: {str(e)}'
-        }
+        }   
 
 
 @admin.route("/send-test-email")
@@ -4549,6 +4232,438 @@ def send_test_email():
     
     # Rediriger vers la page de test des emails
     return redirect(url_for('admin.test_emails'))
+
+
+
+##################################################################################################
+# def run_submission_confirmation_test(file_type, user, communication, dry_run):                 #
+#     """Test email de confirmation de soumission."""                                            #
+#     try:                                                                                       #
+#         # Créer un faux SubmissionFile                                                         #
+#         fake_submission_file = type('MockSubmissionFile', (), {                                #
+#             'filename': f'test_{file_type}.pdf',                                               #
+#             'version': 1                                                                       #
+#         })()                                                                                   #
+#                                                                                                #
+#         if not dry_run:                                                                        #
+#             from app.emails import send_submission_confirmation_email                          #
+#             send_submission_confirmation_email(communication, file_type, fake_submission_file) #
+#                                                                                                #
+#         return {                                                                               #
+#             'test': f'Email confirmation {file_type}',                                         #
+#             'success': True,                                                                   #
+#             'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'                  #
+#         }                                                                                      #
+#     except Exception as e:                                                                     #
+#         return {                                                                               #
+#             'test': f'Email confirmation {file_type}',                                         #
+#             'success': False,                                                                  #
+#             'message': f'Erreur: {str(e)}'                                                     #
+#         }                                                                                      #
+##################################################################################################
+
+def run_reviewer_welcome_test(user, dry_run):
+    """Test email de bienvenue reviewer."""
+    try:
+        if not dry_run:
+            from app.emails import send_activation_email_to_user
+            # Utilise la fonction d'activation qui peut servir de bienvenue
+            send_activation_email_to_user(user, "welcome_token_test")
+        
+        return {
+            'test': 'Email bienvenue reviewer',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email bienvenue reviewer',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+def run_admin_weekly_summary_test(test_email, dry_run):
+    """Test email résumé hebdomadaire admin."""
+    try:
+        if not dry_run:
+            fake_context = {
+                'ADMIN_NAME': 'Admin Test',
+                'NEW_SUBMISSIONS': 5,
+                'TOTAL_SUBMISSIONS': 42,
+                'PENDING_ABSTRACTS': 12,
+                'PENDING_ARTICLES': 8,
+                'NEW_USERS': 3,
+                'TOTAL_USERS': 156,
+                'ACTIVE_REVIEWERS': 23,
+                'ASSIGNED_REVIEWS': 15,
+                'COMPLETED_REVIEWS': 12,
+                'OVERDUE_REVIEWS': 2,
+                'COMPLETION_RATE': 80,
+                'ATTENTION_POINTS': 'Quelques reviews en retard à suivre',
+                'RECOMMENDED_ACTIONS': 'Relancer les reviewers en retard'
+            }
+            
+            from app.emails import send_admin_weekly_summary
+            send_admin_weekly_summary(test_email, fake_context)
+        
+        return {
+            'test': 'Email résumé hebdomadaire',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email résumé hebdomadaire',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+def run_admin_alert_test(test_email, dry_run):
+    """Test email alerte admin."""
+    try:
+        if not dry_run:
+            from app.emails import send_admin_alert_email
+            send_admin_alert_email(
+                test_email, 
+                'URGENT', 
+                'Test d\'alerte système depuis l\'interface admin - Un reviewer a refusé une assignation'
+            )
+        
+        return {
+            'test': 'Email alerte admin',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': 'Email alerte admin',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }   
+
+def create_test_objects_for_admin(test_email):
+    """Crée des objets factices pour les tests admin."""
+    from datetime import datetime
+    
+    test_user = type('MockUser', (), {
+        'email': test_email,
+        'first_name': 'Jean',
+        'last_name': 'Dupont',
+        'full_name': 'Jean Dupont',
+        'specialites_codes': 'COND,MULTI',
+        'is_reviewer': True,
+        'affiliations': []
+    })()
+    
+    test_communication = type('MockCommunication', (), {
+        'id': 999,
+        'title': 'Test de communication pour validation du système d\'emails',
+        'type': 'article',
+        'status': type('MockStatus', (), {'value': 'submitted'})(),
+        'authors': [test_user],
+        'thematiques': 'COND,SIMUL',
+        'thematiques_codes': 'COND,SIMUL',
+        'user': test_user,  # IMPORTANT
+        'last_modified': datetime.now()
+    })()
+    
+    test_assignment = type('MockAssignment', (), {
+        'communication': test_communication,
+        'reviewer': test_user,
+        'due_date': datetime(2025, 9, 15),
+        'is_overdue': False
+    })()
+    
+    return {
+        'user': test_user,
+        'communication': test_communication,
+        'reviewer': test_user,
+        'assignment': test_assignment
+    }
+
+def run_submission_confirmation_test(submission_type, user, communication, dry_run):
+    """Test email de confirmation de soumission."""
+    try:
+        if not dry_run:
+            from app.emails import send_submission_confirmation_email
+            send_submission_confirmation_email(user, communication, submission_type)
+        
+        return {
+            'test': f'Email confirmation {submission_type}',
+            'success': True,
+            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
+        }
+    except Exception as e:
+        return {
+            'test': f'Email confirmation {submission_type}',
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }
+
+
+@admin.route('/email-authors/<int:comm_id>')
+@login_required
+def email_authors(comm_id):
+    """Page pour composer et envoyer un email aux auteurs d'une communication."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    # Importer la fonction depuis emails.py
+    from app.emails import get_admin_email_templates
+    
+    # Récupérer les templates depuis la configuration
+    email_templates = get_admin_email_templates()
+    
+    # Ajouter des variables spécifiques à cette communication dans les templates
+    # pour que les placeholders soient correctement remplacés
+    context_variables = {
+        'COMMUNICATION_TITLE': communication.title,
+        'COMMUNICATION_ID': communication.id,
+        'COMMUNICATION_TYPE': communication.type.title()
+    }
+    
+    # Remplacer les variables dans les templates pour l'affichage JavaScript
+    processed_templates = {}
+    for template_key, template_data in email_templates.items():
+        processed_templates[template_key] = {
+            'subject': template_data['subject'],
+            'content': template_data['content']
+        }
+        
+        # Remplacer les variables spécifiques à cette communication
+        for var_name, var_value in context_variables.items():
+            placeholder = f'[{var_name}]'
+            if placeholder in processed_templates[template_key]['subject']:
+                processed_templates[template_key]['subject'] = processed_templates[template_key]['subject'].replace(placeholder, str(var_value))
+            if placeholder in processed_templates[template_key]['content']:
+                processed_templates[template_key]['content'] = processed_templates[template_key]['content'].replace(placeholder, str(var_value))
+    
+    return render_template('admin/email_authors.html', 
+                         communication=communication,
+                         email_templates=processed_templates)
+
+@admin.route('/email-reviewers/<int:comm_id>')
+@login_required
+def email_reviewers(comm_id):
+    """Page pour composer et envoyer un email aux reviewers d'une communication."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    if not communication.reviews:
+        flash('Cette communication n\'a pas de reviewers assignés.', 'warning')
+        return redirect(url_for('admin.communications_dashboard'))
+    
+    # Utiliser la configuration centralisée au lieu de texte en dur
+    config_loader = current_app.config_loader
+    
+    email_templates = {
+        'assignation': {
+            'subject': config_loader.get_email_subject('review_assigned', COMMUNICATION_TITLE=communication.title),
+            'content': config_loader.get_email_content('review_assigned')['body']
+        },
+        'rappel': {
+            'subject': config_loader.get_email_subject('review_reminder', COMMUNICATION_TITLE=communication.title),
+            'content': config_loader.get_email_content('review_reminder')['body']
+        }
+    }
+    
+    return render_template('admin/email_reviewers.html', 
+                         communication=communication,
+                         email_templates=email_templates)
+
+
+
+@admin.route('/reviewers/send-activation/<int:user_id>')
+@login_required
+def send_activation_email(user_id):
+    """Envoie l'email d'activation à un reviewer."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    user = User.query.get_or_404(user_id)
+    
+    if user.is_activated:
+        flash(f'{user.email} est déjà activé', 'warning')
+        return redirect(url_for('admin.pending_activation_reviewers'))
+    
+    # Générer le token d'activation
+    token = user.generate_activation_token()
+    db.session.commit()
+    
+    # Envoyer l'email avec votre fonction
+    try:
+        current_app.send_activation_email_to_user(user, token)
+        flash(f'Email d\'activation envoyé à {user.email}', 'success')
+    except Exception as e:
+        flash(f'Erreur lors de l\'envoi de l\'email : {str(e)}', 'danger')
+        current_app.logger.error(f"Erreur envoi email activation: {e}")
+    
+    return redirect(url_for('admin.pending_activation_reviewers'))
+
+
+@admin.route('/reviews/send-reminders', methods=['POST'])
+@login_required
+def send_review_reminders():
+    """Envoie des rappels aux reviewers en retard ou avec reviews en attente."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    # Récupérer toutes les assignations en attente
+    pending_assignments = ReviewAssignment.query.filter_by(status='assigned').all()
+    
+    if not pending_assignments:
+        flash('Aucune review en attente.', 'info')
+        return redirect(url_for('admin.communications_ready_for_review'))
+    
+    # Grouper par reviewer
+    reviewers_assignments = {}
+    for assignment in pending_assignments:
+        reviewer_id = assignment.reviewer_id
+        if reviewer_id not in reviewers_assignments:
+            reviewers_assignments[reviewer_id] = {
+                'reviewer': assignment.reviewer,
+                'assignments': []
+            }
+        reviewers_assignments[reviewer_id]['assignments'].append(assignment)
+    
+    # Envoyer les rappels
+    sent_count = 0
+    errors = []
+    
+    for reviewer_id, data in reviewers_assignments.items():
+        try:
+            current_app.send_review_reminder_email(data['reviewer'], data['assignments'])
+            sent_count += 1
+            current_app.logger.info(f"Rappel envoyé à {data['reviewer'].email}")
+        except Exception as e:
+            error_msg = f"Erreur pour {data['reviewer'].email}: {str(e)}"
+            errors.append(error_msg)
+            current_app.logger.error(error_msg)
+    
+    # Messages de retour
+    if sent_count > 0:
+        flash(f'Rappels envoyés à {sent_count} reviewer(s).', 'success')
+    
+    if errors:
+        for error in errors[:3]:  # Limiter à 3 erreurs affichées
+            flash(error, 'warning')
+        if len(errors) > 3:
+            flash(f"... et {len(errors) - 3} autres erreurs.", 'warning')
+    
+    return redirect(url_for('admin.communications_ready_for_review'))
+
+
+
+@admin.route('/communications/<int:comm_id>/notify-reviewers', methods=['POST'])
+@login_required
+def send_review_notifications(comm_id):
+    """Envoie les notifications par email aux reviewers assignés."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    # Récupérer les assignations sans notification
+    assignments = ReviewAssignment.query.filter_by(
+        communication_id=comm_id,
+        notification_sent_at=None
+    ).all()
+    
+    if not assignments:
+        flash('Tous les reviewers ont déjà été notifiés.', 'info')
+        return redirect(url_for('admin.suggest_reviewers', comm_id=comm_id))
+    
+    notified_count = 0
+    
+    for assignment in assignments:
+        try:
+            # Créer l'objet Review s'il n'existe pas
+            review = assignment.get_or_create_review()
+            
+            # Envoyer l'email de notification
+            current_app.send_review_notification_email(assignment.reviewer, communication, assignment)
+            
+            # Marquer comme notifié
+            assignment.notification_sent_at = datetime.utcnow()
+            notified_count += 1
+            
+        except Exception as e:
+            current_app.logger.error(f"Erreur notification reviewer {assignment.reviewer.email}: {e}")
+    
+    db.session.commit()
+    
+    if notified_count > 0:
+        flash(f'{notified_count} reviewer(s) notifié(s) par email.', 'success')
+    else:
+        flash('Erreur lors de l\'envoi des notifications.', 'danger')
+    
+    return redirect(url_for('admin.suggest_reviewers', comm_id=comm_id))
+
+
+
+@admin.route("/send-qr-reminders", methods=["POST"])
+@login_required
+def send_qr_reminders():
+    """Envoie des rappels QR code à tous les auteurs principaux."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    try:
+        
+        # Récupérer tous les auteurs principaux (premier auteur de chaque communication)
+        communications = Communication.query.all()
+        authors_communications = {}
+        
+        # Grouper les communications par auteur principal
+        for comm in communications:
+            if comm.authors:  # S'assurer qu'il y a des auteurs
+                main_author = comm.authors[0]  # Premier auteur = auteur principal
+                if main_author.id not in authors_communications:
+                    authors_communications[main_author.id] = {
+                        'user': main_author,
+                        'communications': []
+                    }
+                authors_communications[main_author.id]['communications'].append(comm)
+        
+        # Envoyer les emails
+        sent_count = 0
+        errors = []
+        
+        for author_data in authors_communications.values():
+            try:
+                current_app.send_qr_code_reminder_email(
+                    author_data['user'], 
+                    author_data['communications']
+                )
+                sent_count += 1
+                current_app.logger.info(f"Email QR envoyé à {author_data['user'].email}")
+            except Exception as e:
+                error_msg = f"Erreur pour {author_data['user'].email}: {str(e)}"
+                errors.append(error_msg)
+                current_app.logger.error(error_msg)
+        
+        # Messages de retour
+        if sent_count > 0:
+            flash(f'Rappels QR code envoyés à {sent_count} auteur(s) principal(aux).', 'success')
+        
+        if errors:
+            for error in errors[:3]:  # Limiter à 3 erreurs affichées
+                flash(error, 'warning')
+            if len(errors) > 3:
+                flash(f"... et {len(errors) - 3} autres erreurs.", 'warning')
+                
+    except Exception as e:
+        current_app.logger.error(f"Erreur générale envoi QR reminders: {e}")
+        flash(f"Erreur lors de l'envoi : {str(e)}", "danger")
+    
+    return redirect(url_for('admin.admin_dashboard'))
+
+####  HAL  ####
+
 
 
 @admin.route("/affiliations/enrich-hal", methods=["GET", "POST"])
@@ -4848,363 +4963,3 @@ def hal_enrich_affiliations():
     
     return results
 
-def run_submission_confirmation_test(file_type, user, communication, dry_run):
-    """Test email de confirmation de soumission."""
-    try:
-        # Créer un faux SubmissionFile
-        fake_submission_file = type('MockSubmissionFile', (), {
-            'filename': f'test_{file_type}.pdf',
-            'version': 1
-        })()
-        
-        if not dry_run:
-            from app.emails import send_submission_confirmation_email
-            send_submission_confirmation_email(communication, file_type, fake_submission_file)
-        
-        return {
-            'test': f'Email confirmation {file_type}',
-            'success': True,
-            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
-        }
-    except Exception as e:
-        return {
-            'test': f'Email confirmation {file_type}',
-            'success': False,
-            'message': f'Erreur: {str(e)}'
-        }
-
-def run_reviewer_welcome_test(user, dry_run):
-    """Test email de bienvenue reviewer."""
-    try:
-        if not dry_run:
-            from app.emails import send_activation_email_to_user
-            # Utilise la fonction d'activation qui peut servir de bienvenue
-            send_activation_email_to_user(user, "welcome_token_test")
-        
-        return {
-            'test': 'Email bienvenue reviewer',
-            'success': True,
-            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
-        }
-    except Exception as e:
-        return {
-            'test': 'Email bienvenue reviewer',
-            'success': False,
-            'message': f'Erreur: {str(e)}'
-        }
-
-def run_admin_weekly_summary_test(test_email, dry_run):
-    """Test email résumé hebdomadaire admin."""
-    try:
-        if not dry_run:
-            # Créer un faux contexte de résumé
-            fake_context = {
-                'ADMIN_NAME': 'Admin Test',
-                'NEW_SUBMISSIONS': 5,
-                'TOTAL_SUBMISSIONS': 42,
-                'PENDING_ABSTRACTS': 12,
-                'PENDING_ARTICLES': 8,
-                'NEW_USERS': 3,
-                'TOTAL_USERS': 156,
-                'ACTIVE_REVIEWERS': 23,
-                'ASSIGNED_REVIEWS': 15,
-                'COMPLETED_REVIEWS': 12,
-                'OVERDUE_REVIEWS': 2,
-                'COMPLETION_RATE': 80,
-                'ATTENTION_POINTS': 'Quelques reviews en retard à suivre',
-                'RECOMMENDED_ACTIONS': 'Relancer les reviewers en retard'
-            }
-            
-            from app.emails import _build_text_email, _build_html_email, send_email
-            from flask import current_app
-            
-            config_loader = current_app.config_loader
-            subject = config_loader.get_email_subject('admin_weekly_summary', **fake_context)
-            content_config = config_loader.get_email_content('admin_weekly_summary', **fake_context)
-            signature = config_loader.get_email_signature('system', **fake_context)
-            
-            body = _build_text_email(content_config, fake_context, signature)
-            html = _build_html_email(content_config, fake_context, signature, '#6c757d')
-            
-            send_email(subject, [test_email], body, html)
-        
-        return {
-            'test': 'Email résumé hebdomadaire',
-            'success': True,
-            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
-        }
-    except Exception as e:
-        return {
-            'test': 'Email résumé hebdomadaire',
-            'success': False,
-            'message': f'Erreur: {str(e)}'
-        }
-
-def run_admin_alert_test(test_email, dry_run):
-    """Test email alerte admin."""
-    try:
-        if not dry_run:
-            fake_context = {
-                'ADMIN_NAME': 'Admin Test',
-                'ALERT_TYPE': 'Review refusée',
-                'ALERT_TIMESTAMP': '24/08/2025 à 14:30',
-                'ALERT_PRIORITY': 'Élevée',
-                'ALERT_DESCRIPTION': 'Un reviewer a refusé une assignation',
-                'SUGGESTED_ACTIONS': 'Réassigner à un autre reviewer'
-            }
-            
-            from app.emails import _build_text_email, _build_html_email, send_email
-            from flask import current_app
-            
-            config_loader = current_app.config_loader
-            subject = config_loader.get_email_subject('admin_alert', **fake_context)
-            content_config = config_loader.get_email_content('admin_alert', **fake_context)
-            signature = config_loader.get_email_signature('system', **fake_context)
-            
-            body = _build_text_email(content_config, fake_context, signature)
-            html = _build_html_email(content_config, fake_context, signature, '#dc3545', 'Alerte système')
-            
-            send_email(subject, [test_email], body, html)
-        
-        return {
-            'test': 'Email alerte admin',
-            'success': True,
-            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
-        }
-    except Exception as e:
-        return {
-            'test': 'Email alerte admin',
-            'success': False,
-            'message': f'Erreur: {str(e)}'
-        }
-
-
-# Corrections à apporter dans app/admin.py
-
-def create_test_objects_for_admin(test_email):
-    """Crée des objets factices pour les tests admin."""
-    from datetime import datetime
-    
-    # Utilisateur test
-    test_user = type('MockUser', (), {
-        'email': test_email,
-        'first_name': 'Jean',
-        'last_name': 'Dupont',
-        'full_name': 'Jean Dupont',
-        'specialites_codes': 'COND,MULTI',
-        'is_reviewer': True,
-        'affiliations': []
-    })()
-    
-    # Communication test - CORRIGÉE avec user au lieu de email
-    test_communication = type('MockCommunication', (), {
-        'id': 999,
-        'title': 'Test de communication pour validation du système d\'emails',
-        'type': 'article',
-        'status': type('MockStatus', (), {'value': 'submitted'})(),
-        'authors': [test_user],
-        'thematiques': 'COND,SIMUL',  # Ajouté
-        'thematiques_codes': 'COND,SIMUL',
-        'user': test_user,  # IMPORTANT: ajout de l'attribut user
-        'last_modified': datetime.now()  # Ajouté pour les emails de confirmation
-    })()
-    
-    # Assignment de review test
-    test_assignment = type('MockAssignment', (), {
-        'communication': test_communication,
-        'reviewer': test_user,
-        'due_date': datetime(2025, 9, 15),
-        'is_overdue': False
-    })()
-    
-    return {
-        'user': test_user,
-        'communication': test_communication,
-        'reviewer': test_user,
-        'assignment': test_assignment
-    }
-
-# Ajouter les fonctions de test manquantes pour les confirmations
-
-def run_submission_confirmation_test(submission_type, user, communication, dry_run):
-    """Test email de confirmation de soumission."""
-    try:
-        if not dry_run:
-            from app.emails import send_submission_confirmation_email
-            send_submission_confirmation_email(user, communication, submission_type)
-        
-        return {
-            'test': f'Email confirmation {submission_type}',
-            'success': True,
-            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
-        }
-    except Exception as e:
-        return {
-            'test': f'Email confirmation {submission_type}',
-            'success': False,
-            'message': f'Erreur: {str(e)}'
-        }
-
-# Dans la fonction run_email_tests(), ajouter les nouveaux tests :
-
-@admin.route("/test-emails/run", methods=["POST"])
-@login_required  
-def run_email_tests():
-    """Exécute les tests d'emails selon la configuration."""
-    if not current_user.is_admin:
-        abort(403)
-    
-    try:
-        test_email = request.form.get('test_email')
-        selected_tests = request.form.getlist('email_tests')
-        dry_run = request.form.get('dry_run') == 'on'
-        
-        if not test_email:
-            return jsonify({
-                'success': False,
-                'message': 'Adresse email de test requise'
-            }), 400
-        
-        if not selected_tests:
-            return jsonify({
-                'success': False,
-                'message': 'Sélectionnez au moins un test'
-            }), 400
-        
-        # Résultats des tests
-        results = []
-        
-        # Créer des objets de test
-        test_objects = create_test_objects_for_admin(test_email)
-        
-        # Tests existants...
-        if 'activation' in selected_tests:
-            result = run_activation_test(test_objects['user'], dry_run)
-            results.append(result)
-        
-        # NOUVEAUX TESTS DE CONFIRMATION
-        if 'submission_resume' in selected_tests:
-            result = run_submission_confirmation_test('résumé', test_objects['user'], test_objects['communication'], dry_run)
-            results.append(result)
-            
-        if 'submission_article' in selected_tests:
-            result = run_submission_confirmation_test('article', test_objects['user'], test_objects['communication'], dry_run)
-            results.append(result)
-            
-        if 'submission_wip' in selected_tests:
-            result = run_submission_confirmation_test('wip', test_objects['user'], test_objects['communication'], dry_run)
-            results.append(result)
-            
-        if 'submission_poster' in selected_tests:
-            result = run_submission_confirmation_test('poster', test_objects['user'], test_objects['communication'], dry_run)
-            results.append(result)
-            
-        if 'submission_revision' in selected_tests:
-            result = run_submission_confirmation_test('revision', test_objects['user'], test_objects['communication'], dry_run)
-            results.append(result)
-        
-        if 'reviewer_welcome' in selected_tests:
-            result = run_reviewer_welcome_test(test_objects['user'], dry_run)
-            results.append(result)
-            
-        if 'admin_summary' in selected_tests:
-            result = run_admin_summary_test(test_email, dry_run)
-            results.append(result)
-            
-        if 'admin_alert' in selected_tests:
-            result = run_admin_alert_test(test_email, dry_run)
-            results.append(result)
-        
-        # Tests existants continuent...
-        if 'coauthor_new' in selected_tests:
-            result = run_coauthor_new_test(test_objects['user'], test_objects['communication'], dry_run)
-            results.append(result)
-            
-        # ... reste du code existant
-        
-        # Test de configuration
-        config_result = test_email_configuration()
-        results.append(config_result)
-        
-        # Compter les succès/échecs
-        success_count = len([r for r in results if r['success']])
-        total_count = len(results)
-        
-        return jsonify({
-            'success': True,
-            'message': f'{success_count}/{total_count} tests réussis',
-            'results': results,
-            'dry_run': dry_run
-        })
-        
-    except Exception as e:
-        current_app.logger.error(f"Erreur test emails: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Erreur: {str(e)}'
-        }), 500
-
-# Ajouter les nouvelles fonctions de test manquantes
-
-def run_reviewer_welcome_test(user, dry_run):
-    """Test email bienvenue reviewer."""
-    try:
-        if not dry_run:
-            from app.emails import send_reviewer_welcome_email
-            send_reviewer_welcome_email(user)
-        
-        return {
-            'test': 'Bienvenue reviewer',
-            'success': True,
-            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
-        }
-    except Exception as e:
-        return {
-            'test': 'Bienvenue reviewer',
-            'success': False,
-            'message': f'Erreur: {str(e)}'
-        }
-
-def run_admin_summary_test(test_email, dry_run):
-    """Test résumé hebdomadaire admin."""
-    try:
-        if not dry_run:
-            from app.emails import send_admin_weekly_summary
-            stats = {
-                'submissions': 42,
-                'reviews': 28,
-                'pending_reviews': 14,
-                'overdue_reviews': 3
-            }
-            send_admin_weekly_summary(test_email, stats)
-        
-        return {
-            'test': 'Résumé hebdomadaire admin',
-            'success': True,
-            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
-        }
-    except Exception as e:
-        return {
-            'test': 'Résumé hebdomadaire admin',
-            'success': False,
-            'message': f'Erreur: {str(e)}'
-        }
-
-def run_admin_alert_test(test_email, dry_run):
-    """Test alerte admin."""
-    try:
-        if not dry_run:
-            from app.emails import send_admin_alert_email
-            send_admin_alert_email(test_email, 'URGENT', 'Test d\'alerte système depuis l\'interface admin')
-        
-        return {
-            'test': 'Alerte admin',
-            'success': True,
-            'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
-        }
-    except Exception as e:
-        return {
-            'test': 'Alerte admin',
-            'success': False,
-            'message': f'Erreur: {str(e)}'
-        }

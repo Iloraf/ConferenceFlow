@@ -235,6 +235,24 @@ fees:
     - item: "Accompagnant"
       price: 150
 
+  early_savings: 100  # Économie en tarif préférentiel
+  payment_methods:
+    - name: "Virement bancaire"
+      icon: "fas fa-money-check"
+      color: "text-success"
+      description: "RIB fourni après inscription"
+    - name: "Bon de commande"
+      icon: "fas fa-file-invoice" 
+      color: "text-warning"
+      description: "Pour les institutions"
+  
+  conditions:
+    - "L'inscription est nominative et non transférable"
+    - "Annulation possible jusqu'au {{ conference_dates.cancellation_deadline }} avec 50% de frais"
+    - "Aucun remboursement après le {{ conference_dates.no_refund_deadline }}"
+    - "Facture délivrée après paiement complet"
+    - "Tarif doctorant sur justificatif valide uniquement"
+
 # ===== SOUMISSIONS =====
 submissions:
   types:

@@ -186,10 +186,10 @@ def create_app():
         send_submission_confirmation_email,
         send_activation_email_to_user,
         send_coauthor_notification_email,
-    #    send_existing_coauthor_notification_email,
+        send_existing_coauthor_notification_email,
         send_review_reminder_email,
         send_qr_code_reminder_email,
-    #    send_decision_notification_email,
+        send_decision_email,
         send_biot_fourier_audition_notification,
         send_hal_collection_request
     )
@@ -198,10 +198,10 @@ def create_app():
     app.send_submission_confirmation_email = send_submission_confirmation_email
     app.send_activation_email_to_user = send_activation_email_to_user
     app.send_coauthor_notification_email = send_coauthor_notification_email
-    #app.send_existing_coauthor_notification_email = send_existing_coauthor_notification_email
+    app.send_existing_coauthor_notification_email = send_existing_coauthor_notification_email
     app.send_review_reminder_email = send_review_reminder_email
     app.send_qr_code_reminder_email = send_qr_code_reminder_email
-    #app.send_decision_notification_email = send_decision_notification_email 
+    app.send_decision_email = send_decision_email 
     app.send_biot_fourier_audition_notification = send_biot_fourier_audition_notification
     app.send_hal_collection_request = send_hal_collection_request
     

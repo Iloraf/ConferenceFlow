@@ -337,7 +337,7 @@ def send_activation_email_to_user(user, token):
             'USER_LAST_NAME': user.last_name or '',
             'USER_EMAIL': user.email,
             'ACTIVATION_TOKEN': token,
-            'call_to_action_url': url_for('auth.activate_account', token=token, _external=True)
+            'call_to_action_url': url_for('main.activate_account', token=token, _external=True)
         }
         
         send_any_email_with_themes(
@@ -363,7 +363,7 @@ def send_coauthor_notification_email(user, communication, token):
             'COMMUNICATION_ID': communication.id,
             'MAIN_AUTHOR': communication.user.full_name or communication.user.email,
             'ACTIVATION_TOKEN': token if token else '',
-            'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True) if not token else url_for('auth.activate_account', token=token, _external=True)
+            'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True) if not token else url_for('main.activate_account', token=token, _external=True)
         }
         
         template_name = 'coauthor_notification' if not token else 'coauthor_invitation'
@@ -402,7 +402,7 @@ def send_review_reminder_email(reviewer, assignments):
             'OVERDUE_COUNT': overdue_count,
             'OVERDUE_MESSAGE': f"⚠️ {overdue_count} review(s) sont en retard." if overdue_count > 0 else "",
             'COMMUNICATIONS_LIST': '\n'.join(comm_list),
-            'call_to_action_url': url_for('reviewer.dashboard', _external=True)
+            'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
         }
         
         send_any_email_with_themes(
@@ -513,14 +513,16 @@ def send_qr_code_reminder_email(user, communication, qr_code_url):
 def send_hal_collection_request(admin_email, communications_count):
     """Envoie une demande de création de collection HAL."""
     try:
-        config_loader = current_app.config_loader
+
         
+        from flask import current_app
+
         base_context = {
             'ADMIN_EMAIL': admin_email,
             'COMMUNICATIONS_COUNT': communications_count,
-            'CONFERENCE_NAME': config_loader.conference_config.get('name', 'Conference Flow'),
-            'CONFERENCE_SHORT_NAME': config_loader.conference_config.get('short_name', 'CF'),
-            'CONFERENCE_DATES': config_loader.conference_config.get('dates', '2026'),
+            'CONFERENCE_NAME': current_app.conference_config.get('name', 'Conference Flow'),
+            'CONFERENCE_SHORT_NAME': current_app.conference_config.get('short_name', 'CF'),
+            'CONFERENCE_DATES': current_app.conference_config.get('dates', '2026'),
             'call_to_action_url': url_for('admin.admin_dashboard', _external=True)
         }
         
@@ -599,4 +601,34 @@ def send_admin_alert_email(admin_email, alert_type, alert_message):
         
     except Exception as e:
         logger.error(f"Erreur envoi alerte admin: {e}")
+        raise
+
+
+def send_existing_coauthor_notification_email(user, communication):
+    """Envoie un email de notification à un co-auteur existant (déjà activé)."""
+    try:
+        base_context = {
+            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+            'USER_LAST_NAME': user.last_name or '',
+            'USER_EMAIL': user.email,
+            'COMMUNICATION_TITLE': communication.title,
+            'COMMUNICATION_ID': communication.id,
+            'MAIN_AUTHOR': communication.user.full_name or communication.user.email,
+            'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
+        }
+        
+        # Utiliser le template de notification (sans token d'activation)
+        send_any_email_with_themes(
+            template_name='coauthor_notification',
+            recipient_email=user.email,
+            base_context=base_context,
+            communication=communication,
+            user=user,
+            color_scheme='green'
+        )
+        
+        logger.info(f"Notification co-auteur existant envoyée à {user.email} pour communication {communication.id}")
+        
+    except Exception as e:
+        logger.error(f"Erreur notification co-auteur existant à {user.email}: {e}")
         raise
