@@ -115,17 +115,17 @@ def _build_html_email(template_name, context, color_scheme='blue'):
         
         # En-tête
         if content_config.get('greeting'):
-            greeting = config_loader.format_template(content_config['greeting'], **context)
+            greeting = content_config['greeting']
             html_parts.append(f"<p><strong>{greeting}</strong></p>")
         
         # Introduction colorée
         if content_config.get('intro'):
-            intro = config_loader.format_template(content_config['intro'], **context)
+            intro = content_config['intro']
             html_parts.append(f"<h3 style='color: {colors['primary']};'>{intro}</h3>")
         
         # Corps du message
         if content_config.get('body'):
-            body = config_loader.format_template(content_config['body'], **context)
+            body = content_config['body']
             body_html = body.replace('\n\n', '</p><p>').replace('\n', '<br>')
             html_parts.append(f"<p>{body_html}</p>")
         
@@ -209,15 +209,15 @@ def _build_text_email(template_name, context):
         text_parts = []
         
         if content_config.get('greeting'):
-            greeting = config_loader.format_template(content_config['greeting'], **context)
+            greeting = content_config['greeting']
             text_parts.append(greeting)
         
         if content_config.get('intro'):
-            intro = config_loader.format_template(content_config['intro'], **context)
+            intro = content_config['intro'] 
             text_parts.append(f"\n\n{intro}")
         
         if content_config.get('body'):
-            body = config_loader.format_template(content_config['body'], **context)
+            body = content_config['body']
             text_parts.append(f"\n\n{body}")
         
         # Informations contextuelles en texte

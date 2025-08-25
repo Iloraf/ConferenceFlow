@@ -1217,6 +1217,7 @@ def contact():
             
             
             # Utiliser la fonction send_email existante
+            congress_name = conference_info.get('name', 'SFT 2026')
             congress_short_name = conference_info.get('short_name', 'SFT 2026')
             email_subject = f"[Contact {congress_short_name}] {subject}"
             email_body = f"""

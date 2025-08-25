@@ -3,6 +3,7 @@
 # ===== INFORMATIONS GÉNÉRALES =====
 conference:
   name: "34<sup>ème</sup> Congrès Français de Thermique"
+  name_email: "34ème Congrès Français de Thermique"
   short_name: "SFT 2026"
   acronym: "SFT2026"
   edition: "34"

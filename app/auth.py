@@ -159,49 +159,37 @@ def reset_password(token):
     return render_template("auth/reset_password.html", token=token)
 
 def send_password_reset_email(user, token):
-    """Envoie un email de réinitialisation de mot de passe."""
-    # Cette fonction utilise le système d'email existant de votre app
-    reset_url = url_for('auth.reset_password', token=token, _external=True)
-    
-    subject = "Réinitialisation de votre mot de passe - SFT 2026"
-    
-    html_body = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Réinitialisation de mot de passe</h2>
+    """Envoie un email de réinitialisation de mot de passe via le système centralisé."""
+    try:
+        from app.emails import send_any_email_with_themes
+        from flask import current_app
         
-        <p>Bonjour {user.full_name},</p>
+        # URL de réinitialisation
+        reset_url = url_for('auth.reset_password', token=token, _external=True)
         
-        <p>Vous avez demandé la réinitialisation de votre mot de passe pour votre compte SFT 2026.</p>
+        # Contexte pour l'email
+        base_context = {
+            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+            'USER_LAST_NAME': user.last_name or '',
+            'USER_EMAIL': user.email,
+            'call_to_action_url': reset_url,
+            'TOKEN_EXPIRES_HOURS': 1  # Le token expire dans 1 heure
+        }
         
-        <p>Cliquez sur le lien ci-dessous pour créer un nouveau mot de passe :</p>
+        # Envoyer via le système centralisé - utilise automatiquement emails.yml et conference.yml
+        send_any_email_with_themes(
+            template_name='password_reset',  # Correspondra à password_reset dans emails.yml
+            recipient_email=user.email,
+            base_context=base_context,
+            user=user,
+            color_scheme='orange'  # Orange pour les alertes/réinitialisations
+        )
         
-        <div style="text-align: center; margin: 30px 0;">
-            <a href="{reset_url}" 
-               style="background-color: #007bff; color: white; padding: 15px 25px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;">
-                Réinitialiser mon mot de passe
-            </a>
-        </div>
+        current_app.logger.info(f"Email de réinitialisation envoyé à {user.email}")
         
-        <p><strong>Ce lien expire dans 1 heure.</strong></p>
-        
-        <p>Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email.</p>
-        
-        <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;">
-        <p style="font-size: 12px; color: #666;">
-            SFT 2026 - Congrès Français de Thermique
-        </p>
-    </div>
-    """
-    
-    # Utiliser la fonction send_email existante de votre application
-    from flask import current_app
-    current_app.send_email(
-        subject=subject,
-        recipients=[user.email],
-        body="Version texte de l'email",
-        html=html_body
-    )
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi email de réinitialisation à {user.email}: {str(e)}")
+        raise
 
 @auth.route("/logout")
 @login_required

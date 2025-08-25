@@ -3927,11 +3927,11 @@ def run_email_tests():
             result = run_hal_collection_test(test_email, dry_run) 
             results.append(result)
 
-        if 'resume_confirmation' in selected_tests:
+        if 'submission_resume' in selected_tests:
             result = run_submission_confirmation_test('résumé', test_objects['user'], test_objects['communication'], dry_run)
             results.append(result)
         
-        if 'article_confirmation' in selected_tests:
+        if 'submission_article' in selected_tests:
             result = run_submission_confirmation_test('article', test_objects['user'], test_objects['communication'], dry_run)
             results.append(result)
         
@@ -3980,49 +3980,6 @@ def run_email_tests():
             'success': False,
             'message': f'Erreur: {str(e)}'
         }), 500
-
-
-##################################################################################
-# def create_test_objects_for_admin(test_email):                                 #
-#     """Crée des objets factices pour les tests admin."""                       #
-#     from datetime import datetime                                              #
-#                                                                                #
-#     # Utilisateur test                                                         #
-#     test_user = type('MockUser', (), {                                         #
-#         'email': test_email,                                                   #
-#         'first_name': 'Jean',                                                  #
-#         'last_name': 'Dupont',                                                 #
-#         'full_name': 'Jean Dupont',                                            #
-#         'specialites_codes': 'COND,MULTI',                                     #
-#         'is_reviewer': True,                                                   #
-#         'affiliations': []                                                     #
-#     })()                                                                       #
-#                                                                                #
-#     # Communication test                                                       #
-#     test_communication = type('MockCommunication', (), {                       #
-#         'id': 999,                                                             #
-#         'title': 'Test de communication pour validation du système d\'emails', #
-#         'type': 'article',                                                     #
-#         'status': type('MockStatus', (), {'value': 'submitted'})(),            #
-#         'authors': [test_user],                                                #
-#         'thematiques_codes': 'COND,SIMUL'                                      #
-#     })()                                                                       #
-#                                                                                #
-#     # Assignment de review test                                                #
-#     test_assignment = type('MockAssignment', (), {                             #
-#         'communication': test_communication,                                   #
-#         'reviewer': test_user,                                                 #
-#         'due_date': datetime(2025, 9, 15),                                     #
-#         'is_overdue': False                                                    #
-#     })()                                                                       #
-#                                                                                #
-#     return {                                                                   #
-#         'user': test_user,                                                     #
-#         'communication': test_communication,                                   #
-#         'reviewer': test_user,                                                 #
-#         'assignment': test_assignment                                          #
-#     }                                                                          #
-##################################################################################
 
 
 def run_activation_test(user, dry_run):
@@ -4399,7 +4356,6 @@ def run_submission_confirmation_test(submission_type, user, communication, dry_r
             'message': f'Erreur: {str(e)}'
         }
 
-
 @admin.route('/email-authors/<int:comm_id>')
 @login_required
 def email_authors(comm_id):
@@ -4439,9 +4395,16 @@ def email_authors(comm_id):
             if placeholder in processed_templates[template_key]['content']:
                 processed_templates[template_key]['content'] = processed_templates[template_key]['content'].replace(placeholder, str(var_value))
     
+    # AJOUT : Récupérer un template par défaut depuis emails.yml
+    default_template = None
+    if processed_templates and 'information_generale' in processed_templates:
+        default_template = processed_templates['information_generale']
+    
     return render_template('admin/email_authors.html', 
                          communication=communication,
-                         email_templates=processed_templates)
+                         email_templates=processed_templates,
+                         default_template=default_template)  # ← LIGNE AJOUTÉE
+
 
 @admin.route('/email-reviewers/<int:comm_id>')
 @login_required
@@ -4456,25 +4419,44 @@ def email_reviewers(comm_id):
         flash('Cette communication n\'a pas de reviewers assignés.', 'warning')
         return redirect(url_for('admin.communications_dashboard'))
     
-    # Utiliser la configuration centralisée au lieu de texte en dur
-    config_loader = current_app.config_loader
+    # UTILISER LE MÊME SYSTÈME QUE email_authors
+    from app.emails import get_admin_email_templates
     
-    email_templates = {
-        'assignation': {
-            'subject': config_loader.get_email_subject('review_assigned', COMMUNICATION_TITLE=communication.title),
-            'content': config_loader.get_email_content('review_assigned')['body']
-        },
-        'rappel': {
-            'subject': config_loader.get_email_subject('review_reminder', COMMUNICATION_TITLE=communication.title),
-            'content': config_loader.get_email_content('review_reminder')['body']
-        }
+    # Récupérer les templates depuis emails.yml
+    email_templates = get_admin_email_templates()
+    
+    # Variables spécifiques
+    context_variables = {
+        'COMMUNICATION_TITLE': communication.title,
+        'COMMUNICATION_ID': communication.id,
+        'COMMUNICATION_TYPE': communication.type.title()
     }
+    
+    # Traiter les templates comme email_authors
+    processed_templates = {}
+    for template_key, template_data in email_templates.items():
+        processed_templates[template_key] = {
+            'subject': template_data['subject'],
+            'content': template_data['content']
+        }
+        
+        # Remplacer les variables
+        for var_name, var_value in context_variables.items():
+            placeholder = f'[{var_name}]'
+            if placeholder in processed_templates[template_key]['subject']:
+                processed_templates[template_key]['subject'] = processed_templates[template_key]['subject'].replace(placeholder, str(var_value))
+            if placeholder in processed_templates[template_key]['content']:
+                processed_templates[template_key]['content'] = processed_templates[template_key]['content'].replace(placeholder, str(var_value))
+    
+    # Template par défaut
+    default_template = None
+    if processed_templates and 'rappel_review' in processed_templates:
+        default_template = processed_templates['rappel_review']
     
     return render_template('admin/email_reviewers.html', 
                          communication=communication,
-                         email_templates=email_templates)
-
-
+                         email_templates=processed_templates,
+                         default_template=default_template)
 
 @admin.route('/reviewers/send-activation/<int:user_id>')
 @login_required

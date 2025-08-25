@@ -62,20 +62,22 @@
                         
                         <div class="mb-3">
                             <label for="content" class="form-label">Message</label>
-                            <textarea class="form-control" id="content" name="content" rows="10" required>Bonjour [PRENOM] [NOM],
+<textarea class="form-control" id="content" name="content" rows="10" required>{{ default_template.content if default_template else 'Bonjour [PRENOM] [NOM],
 
-Concernant votre communication "{{ communication.title }}" (ID: {{ communication.id }}),
+Concernant votre communication "' + communication.title + '" (ID: ' + communication.id|string + '),
 
 [Votre message ici]
 
 Variables disponibles:
-- [PRENOM] : Prénom de l'auteur
-- [NOM] : Nom de l'auteur
+- [PRENOM] : Prénom de l\'auteur
+- [NOM] : Nom de l\'auteur  
 - [TITRE_COMMUNICATION] : Titre de la communication
 - [ID_COMMUNICATION] : ID de la communication
 
 Cordialement,
-L'équipe d'organisation SFT 2026</textarea>
+L\'équipe d\'organisation' }}</textarea>
+
+
                         </div>
                         
                         <div class="mb-3">
@@ -89,7 +91,7 @@ L'équipe d'organisation SFT 2026</textarea>
                         
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            L'email sera envoyé à {{ communication.authors|length }} auteur(s) avec le design SFT 2026.
+                            L'email sera envoyé à {{ communication.authors|length }} auteur(s) avec le design {{ conference.short_name }}.
                         </div>
                         
                         <div class="d-flex justify-content-between">

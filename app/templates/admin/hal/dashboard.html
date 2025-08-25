@@ -14,7 +14,7 @@
                         Intégration HAL - Conference Flow
                     </h1>
                     <p class="text-muted mb-0">
-                        Gestion des dépôts dans la collection SFT2026 (Mode TEST)
+                        Gestion des dépôts dans la collection {{ conference.acronym }} (Mode TEST)
                     </p>
                 </div>
                 <div>
@@ -38,7 +38,7 @@
                 </div>
                 <div class="card-body">
                     <p class="text-muted">
-                        Demander la création de la collection SFT2026 auprès de l'équipe HAL.
+                        Demander la création de la collection {{ conference.acronym }} auprès de l'équipe HAL.
                     </p>
                     <div class="d-grid">
                         <a href="{{ url_for('hal.request_collection') }}" class="btn btn-warning">
@@ -83,10 +83,10 @@
                 </div>
                 <div class="card-body">
                     <p class="text-muted">
-                        Consulter la collection SFT2026 directement sur HAL.
+                        Consulter la collection {{ conference.acronym }} directement sur HAL.
                     </p>
                     <div class="d-grid">
-                        <a href="https://hal.science/SFT2026" target="_blank" class="btn btn-info">
+                        <a href="https://hal.science/{{ conference.acronym }}" target="_blank" class="btn btn-info">
                             <i class="fas fa-globe me-2"></i>
                             Voir sur HAL
                         </a>
@@ -179,7 +179,7 @@
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-2"></i>
                         <strong>Collection requis</strong><br>
-                        La collection SFT2026 doit être créée par l'équipe HAL avant le premier dépôt.
+                        La collection {{ conference.acronym }} doit être créée par l'équipe HAL avant le premier dépôt.
                     </div>
                 </div>
             </div>
