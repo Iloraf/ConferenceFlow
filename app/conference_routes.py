@@ -895,15 +895,25 @@ def inscription_conference():
                 'member_collec': fees_config.get('regular', {}).get('member_collective', 610),
                 'not_member': fees_config.get('regular', {}).get('non_member', 660),
             },
-            'included': fees_config.get('included', [
-                'Accès à toutes les sessions',
-                'Documents de la conférence',
-                'Pauses café et déjeuners',
-                'Cocktail de bienvenue',
-            ]),
-            'optional': fees_config.get('optional', [
-                {'item': 'Accompagnant', 'price': 150}
-            ])
+            'included': [
+                fees_config.get('included', {}).get('included1'),
+                fees_config.get('included', {}).get('included2'),
+                fees_config.get('included', {}).get('included3'),
+                fees_config.get('included', {}).get('included4'),
+            ],
+            'categories': {
+                'student': fees_config.get('categories', {}).get('student'),
+                'member_individual': fees_config.get('categories', {}).get('member_individual'),
+                'member_collective': fees_config.get('categories', {}).get('member_collective'),
+                'non_member': fees_config.get('categories', {}).get('non_member'),
+            }, 
+            
+            'optional': [
+                {
+                    'item': fees_config.get('optional', {}).get('item'),
+                    'price': fees_config.get('optional', {}).get('price')
+                }
+            ]
         }
     
     return render_template("conference/inscription_conference.html", fees=fees,

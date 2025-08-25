@@ -275,7 +275,7 @@ class HALXMLGenerator:
             # Supposer que les mots-clés sont séparés par des virgules
             keywords['fr'] = [kw.strip() for kw in communication.keywords.split(',') if kw.strip()]
         
-        # Ajouter des mots-clés génériques SFT
+        # Ajouter des mots-clés génériques 
         base_keywords_fr = ['thermique', 'transfert de chaleur', 'SFT 2026']
         base_keywords_en = ['thermal', 'heat transfer', 'SFT 2026']
         

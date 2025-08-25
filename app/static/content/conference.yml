@@ -227,15 +227,15 @@ fees:
     
   # Services inclus
   included:
-    - "Accès aux différentes séances (conférences, posters, atelier-débats)"
-    - "Les pauses et déjeuners"
-    - "Le dîner de gala"
-    - "Les actes sous format numérique"
+    included1: "Accès aux différentes séances (conférences, posters, atelier-débats)"
+    included2: "Les pauses et déjeuners"
+    included3: "Le dîner de gala"
+    included4: "Les actes sous format numérique"
     
   # Options supplémentaires  
   optional:
-    - item: "Accompagnant"
-      price: 150
+    item: "Accompagnant"
+    price: 150
 
   early_savings: 100  # Économie en tarif préférentiel
   payment_methods:

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Gestion des Livres - Admin SFT 2026{% endblock %}
+{% block title %}Gestion des Livres - Admin {{ conference.short_name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -165,7 +165,7 @@
                             <ul class="list-unstyled">
                                 <li><i class="fas fa-file-pdf text-danger"></i> Format A4, marges 2.5cm/2cm</li>
                                 <li><i class="fas fa-font text-primary"></i> Police Times New Roman 11pt</li>
-                                <li><i class="fas fa-palette text-info"></i> Charte graphique SFT 2026</li>
+                                <li><i class="fas fa-palette text-info"></i> Charte graphique  {{ conference.short_name }}</li>
                                 <li><i class="fas fa-link text-success"></i> Navigation interne via liens hypertextes</li>
                                 <li><i class="fas fa-list-ol text-warning"></i> Pagination automatique</li>
                             </ul>
