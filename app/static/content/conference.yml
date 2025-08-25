@@ -4,7 +4,9 @@
 conference:
   name: "34<sup>ème</sup> Congrès Français de Thermique"
   short_name: "SFT 2026"
+  acronym: "SFT2026"
   edition: "34"
+  series: "Congrès Français de Thermique"
   theme: "Thermique & Décarbonation de l'industrie"
   year: 2026
   

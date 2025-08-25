@@ -158,7 +158,6 @@ def generate_author_index(communications, page_mapping):
         if comm.id in page_mapping:
             page_num = page_mapping[comm.id]
             for author in comm.authors:
-                # Format: "Nom Prénom" (comme dans le PDF SFT)
                 first_name = (author.first_name or '').strip()
                 last_name = (author.last_name or '').strip()
                 
@@ -221,7 +220,7 @@ def get_conference_config():
                 }
             },
             'dates': {'dates': '2-5 juin 2026'},
-            'location': {'city': 'Villers-lès-Nancy'}
+            'location': {'city': 'Nancy'}
         }
 
 
@@ -275,7 +274,7 @@ def get_book_css():
         font-weight: bold;
     }
     
-    /* === PAGE DE COUVERTURE (style SFT exact) === */
+    /* === PAGE DE COUVERTURE === */
     .cover-page {
         page: cover;
         height: 100vh;
@@ -537,19 +536,19 @@ def get_book_css():
 
 
 def render_tome_html(title, thematiques_groups, page_mapping, authors_index, book_type):
-    """Génère le HTML d'un tome au style SFT exact."""
+    """Génère le HTML d'un tome."""
     
     config = get_conference_config()
     
-    # En-tête des pages comme dans le PDF SFT
-    header_text = f"Congrès Français de Thermique {config['conference']['short_name']}, {config['location']['city']}, {config['dates']['dates']}"
+    # En-tête des pages
+    header_text = f"{config['conference']['series']} {config['conference']['short_name']}, {config['location']['city']}, {config['dates']['dates']}"
     
     # Générer les noms des présidents depuis la config si disponible
     presidents_names = ""
     if 'presidents' in config['conference'] and config['conference']['presidents']:
         presidents_names = "<br>".join([p['name'] for p in config['conference']['presidents']])
     else:
-        presidents_names = "MICHEL GRADECK<br>VINCENT SCHICK"  # Noms par défaut
+        presidents_names = "Jean-Baptiste BIOT<br>Joseph FOURIER" 
     
     html = f"""
 <!DOCTYPE html>
@@ -563,7 +562,7 @@ def render_tome_html(title, thematiques_groups, page_mapping, authors_index, boo
     <!-- En-tête pour toutes les pages -->
     <div class="set-header" style="display: none;">{header_text}</div>
     
-    <!-- Page de couverture exacte style SFT -->
+    <!-- Page de couverture -->
     <div class="cover-page">
         <div class="cover-theme-line">{config['conference']['theme'].upper()}</div>
         <div class="cover-authors">{presidents_names}</div>
@@ -784,8 +783,11 @@ def generate_tome1():
         authors_index,
         'article'
     )
-    
-    return generate_pdf_response(html_content, 'SFT2026_Articles_Tome1.pdf')
+
+
+    config = get_conference_config()
+    filename = f"{config['conference']['acronym']}_Articles_Tome1.pdf"
+    return generate_pdf_response(html_content, filename)
 
 
 @books.route('/tome2.pdf')
@@ -815,7 +817,9 @@ def generate_tome2():
         'article'
     )
     
-    return generate_pdf_response(html_content, 'SFT2026_Articles_Tome2.pdf')
+    config = get_conference_config()
+    filename = f"{config['conference']['acronym']}_Articles_Tome2.pdf"
+    return generate_pdf_response(html_content, filename)
 
 
 @books.route('/resumes-wip.pdf')
@@ -850,7 +854,9 @@ def generate_resumes_wip():
         'resume'
     )
     
-    return generate_pdf_response(html_content, 'SFT2026_Resumes_WorkInProgress.pdf')
+    config = get_conference_config()
+    filename = f"{config['conference']['acronym']}_Resumes_WorkInProgress.pdf"
+    return generate_pdf_response(html_content, filename)
 
 
 def generate_pdf_response(html_content, filename):

@@ -1,0 +1,172 @@
+<!-- app/templates/admin/enrich_affiliations_hal.html -->
+{% extends 'base.html' %}
+
+{% block title %}Enrichissement HAL - Administration{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-database me-2"></i>
+                        Enrichissement automatique via l'API HAL
+                    </h4>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Explication -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Comment ça fonctionne</h6>
+                        <p class="mb-2">Cette fonction recherche automatiquement les laboratoires dans la base HAL pour récupérer :</p>
+                        <ul class="mb-2">
+                            <li><strong>struct_id_hal</strong> : L'identifiant officiel HAL</li>
+                            <li><strong>acronym_hal</strong> : L'acronyme officiel</li>
+                            <li><strong>type_hal</strong> : Le type de structure</li>
+                        </ul>
+                        <p class="small mb-0">
+                            <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                            La recherche se base sur le nom complet et le sigle des laboratoires.
+                        </p>
+                    </div>
+
+                    <!-- Statistiques -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 class="text-primary">{{ total }}</h3>
+                                    <small>Laboratoires à enrichir</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 class="text-success">{{ affiliations|selectattr('struct_id_hal')|list|length }}</h3>
+                                    <small>Déjà enrichis</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 class="text-warning">{{ total - (affiliations|selectattr('struct_id_hal')|list|length) }}</h3>
+                                    <small>Sans données HAL</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if total > 0 %}
+                    <!-- Bouton de lancement -->
+                    <div class="text-center mb-4">
+                        <form method="POST" onsubmit="return confirm('Lancer l\'enrichissement de {{ total }} laboratoires via l\'API HAL ?')">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-magic me-2"></i>
+                                Lancer l'enrichissement automatique
+                            </button>
+                        </form>
+                        <small class="text-muted d-block mt-2">
+                            Durée estimée : ~{{ (total * 2)|round|int }} secondes
+                        </small>
+                    </div>
+
+                    <!-- Aperçu des laboratoires -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Aperçu des laboratoires (premiers 10)</h6>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Sigle</th>
+                                        <th>Nom complet</th>
+                                        <th>État HAL</th>
+                                        <th>struct_id_hal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for affiliation in affiliations[:10] %}
+                                    <tr>
+                                        <td><strong>{{ affiliation.sigle }}</strong></td>
+                                        <td>
+                                            <div class="text-truncate" style="max-width: 300px;" title="{{ affiliation.nom_complet }}">
+                                                {{ affiliation.nom_complet }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if affiliation.struct_id_hal %}
+                                            <span class="badge bg-success">Enrichi</span>
+                                            {% else %}
+                                            <span class="badge bg-warning">À enrichir</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if affiliation.struct_id_hal %}
+                                            <code>{{ affiliation.struct_id_hal }}</code>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if total > 10 %}
+                        <div class="card-footer text-muted text-center">
+                            ... et {{ total - 10 }} autres laboratoires
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                        <h4>Tous les laboratoires sont enrichis</h4>
+                        <p class="text-muted">Aucune donnée HAL manquante détectée.</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Avertissements -->
+                    <div class="alert alert-warning mt-4">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Points importants</h6>
+                        <ul class="mb-0">
+                            <li>L'API HAL peut être lente, soyez patient</li>
+                            <li>Tous les laboratoires ne sont pas forcément dans HAL</li>
+                            <li>Vérifiez manuellement les résultats après enrichissement</li>
+                            <li>Les données existantes ne seront pas écrasées</li>
+                        </ul>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-4 text-center">
+                        <a href="{{ url_for('admin.list_affiliations') }}" class="btn btn-outline-secondary me-2">
+                            <i class="fas fa-list me-2"></i>
+                            Voir les affiliations
+                        </a>
+                        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Retour dashboard
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script pour feedback visuel -->
+<script>
+document.querySelector('form')?.addEventListener('submit', function() {
+    const button = this.querySelector('button');
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enrichissement en cours...';
+    button.disabled = true;
+});
+</script>
+
+{% endblock %}
