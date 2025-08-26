@@ -180,7 +180,7 @@ def create_app():
     #from .registration_routes import registration
     from .communication_public import public_comm
     from .conference_books import books
-    from .hal_integration.hal_routes import hal_bp
+    from .export_integration.export_routes import export_bp
     from .emails import (
         send_email,
         send_submission_confirmation_email,
@@ -212,7 +212,7 @@ def create_app():
     #app.register_blueprint(registration, url_prefix="/registration")
     app.register_blueprint(books, url_prefix="/admin/books")
     app.register_blueprint(public_comm, url_prefix="/public")
-    app.register_blueprint(hal_bp, url_prefix="/hal")
+    app.register_blueprint(export_bp)
     return app
 
 

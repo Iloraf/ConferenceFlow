@@ -58,9 +58,6 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     first_name = db.Column(db.String(50), nullable=True)
     last_name = db.Column(db.String(50), nullable=True)
-
-    
-
     
     # Identifiants chercheur - NOUVEAUX CHAMPS
     idhal = db.Column(db.String(50), nullable=True)
@@ -78,11 +75,9 @@ class User(UserMixin, db.Model):
     # Relations
     affiliations = db.relationship('Affiliation', secondary=user_affiliations, 
                                back_populates='members')
-
     
     # Relations many-to-many
     specialites_codes = db.Column(db.String(500), nullable=True)
-
     
     authored_communications = db.relationship('Communication', secondary=communication_authors,
                                             back_populates='authors')
@@ -92,7 +87,6 @@ class User(UserMixin, db.Model):
     activation_sent_at = db.Column(db.DateTime, nullable=True)
     reset_password_token = db.Column(db.String(100), nullable=True)
     reset_password_expires = db.Column(db.DateTime, nullable=True)
-
     
     def generate_activation_token(self):
         """Génère un token d'activation unique."""
@@ -113,8 +107,6 @@ class User(UserMixin, db.Model):
             return datetime.utcnow() <= expiry
         
         return True
-
-
     
     def __repr__(self):
         return f'<User {self.email}>'
@@ -155,7 +147,6 @@ class User(UserMixin, db.Model):
         self.reset_password_token = None
         self.reset_password_expires = None
         return True
-
     
     @property
     def specialites(self):
@@ -166,7 +157,6 @@ class User(UserMixin, db.Model):
         return [ThematiqueHelper.get_by_code(code) for code in codes 
                 if ThematiqueHelper.is_valid_code(code)]
     
-    # AJOUTEZ CETTE MÉTHODE
     def set_specialites(self, codes_list):
         """Définit les spécialités à partir d'une liste de codes."""
         if not codes_list:
@@ -220,8 +210,6 @@ class User(UserMixin, db.Model):
             return self.last_name
         else:
             return self.email
-
-
     
 class Affiliation(db.Model):
     """Modèle pour les affiliations (laboratoires, universités, etc.)."""
@@ -284,7 +272,6 @@ class ThematiqueHelper:
         """Vérifie si un code de thématique est valide."""
         return code.upper() in cls.get_codes()
 
-
 class CommunicationStatus(Enum):
     # Workflow Article
     RESUME_SOUMIS = 'résumé_soumis'
@@ -300,9 +287,6 @@ class CommunicationStatus(Enum):
     # Commun aux deux
     POSTER_SOUMIS = 'poster_soumis'
 
-
-
-
 class Communication(db.Model):
     """Modèle pour les communications soumises."""
     
@@ -315,6 +299,15 @@ class Communication(db.Model):
     status = db.Column(db.Enum(CommunicationStatus), nullable=False)   
     type = db.Column(db.String(50), nullable=False)
 
+    abstract = db.Column(db.Text, nullable=True)
+
+    # Champs DOI
+    doi = db.Column(db.String(100), nullable=True)  # Format: 10.25855/SFT2026-XXX
+    doi_generated_at = db.Column(db.DateTime, nullable=True)
+
+    # URL publique pour stockage pérenne (HAL)
+    public_url = db.Column(db.String(500), nullable=True)
+    
     # Thématiques
     thematiques_codes = db.Column(db.String(500), nullable=True)
     
