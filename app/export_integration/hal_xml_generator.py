@@ -80,7 +80,7 @@ class HALXMLGenerator:
                 raise HALConfigError("Configuration HAL manquante dans conference.yml")
             
             conference_info = config.get('conference', {})
-            conference_name = conference_info.get('full_name')
+            conference_name = conference_info.get('name')
             
             if not conference_name:
                 raise HALConfigError("Nom de conférence manquant dans conference.yml > conference > full_name")

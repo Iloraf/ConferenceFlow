@@ -16,8 +16,30 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+# Composants HAL (existants)
 from .hal_client import HALClient
 from .hal_xml_generator import HALXMLGenerator
 from .hal_routes import hal_bp
 
-__all__ = ['HALClient', 'HALXMLGenerator', 'hal_bp']
+# Nouveaux composants export unifié
+from .export_manager import ExportManager
+from .doi_generator import DOIGenerator
+from .doi_xml_generator import DOIXMLGenerator
+from .pdf_extractor import PDFExtractor, extract_abstract_from_pdf
+from .export_routes import export_bp
+
+__all__ = [
+    # Composants HAL (existants)
+    'HALClient', 
+    'HALXMLGenerator', 
+    'hal_bp',
+    
+    # Nouveaux composants export
+    'ExportManager',
+    'DOIGenerator', 
+    'DOIXMLGenerator',
+    'PDFExtractor',
+    'extract_abstract_from_pdf',
+    'export_bp'
+]
+

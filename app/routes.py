@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -820,3 +820,123 @@ def save_push_subscription():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+
+# À ajouter dans app/routes.py ou créer un nouveau fichier app/pwa_routes.py
+
+from flask import Blueprint, jsonify, current_app
+
+# Si vous ajoutez dans routes.py, utilisez le blueprint main existant
+# Sinon, créez un nouveau blueprint :
+# pwa = Blueprint('pwa', __name__)
+
+@main.route('/manifest.json')
+def manifest():
+    """Génère dynamiquement le manifest.json PWA à partir de conference.yml"""
+    
+    # Récupérer les infos depuis conference.yml
+    config = current_app.conference_config
+    conference_info = config.get('conference', {})
+    
+    # Nom de l'app à partir de conference.yml
+    app_name = conference_info.get('short_name', 'ConferenceFlow')
+    name = conference_info.get('name', 'Conference Flow')
+    
+    # Construire le manifest dynamiquement
+    manifest_data = {
+        "name": name,
+        "short_name": app_name,
+        "description": f"Application mobile pour {name}",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#007bff",
+        "orientation": "portrait-primary",
+        "scope": "/",
+        "lang": "fr",
+        "dir": "ltr",
+        "categories": ["productivity", "education"],
+        "icons": [
+            {
+                "src": "/static/icons/icon-72x72.png",
+                "sizes": "72x72",
+                "type": "image/png",
+                "purpose": "maskable any"
+            },
+            {
+                "src": "/static/icons/icon-96x96.png",
+                "sizes": "96x96",
+                "type": "image/png",
+                "purpose": "maskable any"
+            },
+            {
+                "src": "/static/icons/icon-128x128.png",
+                "sizes": "128x128",
+                "type": "image/png",
+                "purpose": "maskable any"
+            },
+            {
+                "src": "/static/icons/icon-144x144.png",
+                "sizes": "144x144",
+                "type": "image/png",
+                "purpose": "maskable any"
+            },
+            {
+                "src": "/static/icons/icon-152x152.png",
+                "sizes": "152x152",
+                "type": "image/png",
+                "purpose": "maskable any"
+            },
+            {
+                "src": "/static/icons/icon-192x192.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "maskable any"
+            },
+            {
+                "src": "/static/icons/icon-384x384.png",
+                "sizes": "384x384",
+                "type": "image/png",
+                "purpose": "maskable any"
+            },
+            {
+                "src": "/static/icons/icon-512x512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "maskable any"
+            }
+        ],
+        "shortcuts": [
+            {
+                "name": "Mes communications",
+                "short_name": "Mes comms",
+                "description": "Accéder à mes communications",
+                "url": "/mes-communications",
+                "icons": [
+                    {
+                        "src": "/static/icons/icon-96x96.png",
+                        "sizes": "96x96"
+                    }
+                ]
+            },
+            {
+                "name": "Programme",
+                "short_name": "Programme",
+                "description": "Consulter le programme",
+                "url": "/programme",
+                "icons": [
+                    {
+                        "src": "/static/icons/icon-96x96.png",
+                        "sizes": "96x96"
+                    }
+                ]
+            }
+        ]
+    }
+    
+    # Retourner le JSON avec les bons headers
+    response = jsonify(manifest_data)
+    response.headers['Content-Type'] = 'application/manifest+json'
+    response.headers['Cache-Control'] = 'public, max-age=3600'  # Cache 1 heure
+    
+    return response

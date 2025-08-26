@@ -512,7 +512,7 @@ predefined_templates:
 settings:
   # Variables automatiquement extraites de conference.yml
   auto_variables:
-    CONFERENCE_NAME: "conference.name_email"
+    CONFERENCE_NAME: "conference.name"
     CONFERENCE_SHORT_NAME: "conference.short_name"
     CONFERENCE_YEAR: "conference.year"
     CONFERENCE_THEME: "conference.theme"

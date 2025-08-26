@@ -28,8 +28,6 @@ import yaml
 from pathlib import Path
 import shutil
 
-
-
 admin = Blueprint("admin", __name__)
 
 @admin.route("/dashboard")
@@ -39,79 +37,52 @@ def admin_dashboard():
     if not current_user.is_admin:
         flash("Accès réservé aux administrateurs.", "danger")
         return redirect(url_for("main.index"))
-    
-    users = User.query.all()
-    affiliations_count = Affiliation.query.count()
-    pending_reviews = Communication.query.filter_by(status=CommunicationStatus.ARTICLE_SOUMIS).count()
-    
-    # Compter les fichiers CSV dans le dossier content
-    csv_files_count = 0
-    try:
-        content_dir = Path(current_app.root_path) / "static" / "content"
-        if content_dir.exists():
-            csv_files_count = len(list(content_dir.glob("*.csv")))
-    except Exception as e:
-        current_app.logger.error(f"Erreur comptage fichiers CSV: {e}")
-    
-    # AJOUTER : Statistiques pour les livres
+
+    # Statistiques existantes
     stats = {
-        'articles_count': Communication.query.filter(
-            Communication.type == 'article',
-            Communication.status == CommunicationStatus.ACCEPTE
-        ).count(),
-        'resumes_count': Communication.query.filter(
-            Communication.type == 'article',
-            Communication.status.in_([
-                CommunicationStatus.RESUME_SOUMIS,
-                CommunicationStatus.ARTICLE_SOUMIS,
-                CommunicationStatus.EN_REVIEW,
-                CommunicationStatus.ACCEPTE
-            ])
-        ).count(),
-        'wips_count': Communication.query.filter(
-            Communication.type == 'wip',
-            Communication.status == CommunicationStatus.WIP_SOUMIS
-        ).count()
+        'users': User.query.count(),
+        'communications': Communication.query.count(),
+        'reviews': ReviewAssignment.query.count(),
+        'acceptance_rate': 0
     }
-
-    try:
-        
-        # Communications éligibles pour HAL
-        eligible_communications = Communication.query.filter(
-            Communication.status.in_([
-                CommunicationStatus.ACCEPTE,
-                CommunicationStatus.WIP_SOUMIS,
-                CommunicationStatus.POSTER_SOUMIS
-            ]),
-            Communication.hal_authorization == True
-        ).count()
-        
-        # Statistiques des dépôts
-        hal_deposits = HALDeposit.query.all()
-        
-        hal_stats = {
-            'total_communications': eligible_communications,
-            'successful_deposits': len([d for d in hal_deposits if d.status == 'success']),
-            'failed_deposits': len([d for d in hal_deposits if d.status == 'error']),
-            'pending_deposits': len([d for d in hal_deposits if d.status == 'pending'])
-        }
-    except Exception as e:
-        # En cas d'erreur (tables pas encore créées, etc.)
-        hal_stats = {
-            'total_communications': 0,
-            'successful_deposits': 0,
-            'failed_deposits': 0,
-            'pending_deposits': 0
-        }
     
-
+    # Calcul du taux d'acceptation
+    total_decided = Communication.query.filter(
+        Communication.final_decision.in_(['accepter', 'rejeter'])
+    ).count()
+    accepted = Communication.query.filter_by(final_decision='accepter').count()
     
-    return render_template("admin.html", 
-                         users=users,
-                         affiliations_count=affiliations_count,
-                         pending_reviews=pending_reviews,
-                         csv_files_count=csv_files_count,
-                         stats=stats, hal_stats=hal_stats)
+    if total_decided > 0:
+        stats['acceptance_rate'] = round((accepted / total_decided) * 100)
+    
+    # NOUVEAU : Statistiques d'export
+    stats['communications_with_doi'] = Communication.query.filter(
+        Communication.doi.isnot(None)
+    ).count()
+    
+    stats['communications_on_hal'] = Communication.query.filter(
+        Communication.hal_url.isnot(None)
+    ).count()
+    
+    stats['ready_for_export'] = Communication.query.filter(
+        Communication.abstract.isnot(None),
+        Communication.doi.isnot(None)
+    ).count()
+
+    # Données pour les templates
+    users = User.query.order_by(User.created_at.desc()).limit(10).all()
+    recent_communications = Communication.query.order_by(
+        Communication.created_at.desc()
+    ).limit(5).all()
+    
+    affiliations_count = Affiliation.query.count()
+    
+    return render_template('admin.html', 
+                         stats=stats,
+                         users=users, 
+                         recent_communications=recent_communications,
+                         affiliations_count=affiliations_count)
+
 
 @admin.route("/users")
 @login_required

@@ -2,10 +2,9 @@
 
 # ===== INFORMATIONS GÉNÉRALES =====
 conference:
-  name: "34<sup>ème</sup> Congrès Français de Thermique"
+  name: "34ème Congrès Français de Thermique"
   name_email: "34ème Congrès Français de Thermique"
   short_name: "SFT 2026"
-  acronym: "SFT2026"
   edition: "34"
   series: "Congrès Français de Thermique"
   theme: "Thermique & Décarbonation de l'industrie"
@@ -24,7 +23,7 @@ conference:
     short_name: "LEMTA"
     description: "Unité mixte de recherche de l'Université de Lorraine et du CNRS"
 
-  objectif: "L'objectif du 34<sup>ème</sup> Congrès de thermique est d'inviter la communauté des thermiciens à éclairer sur les défis posés par la décarbonation de l'industrie à moins d'un quart de siècle de l'objectif de neutralité carbone en 2050. Nous invitons également tous les chercheur.e.s, industriel.le.s et doctorant.e.s à venir échanger sur leurs travaux récents dans le domaine de la thermique et de ses applications. Tous les travaux seront présentés sous forme de poster lors de sessions dédiées et pourront donner lieu à une communication écrite (avec DOI). Des ateliers thématiques seront aussi programmés en alternance avec des conférences plénières."
+  objectif: "L'objectif du 34ème Congrès de thermique est d'inviter la communauté des thermiciens à éclairer sur les défis posés par la décarbonation de l'industrie à moins d'un quart de siècle de l'objectif de neutralité carbone en 2050. Nous invitons également tous les chercheur.e.s, industriel.le.s et doctorant.e.s à venir échanger sur leurs travaux récents dans le domaine de la thermique et de ses applications. Tous les travaux seront présentés sous forme de poster lors de sessions dédiées et pourront donner lieu à une communication écrite (avec DOI). Des ateliers thématiques seront aussi programmés en alternance avec des conférences plénières."
 
   # Présidents du congrès
   presidents:
@@ -337,31 +336,21 @@ integrations:
   hal:
     enabled: true
     collection_id: "SFT2026"
-    auto_deposit: false  # Dépôt manuel pour l'instant
-    test_mode: true      # Mode test obligatoire
+    test_mode: true
     
-    # Configuration par type de document - TYPES HAL CORRECTS
+    # Configuration par type de document
     document_types:
       article:
-        hal_typology: "COMM"  # Communication dans un congrès (inproceedings)
-        hal_audience: "1"     # International
-        hal_domain: "spi.energe"
-        required: true
-        description: "Article complet de congrès (inproceedings)"
+        hal_typology: "COMM"
+        hal_audience: "1"
         
       wip:
-        hal_typology: "OTHERREPORT"  # Document de travail / Autre publication scientifique
-        hal_audience: "1"            # International 
-        hal_domain: "spi.energe"
-        required: false
-        description: "Work in Progress - Document de travail"
+        hal_typology: "OTHERREPORT"
+        hal_audience: "1"
         
       poster:
-        hal_typology: "POSTER"  # Poster de conférence
-        hal_audience: "1"       # International
-        hal_domain: "spi.energe" 
-        required: false
-        description: "Poster de conférence"
+        hal_typology: "POSTER"
+        hal_audience: "1"
     
     # Métadonnées du congrès
     conference_metadata:

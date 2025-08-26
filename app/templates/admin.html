@@ -370,61 +370,61 @@
 </div>
 
 
-<!-- Intégration HAL -->
+<!-- Carte Export HAL & DOI -->
 <div class="col-lg-4 mb-4">
   <div class="card border-0 shadow-sm h-100 hover-lift">
     <div class="card-body">
       <div class="d-flex align-items-center mb-3">
         <div class="bg-dark bg-opacity-10 rounded-circle p-3 me-3">
-          <i class="fas fa-database text-dark fa-2x"></i>
+          <i class="fas fa-cloud-upload-alt text-dark fa-2x"></i>
         </div>
         <div>
-          <h5 class="card-title mb-1">Intégration HAL</h5>
-          <p class="text-muted small mb-0">Dépôt automatique collection {{ conference.acronym }}</p>
+          <h5 class="card-title mb-1">Exports HAL & DOI</h5>
+          <p class="text-muted small mb-0">Archives ouvertes et identifiants pérennes</p>
         </div>
       </div>
       
       <div class="mb-3">
         <div class="row text-center">
-          <div class="col-4">
+          <div class="col-6">
             <div class="border-end">
-              <strong class="d-block text-dark">{{ hal_stats.total_communications|default(0) }}</strong>
-              <small class="text-muted">À déposer</small>
+              <strong class="d-block">{{ stats.communications_with_doi or 0 }}</strong>
+              <small class="text-muted">DOI générés</small>
             </div>
           </div>
-          <div class="col-4">
-            <div class="border-end">
-              <strong class="d-block text-success">{{ hal_stats.successful_deposits|default(0) }}</strong>
-              <small class="text-muted">Déposés</small>
-            </div>
-          </div>
-          <div class="col-4">
-            <strong class="d-block text-danger">{{ hal_stats.failed_deposits|default(0) }}</strong>
-            <small class="text-muted">Erreurs</small>
+          <div class="col-6">
+            <strong class="d-block text-success">{{ stats.communications_on_hal or 0 }}</strong>
+            <small class="text-muted">Sur HAL</small>
           </div>
         </div>
       </div>
 
       <div class="d-grid gap-2">
-        <a href="{{ url_for('hal.dashboard') }}" class="btn btn-dark w-100">
-          <i class="fas fa-tachometer-alt me-2"></i>Tableau de bord HAL
-        </a>
-
- <a href="{{ url_for('hal.request_collection') }}" class="btn btn-outline-dark w-100">
-        <i class="fas fa-envelope me-2"></i>Demander la collection
-    </a>
-	
-        <a href="{{ url_for('hal.list_communications') }}" class="btn btn-outline-dark w-100">
-          <i class="fas fa-list me-2"></i>Gérer les communications
+        <!-- Bouton principal - Dashboard Export -->
+        <a href="{{ url_for('export.dashboard') }}" class="btn btn-dark">
+          <i class="fas fa-upload me-2"></i>Dashboard Export
         </a>
         
-        <a href="https://hal.science/{{ conference.acronym }}" target="_blank" class="btn btn-outline-dark w-100">
-          <i class="fas fa-external-link-alt me-2"></i>Collection {{ conference.short_name }}
-        </a>
+        <!-- Boutons secondaires -->
+        <div class="row g-1">
+          <div class="col-6">
+            <button class="btn btn-outline-dark btn-sm w-100" onclick="quickGenerateDOI()">
+              <i class="fas fa-fingerprint me-1"></i>DOI rapide
+            </button>
+          </div>
+          <div class="col-6">
+            <a href="{{ url_for('export.dashboard') }}" class="btn btn-outline-dark btn-sm w-100">
+              <i class="fas fa-database me-1"></i>HAL seul
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+
+
 
 
 
