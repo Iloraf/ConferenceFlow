@@ -30,6 +30,15 @@ try:
 except ImportError:
     WEASYPRINT_AVAILABLE = False
 
+try:
+    from PyPDF2 import PdfWriter, PdfReader
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.colors import gray
+    PDF_TOOLS_AVAILABLE = True
+except ImportError:
+    PDF_TOOLS_AVAILABLE = False
+
 from .models import Communication, CommunicationStatus, ThematiqueHelper, SubmissionFile
 
 books = Blueprint("books", __name__)
@@ -62,7 +71,8 @@ def manage_books():
     
     return render_template('admin/manage_books.html', 
                          stats=stats, 
-                         weasyprint_available=WEASYPRINT_AVAILABLE)
+                         weasyprint_available=WEASYPRINT_AVAILABLE,
+                         pdf_tools_available=PDF_TOOLS_AVAILABLE)
 
 
 def get_communications_by_type_and_status():
@@ -180,26 +190,6 @@ def generate_author_index(communications, page_mapping):
     return sorted_authors
 
 
-def generate_page_mapping(communications_by_theme, start_page=5):
-    """Génère un mapping communication_id -> numéro de page."""
-    page_mapping = {}
-    current_page = start_page
-    
-    theme_number = 1
-    for thematique, communications in communications_by_theme.items():
-        # Page de titre de thématique
-        current_page += 1
-        
-        for comm in communications:
-            page_mapping[comm.id] = current_page
-            # Estimer le nombre de pages par communication (ajustable)
-            current_page += 8  # Articles complets : ~8 pages
-        
-        theme_number += 1
-    
-    return page_mapping
-
-
 def get_conference_config():
     """Charge la configuration de la conférence."""
     try:
@@ -211,37 +201,39 @@ def get_conference_config():
         # Configuration par défaut basée sur le style SFT
         return {
             'conference': {
-                'name': '34ème Congrès Français de Thermique',
-                'short_name': 'SFT 2026',
-                'theme': 'Thermique & Décarbonation de l\'industrie',
+                'name': 'Congrès Conference Flow',
+                'short_name': 'CF',
+                'theme': 'Gestion d\'une conférence',
                 'organizing_lab': {
-                    'short_name': 'LEMTA',
-                    'description': 'Laboratoire Énergies & Mécanique Théorique et Appliquée'
+                    'short_name': 'CF',
+                    'description': 'Conference Flow'
                 }
             },
-            'dates': {'dates': '2-5 juin 2026'},
+            'dates': {'dates': '20 juillet 2026'},
             'location': {'city': 'Nancy'}
         }
 
 
 def get_book_css():
-    """CSS reproduisant exactement le style SFT des actes."""
+    """CSS reproduisant exactement le style LaTeX SFT de référence."""
     return """
     /* === CONFIGURATION DE PAGE === */
     @page {
         size: A4;
-        margin: 2.5cm 2cm 2cm 2cm;
+        margin: 1.5cm 1.8cm 1.5cm 1.8cm;  /* Marges exactes du LaTeX */
         
         @top-center {
             content: string(page-header);
-            font-size: 10pt;
-            border-bottom: 1px solid #000;
+            font-family: "Helvetica", Arial, sans-serif;
+            font-size: 9pt;
+            border-bottom: 0.5pt solid #000;
             padding-bottom: 3pt;
             margin-bottom: 10pt;
         }
         
         @bottom-center {
             content: counter(page);
+            font-family: "Helvetica", Arial, sans-serif;
             font-size: 10pt;
         }
     }
@@ -253,12 +245,16 @@ def get_book_css():
     }
     
     @page toc {
-        @bottom-center { content: counter(page, lower-roman); }
+        @bottom-center { 
+            content: counter(page, lower-roman);
+            font-family: "Helvetica", Arial, sans-serif;
+            font-size: 10pt;
+        }
     }
     
-    /* === TYPOGRAPHIE === */
+    /* === TYPOGRAPHIE EXACTE DU LATEX === */
     body {
-        font-family: Arial, sans-serif;
+        font-family: "Helvetica", Arial, sans-serif;  /* Sans-serif comme dans LaTeX */
         font-size: 11pt;
         line-height: 1.2;
         color: #000;
@@ -266,178 +262,107 @@ def get_book_css():
         padding: 0;
     }
     
+    /* Paragraphes avec indentation et espacement du LaTeX */
+    p {
+        margin: 0;
+        padding: 0;
+        text-indent: 10mm;  /* \parindent{10mm} */
+        margin-bottom: 2mm; /* \parskip{2mm} */
+        text-align: justify;
+    }
+    
+    /* Pas d'indentation pour le premier paragraphe */
+    p:first-child, .no-indent {
+        text-indent: 0;
+    }
+    
     h1, h2, h3, h4, h5, h6 {
-        font-family: Arial, sans-serif;
+        font-family: "Helvetica", Arial, sans-serif;
         color: #000;
         margin: 0;
         padding: 0;
         font-weight: bold;
+        text-indent: 0;  /* Pas d'indentation pour les titres */
     }
     
-    /* === PAGE DE COUVERTURE === */
+    /* === PAGE DE COUVERTURE STYLE SFT === */
     .cover-page {
         page: cover;
         height: 100vh;
         background: white;
         color: black;
         text-align: center;
-        padding-top: 15%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        font-family: "Helvetica", Arial, sans-serif;
         page-break-after: always;
     }
     
     .cover-theme-line {
-        font-size: 14pt;
-        font-weight: bold;
+        font-size: 18pt;  /* \LARGE */
+        font-weight: normal;
         margin-bottom: 1em;
-        letter-spacing: 1pt;
+        text-transform: uppercase;
+        letter-spacing: 0.5pt;
     }
     
     .cover-authors {
-        font-size: 12pt;
-        font-weight: bold;
+        font-size: 12pt;  /* \normalsize */
+        font-weight: normal;
         margin-bottom: 3em;
+        line-height: 1.3;
     }
     
     .cover-actes {
-        font-size: 16pt;
+        font-size: 24pt;  /* \Huge */
         font-weight: bold;
-        margin-bottom: 0.5em;
+        margin-bottom: 1em;
+        text-transform: uppercase;
     }
     
     .cover-du {
         font-size: 12pt;
-        margin-bottom: 0.5em;
+        margin-bottom: 1em;
     }
     
     .cover-congres-title {
-        font-size: 14pt;
-        font-weight: bold;
+        font-size: 24pt;  /* \Huge */
+        font-weight: normal;
         margin-bottom: 2em;
-        line-height: 1.3;
+        line-height: 1.2;
     }
     
     .cover-event-code {
-        font-size: 16pt;
+        font-size: 24pt;  /* \Huge */
         font-weight: bold;
-        margin-bottom: 3em;
+        margin-bottom: 2em;
     }
     
     .cover-dates {
-        font-size: 12pt;
-        font-weight: bold;
+        font-size: 14pt;  /* \Large */
+        font-weight: normal;
         margin-bottom: 0.5em;
     }
     
     .cover-location {
-        font-size: 12pt;
-        font-weight: bold;
-        margin-bottom: 3em;
+        font-size: 14pt;  /* \Large */
+        font-weight: normal;
+        margin-bottom: 2em;
     }
     
     .cover-organise {
-        font-size: 10pt;
-        font-weight: bold;
-        margin-bottom: 0.5em;
+        font-size: 14pt;  /* \Large */
+        font-weight: normal;
+        margin-bottom: 1em;
     }
     
     .cover-organizer {
-        font-size: 10pt;
+        font-size: 12pt;  /* \normalsize */
+        font-weight: normal;
         margin-bottom: 0.5em;
-    }
-    
-    /* === PAGE BLANCHE === */
-    .blank-page {
-        page-break-before: always;
-        page-break-after: always;
-        height: 100vh;
-        background: white;
-    }
-    
-    .blank-footer {
-        position: absolute;
-        bottom: 2cm;
-        left: 0;
-        right: 0;
-        text-align: center;
-        font-size: 10pt;
-        border-top: 1px solid #000;
-        padding-top: 3pt;
-    }
-    
-    /* === TABLE DES MATIÈRES === */
-    .toc-page {
-        page: toc;
-        page-break-before: always;
-        page-break-after: always;
-    }
-    
-    .toc-title {
-        text-align: center;
-        font-size: 16pt;
-        font-weight: bold;
-        margin-bottom: 2em;
-        border-bottom: 1px solid #000;
-        padding-bottom: 0.5em;
-    }
-    
-    .toc-entry {
-        margin-bottom: 0.3em;
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-    }
-    
-    .toc-entry a {
-        color: #000;
-        text-decoration: none;
-        flex-grow: 1;
-    }
-    
-    .toc-dots {
-        flex-grow: 1;
-        border-bottom: 1px dotted #000;
-        margin: 0 0.5em;
-        height: 0;
-    }
-    
-    .toc-page-num {
-        font-weight: bold;
-    }
-    
-    /* === INDEX DES AUTEURS === */
-    .authors-index {
-        page-break-before: always;
-        page-break-after: always;
-    }
-    
-    .authors-title {
-        text-align: center;
-        font-size: 16pt;
-        font-weight: bold;
-        margin-bottom: 2em;
-        border-bottom: 1px solid #000;
-        padding-bottom: 0.5em;
-    }
-    
-    .authors-intro {
-        margin-bottom: 1.5em;
-        text-align: justify;
-        font-size: 11pt;
-        line-height: 1.4;
-    }
-    
-    .authors-grid {
-        columns: 3;
-        column-gap: 20pt;
-        column-fill: balance;
-        text-align: left;
-    }
-    
-    .author-entry {
-        break-inside: avoid;
-        margin-bottom: 0.2em;
-        font-size: 10pt;
-        line-height: 1.1;
+        line-height: 1.3;
     }
     
     /* === SECTIONS PRINCIPALES === */
@@ -452,70 +377,8 @@ def get_book_css():
         font-size: 18pt;
         font-weight: bold;
         margin-bottom: 1em;
+        text-indent: 0;
     }
-    
-    .part-subtitle {
-        font-size: 14pt;
-        font-weight: bold;
-    }
-    
-    /* === CONTENU PRINCIPAL === */
-    .main-content {
-        page-break-before: always;
-    }
-    
-    .section-title {
-        font-size: 14pt;
-        font-weight: bold;
-        margin-bottom: 2em;
-        text-align: left;
-    }
-    
-    .theme-title {
-        font-size: 12pt;
-        font-weight: bold;
-        margin: 2em 0 1em 0;
-        page-break-after: avoid;
-    }
-    
-    .communication {
-        margin-bottom: 1.5em;
-        page-break-inside: avoid;
-    }
-    
-    .comm-title {
-        font-size: 11pt;
-        font-weight: bold;
-        margin-bottom: 0.5em;
-        line-height: 1.3;
-    }
-    
-    .comm-authors {
-        font-size: 11pt;
-        margin-bottom: 0.3em;
-    }
-    
-    .comm-affiliations {
-        font-size: 10pt;
-        font-style: italic;
-        margin-bottom: 1em;
-    }
-    
-    .comm-content {
-        font-size: 11pt;
-        line-height: 1.4;
-        text-align: justify;
-    }
-    
-    /* === HEADER DYNAMIQUE === */
-    .set-header {
-        string-set: page-header content();
-    }
-    
-    /* === UTILITAIRES === */
-    .page-break { page-break-before: always; }
-    .no-break { page-break-inside: avoid; }
-    .text-center { text-align: center; }
     
     /* === APERÇU WEB === */
     @media screen {
@@ -524,351 +387,639 @@ def get_book_css():
             padding: 20px; 
         }
         
-        .cover-page, .toc-page, .authors-index, .main-content {
+        .cover-page, .part-page {
             background: white;
             padding: 40px;
             margin-bottom: 20px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             min-height: 80vh;
         }
+        
+        /* En mode web, on désactive l'indentation pour la lisibilité */
+        p {
+            text-indent: 0;
+            margin-bottom: 1em;
+        }
     }
     """
 
 
-def render_tome_html(title, thematiques_groups, page_mapping, authors_index, book_type):
-    """Génère le HTML d'un tome."""
+def generate_dynamic_header(config):
+    """Génère l'en-tête dynamiquement à partir de conference.yml."""
     
+    # Extraire les informations de la configuration
+    conference_info = config.get('conference', {})
+    location_info = config.get('location', {})
+    dates_info = config.get('dates', {})
+    
+    # Construction intelligente du nom de série/congrès
+    series_name = "Congrès Français de Thermique"  # Nom de base
+    
+    # Si on a des infos sur la série dans la config
+    if 'series' in conference_info:
+        series_name = conference_info['series']
+    elif 'full_name' in conference_info:
+        # Utiliser le nom complet s'il contient "Congrès"
+        if "Congrès" in conference_info['full_name']:
+            series_name = conference_info['full_name']
+    
+    # Nom court de la conférence (ex: SFT 2026)
+    short_name = conference_info.get('short_name', 'Conference Flow')
+    
+    # Ville
+    city = location_info.get('city', 'Nancy')
+    
+    # Dates - essayer plusieurs formats possibles dans conference.yml
+    dates = None
+    
+    # Priorité 1: dates.conference.dates (format texte)
+    if dates_info.get('conference', {}).get('dates'):
+        dates = dates_info['conference']['dates']
+    
+    # Priorité 2: dates.dates (format global)
+    elif dates_info.get('dates'):
+        dates = dates_info['dates']
+    
+    # Priorité 3: construire depuis start/end si disponible
+    elif dates_info.get('conference', {}).get('start') and dates_info.get('conference', {}).get('end'):
+        start_date = dates_info['conference']['start']
+        end_date = dates_info['conference']['end']
+        
+        # Parser les dates si elles sont en format YYYY-MM-DD
+        try:
+            from datetime import datetime
+            start_obj = datetime.strptime(start_date, '%Y-%m-%d')
+            end_obj = datetime.strptime(end_date, '%Y-%m-%d')
+            
+            # Formatter en français
+            months_fr = {
+                1: 'janvier', 2: 'février', 3: 'mars', 4: 'avril', 5: 'mai', 6: 'juin',
+                7: 'juillet', 8: 'août', 9: 'septembre', 10: 'octobre', 11: 'novembre', 12: 'décembre'
+            }
+            
+            if start_obj.month == end_obj.month:
+                # Même mois : "2 -- 5 juin 2026"
+                dates = f"{start_obj.day} -- {end_obj.day} {months_fr[start_obj.month]} {start_obj.year}"
+            else:
+                # Mois différents : "30 juin -- 3 juillet 2026"
+                dates = f"{start_obj.day} {months_fr[start_obj.month]} -- {end_obj.day} {months_fr[end_obj.month]} {start_obj.year}"
+                
+        except (ValueError, KeyError):
+            # Si le parsing échoue, utiliser les valeurs brutes
+            dates = f"{start_date} -- {end_date}"
+    
+    # Valeur par défaut
+    if not dates:
+        dates = "20 juillet 2026"
+    
+    # Gestion spéciale pour "1er" si les dates commencent par "1 "
+    if dates.startswith('1 '):
+        dates = '1er' + dates[1:]
+    
+    # Construction finale de l'en-tête
+    header = f"{series_name} {short_name}, {city}, {dates}"
+    
+    return header
+
+
+def get_communication_pdf(communication, book_type):
+    """Récupère le chemin du fichier PDF d'une communication selon le type de livre."""
+    try:
+        # Définir le type de fichier selon le type de livre
+        if book_type == 'article':
+            # Pour les tomes d'articles complets
+            target_file = communication.files.filter_by(file_type='article').first()
+        elif book_type == 'resume':
+            # Pour les résumés et WIP
+            if communication.type == 'wip':
+                target_file = communication.files.filter_by(file_type='wip').first()
+            else:
+                target_file = communication.files.filter_by(file_type='résumé').first()
+        else:
+            target_file = None
+        
+        if target_file and target_file.file_path:
+            # Construire le chemin complet vers le fichier
+            full_path = os.path.join(current_app.config['UPLOAD_FOLDER'], target_file.file_path)
+            
+            # Vérifier que le fichier existe
+            if os.path.exists(full_path):
+                return full_path
+            else:
+                current_app.logger.warning(f"Fichier PDF introuvable: {full_path}")
+                return None
+        
+        return None
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur récupération PDF pour communication {communication.id}: {e}")
+        return None
+
+
+def calculate_page_numbers(communications_by_theme):
+    """Calcule le mapping des numéros de pages pour chaque communication."""
+    page_mapping = {}
+    
+    # Pages de garde et TOC (estimé)
+    current_page = 5  # Après couverture, page blanche, TOC
+    
+    for theme_name, communications in communications_by_theme.items():
+        # Page de titre thématique
+        current_page += 1
+        
+        for comm in communications:
+            page_mapping[comm.id] = current_page
+            
+            # Estimer le nombre de pages du PDF
+            pdf_path = get_communication_pdf(comm, 'article' if comm.type == 'article' else 'resume')
+            if pdf_path and os.path.exists(pdf_path):
+                try:
+                    reader = PdfReader(pdf_path)
+                    nb_pages = len(reader.pages)
+                except:
+                    nb_pages = 8  # Estimation par défaut
+            else:
+                nb_pages = 1  # Page placeholder
+            
+            current_page += nb_pages
+    
+    return page_mapping
+
+
+def generate_complete_book_pdf(title, communications_by_theme, authors_index, book_type):
+    """Génère un livre PDF complet avec TOC, agrégation PDF, index et numérotation."""
+    if not PDF_TOOLS_AVAILABLE:
+        raise Exception("PyPDF2 et reportlab requis pour l'agrégation PDF: pip install PyPDF2 reportlab")
+    
+    try:
+        # 1. CALCUL DU MAPPING DES PAGES
+        page_mapping = calculate_page_numbers(communications_by_theme)
+        
+        # 2. GÉNÉRATION DES PARTIES HTML (couverture, TOC, index)
+        html_parts = generate_book_html_parts(title, communications_by_theme, authors_index, page_mapping, book_type)
+        
+        # 3. ASSEMBLAGE FINAL
+        pdf_writer = PdfWriter()
+        current_page = 1
+        
+        # A. Page de garde (pas de numérotation)
+        cover_pdf = html_to_pdf(html_parts['cover'])
+        cover_reader = PdfReader(BytesIO(cover_pdf))
+        for page in cover_reader.pages:
+            pdf_writer.add_page(page)
+        current_page += len(cover_reader.pages)
+        
+        # B. TOC (numérotation romaine)
+        toc_pdf = html_to_pdf(html_parts['toc'])
+        toc_reader = PdfReader(BytesIO(toc_pdf))
+        for i, page in enumerate(toc_reader.pages):
+            numbered_page = add_page_number(page, current_page + i, format='roman')
+            pdf_writer.add_page(numbered_page)
+        current_page += len(toc_reader.pages)
+        
+        # C. COMMUNICATIONS PAR THÉMATIQUE (numérotation arabe)
+        for theme_name, communications in communications_by_theme.items():
+            # Page de séparateur thématique
+            theme_page_pdf = generate_theme_separator_pdf(theme_name)
+            theme_reader = PdfReader(BytesIO(theme_page_pdf))
+            for page in theme_reader.pages:
+                numbered_page = add_page_number(page, current_page, format='arabic')
+                pdf_writer.add_page(numbered_page)
+                current_page += 1
+            
+            # PDF des communications
+            for comm in communications:
+                comm_pdf_path = get_communication_pdf(comm, book_type)
+                
+                if comm_pdf_path and os.path.exists(comm_pdf_path):
+                    comm_reader = PdfReader(comm_pdf_path)
+                    
+                    for page_num, page in enumerate(comm_reader.pages):
+                        # Appliquer le filigrane WIP si nécessaire
+                        if book_type == 'resume' and comm.type == 'wip':
+                            page = add_wip_watermark(page)
+                        
+                        # Ajouter numérotation
+                        numbered_page = add_page_number(page, current_page, format='arabic')
+                        pdf_writer.add_page(numbered_page)
+                        current_page += 1
+                else:
+                    # Page placeholder si PDF manquant
+                    placeholder_pdf = generate_placeholder_pdf(comm)
+                    placeholder_reader = PdfReader(BytesIO(placeholder_pdf))
+                    for page in placeholder_reader.pages:
+                        numbered_page = add_page_number(page, current_page, format='arabic')
+                        pdf_writer.add_page(numbered_page)
+                        current_page += 1
+        
+        # D. INDEX DES AUTEURS (continuation numérotation arabe)
+        index_pdf = html_to_pdf(html_parts['index'])
+        index_reader = PdfReader(BytesIO(index_pdf))
+        for page in index_reader.pages:
+            numbered_page = add_page_number(page, current_page, format='arabic')
+            pdf_writer.add_page(numbered_page)
+            current_page += 1
+        
+        # 4. FINALISATION
+        final_buffer = BytesIO()
+        pdf_writer.write(final_buffer)
+        final_buffer.seek(0)
+        
+        return final_buffer.getvalue()
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération livre PDF: {e}")
+        raise
+
+
+def add_page_number(page, number, format='arabic'):
+    """Ajoute un numéro de page à une page PDF."""
+    # Créer une page avec le numéro
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=A4)
+    
+    # Position du numéro de page (centré en bas)
+    width, height = A4
+    
+    if format == 'roman':
+        page_text = int_to_roman(number)
+    else:
+        page_text = str(number)
+    
+    can.drawCentredString(width/2, 30, page_text)
+    can.save()
+    
+    # Fusionner avec la page originale
+    packet.seek(0)
+    number_pdf = PdfReader(packet)
+    page.merge_page(number_pdf.pages[0])
+    
+    return page
+
+
+def add_wip_watermark(page):
+    """Ajoute un filigrane 'Work in Progress' à une page."""
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=A4)
+    
+    # Configurer le filigrane
+    can.setFillColor(gray, alpha=0.3)
+    can.setFont("Helvetica-Bold", 48)
+    
+    # Position et rotation
+    width, height = A4
+    can.saveState()
+    can.translate(width/2, height/2)
+    can.rotate(45)
+    can.drawCentredString(0, 0, "Work in Progress")
+    can.restoreState()
+    can.save()
+    
+    # Appliquer le filigrane
+    packet.seek(0)
+    watermark_pdf = PdfReader(packet)
+    page.merge_page(watermark_pdf.pages[0])
+    
+    return page
+
+
+def int_to_roman(num):
+    """Convertit un entier en chiffres romains."""
+    values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+    literals = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I']
+    
+    result = ''
+    for i in range(len(values)):
+        count = num // values[i]
+        result += literals[i] * count
+        num -= values[i] * count
+    
+    return result.lower()
+
+
+def html_to_pdf(html_content):
+    """Convertit du HTML en PDF."""
+    html_doc = HTML(string=html_content)
+    buffer = BytesIO()
+    html_doc.write_pdf(buffer)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def generate_book_html_parts(title, communications_by_theme, authors_index, page_mapping, book_type):
+    """Génère les parties HTML du livre (couverture, TOC, index)."""
     config = get_conference_config()
     
-    # En-tête des pages
-    header_text = f"{config['conference']['series']} {config['conference']['short_name']}, {config['location']['city']}, {config['dates']['dates']}"
+    parts = {}
     
-    # Générer les noms des présidents depuis la config si disponible
-    presidents_names = ""
-    if 'presidents' in config['conference'] and config['conference']['presidents']:
-        presidents_names = "<br>".join([p['name'] for p in config['conference']['presidents']])
-    else:
-        presidents_names = "Jean-Baptiste BIOT<br>Joseph FOURIER" 
+    # COUVERTURE
+    parts['cover'] = generate_cover_only_html(title, config)
     
-    html = f"""
+    # TABLE DES MATIÈRES
+    parts['toc'] = generate_toc_html(communications_by_theme, page_mapping)
+    
+    # INDEX DES AUTEURS
+    parts['index'] = generate_index_html(authors_index)
+    
+    return parts
+
+
+def generate_cover_only_html(title, config):
+    """Page de garde uniquement."""
+    header_text = generate_dynamic_header(config)
+    presidents_names = get_presidents_names(config)
+    livre_titre, livre_type = get_book_title_type(title)
+    
+    return f"""
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>{title} - {config['conference']['short_name']}</title>
+    <title>{title}</title>
     <style>{get_book_css()}</style>
 </head>
 <body>
-    <!-- En-tête pour toutes les pages -->
-    <div class="set-header" style="display: none;">{header_text}</div>
-    
-    <!-- Page de couverture -->
     <div class="cover-page">
         <div class="cover-theme-line">{config['conference']['theme'].upper()}</div>
+        <div style="flex: 1;"></div>
         <div class="cover-authors">{presidents_names}</div>
-        
-        <div class="cover-actes">ACTES</div>
-        <div class="cover-du">DU</div>
-        
+        <div style="flex: 1;"></div>
+        <div class="cover-actes">{livre_titre}</div>
+        <div class="cover-du">{livre_type}</div>
         <div class="cover-congres-title">
             CONGRÈS ANNUEL DE LA<br>
             SOCIÉTÉ FRANÇAISE DE THERMIQUE
         </div>
-        
+        <div style="flex: 1;"></div>
         <div class="cover-event-code">{config['conference']['short_name']}</div>
-        
-        <div class="cover-dates">{config['dates']['dates']}</div>
+        <div style="flex: 1;"></div>
+        <div class="cover-dates">{config.get('dates', {}).get('dates', '20 juillet 2026')}</div>
         <div class="cover-location">{config['location']['city']}</div>
-        
+        <div style="flex: 1;"></div>
         <div class="cover-organise">ORGANISÉ PAR</div>
         <div class="cover-organizer">
-            {config['conference']['organizing_lab']['short_name']} - {config['conference']['organizing_lab']['description']}
+            {config['conference']['organizing_lab']['description']}<br>
+            {config['conference']['organizing_lab']['short_name']}<br>
+            {config['location']['city'].upper()}
         </div>
     </div>
-    
-    <!-- Page blanche avec footer -->
-    <div class="blank-page">
-        <div class="blank-footer">
-            {header_text}<br>
-            ii
-        </div>
-    </div>
-    
-    <!-- Table des matières -->
-    <div class="toc-page">
-        <h2 class="toc-title">Table des matières</h2>
-        
-        <div class="toc-entry">
-            <a href="#authors-index">Index des auteurs</a>
-            <div class="toc-dots"></div>
-            <span class="toc-page-num">3</span>
-        </div>
-        
-        {generate_toc_entries(thematiques_groups, page_mapping)}
-    </div>
-    
-    <!-- Index des auteurs -->
-    <div id="authors-index" class="authors-index">
-        <h2 class="authors-title">Index des auteurs</h2>
-        
-        <div class="authors-intro">
-            Le comité d'organisation adresse de très vifs remerciements aux relecteurs qui ont pris le 
-            temps de lire et d'expertiser les articles soumis au congrès.
-        </div>
-        
-        {generate_authors_html(authors_index)}
-    </div>
-    
-    <!-- Première partie -->
-    <div class="part-page">
-        <div class="part-title">Deuxième partie</div>
-        <div class="part-subtitle">Textes complets</div>
-    </div>
-    
-    <!-- Contenu principal -->
-    <div class="main-content">
-        {generate_themes_content(thematiques_groups, book_type)}
-    </div>
-    
 </body>
 </html>
 """
-    return html
 
 
-def generate_toc_entries(thematiques_groups, page_mapping):
-    """Génère les entrées de la table des matières."""
-    toc_html = ""
+def generate_toc_html(communications_by_theme, page_mapping):
+    """Table des matières."""
+    toc_entries = ""
     theme_num = 1
     
-    for theme_name, communications in thematiques_groups.items():
+    for theme_name, communications in communications_by_theme.items():
         if communications:
             first_page = page_mapping.get(communications[0].id, '???')
             
-            toc_html += f"""
+            toc_entries += f"""
             <div class="toc-entry">
-                <a href="#theme-{theme_num}">{theme_num} {theme_name}</a>
+                <span>Thème {theme_num} - {theme_name}</span>
                 <div class="toc-dots"></div>
                 <span class="toc-page-num">{first_page}</span>
             </div>
             """
             
-            # Limiter les communications affichées dans la TOC
+            # Ajouter quelques communications principales
             for comm in communications[:3]:
                 page_num = page_mapping.get(comm.id, '???')
                 title_short = comm.title[:60] + ('...' if len(comm.title) > 60 else '')
                 
-                toc_html += f"""
+                toc_entries += f"""
                 <div class="toc-entry" style="margin-left: 1em; font-size: 10pt;">
-                    <a href="#comm-{comm.id}">{title_short}</a>
+                    <span>{title_short}</span>
                     <div class="toc-dots"></div>
                     <span class="toc-page-num">{page_num}</span>
                 </div>
                 """
-            
-            if len(communications) > 3:
-                toc_html += f"""
-                <div class="toc-entry" style="margin-left: 1em; font-size: 10pt; font-style: italic;">
-                    <span>... et {len(communications) - 3} autres communications</span>
-                    <div class="toc-dots"></div>
-                    <span class="toc-page-num"></span>
-                </div>
-                """
         
         theme_num += 1
-    
-    return toc_html
+
+    return f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Table des matières</title>
+    <style>
+    @page {{
+        margin: 1.5cm 1.8cm 1.5cm 1.8cm;
+        @bottom-center {{ content: none; }}
+    }}
+    body {{
+        font-family: "Helvetica", Arial, sans-serif;
+        font-size: 11pt;
+        color: #000;
+        margin: 0;
+        padding: 0;
+    }}
+    .toc-title {{
+        text-align: center;
+        font-size: 16pt;
+        font-weight: bold;
+        margin-bottom: 2em;
+        border-bottom: 0.5pt solid #000;
+        padding-bottom: 0.5em;
+    }}
+    .toc-entry {{
+        margin-bottom: 0.3em;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+    }}
+    .toc-dots {{
+        flex-grow: 1;
+        border-bottom: 1px dotted #000;
+        margin: 0 0.5em;
+        height: 0;
+    }}
+    .toc-page-num {{
+        font-weight: bold;
+    }}
+    </style>
+</head>
+<body>
+    <div class="toc-page">
+        <h2 class="toc-title">Table des matières</h2>
+        {toc_entries}
+    </div>
+</body>
+</html>
+"""
 
 
-def generate_authors_html(authors_index):
-    """Génère l'HTML de l'index des auteurs en 3 colonnes."""
-    authors_html = '<div class="authors-grid">'
-    
+def generate_index_html(authors_index):
+    """Index des auteurs."""
+    authors_entries = ""
     for author_name, pages in authors_index.items():
         pages_str = ', '.join(map(str, pages))
-        authors_html += f'<div class="author-entry">{author_name} {pages_str}</div>'
-    
-    authors_html += '</div>'
-    return authors_html
+        authors_entries += f'<div class="author-entry">{author_name} {pages_str}</div>'
 
-
-def generate_themes_content(thematiques_groups, book_type):
-    """Génère le contenu des thématiques."""
-    content_html = ""
-    theme_num = 1
-    
-    for theme_name, communications in thematiques_groups.items():
-        content_html += f"""
-        <div id="theme-{theme_num}" class="theme-section">
-            <h2 class="section-title">Thème {theme_num}</h2>
-            <h3 class="theme-title">{theme_name}</h3>
-            
-            {generate_communications_html(communications, book_type)}
+    return f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Index des auteurs</title>
+    <style>
+    @page {{
+        margin: 1.5cm 1.8cm 1.5cm 1.8cm;
+        @bottom-center {{ content: none; }}
+    }}
+    body {{
+        font-family: "Helvetica", Arial, sans-serif;
+        font-size: 11pt;
+        color: #000;
+        margin: 0;
+        padding: 0;
+    }}
+    .authors-title {{
+        text-align: center;
+        font-size: 16pt;
+        font-weight: bold;
+        margin-bottom: 2em;
+        border-bottom: 0.5pt solid #000;
+        padding-bottom: 0.5em;
+    }}
+    .authors-intro {{
+        margin-bottom: 1.5em;
+        text-align: justify;
+        font-size: 11pt;
+        line-height: 1.4;
+    }}
+    .authors-grid {{
+        columns: 3;
+        column-gap: 20pt;
+        column-fill: balance;
+        text-align: left;
+    }}
+    .author-entry {{
+        break-inside: avoid;
+        margin-bottom: 0.2em;
+        font-size: 10pt;
+        line-height: 1.1;
+    }}
+    </style>
+</head>       
+<body>
+    <div class="authors-index">
+        <h2 class="authors-title">Index des auteurs</h2>
+ <div class="authors-intro">
+ Le comité d'organisation adresse de très vifs remerciements aux relecteurs qui ont pris le 
+            temps de lire et d'expertiser les articles soumis au congrès.
         </div>
-        """
-        theme_num += 1
-    
-    return content_html
-
-
-def generate_communications_html(communications, book_type):
-    """Génère le HTML des communications."""
-    comm_html = ""
-    
-    for comm in communications:
-        # Auteurs
-        authors_list = []
-        for author in comm.authors:
-            name_parts = []
-            if author.first_name:
-                name_parts.append(author.first_name.strip())
-            if author.last_name:
-                name_parts.append(author.last_name.strip())
-            
-            if name_parts:
-                authors_list.append(' '.join(name_parts))
-            elif author.email:
-                authors_list.append(author.email)
-        
-        authors_str = ', '.join(authors_list) if authors_list else "Auteur non spécifié"
-        
-        # Affiliations
-        affiliations = set()
-        for author in comm.authors:
-            for aff in author.affiliations:
-                if aff.sigle:
-                    affiliations.add(aff.sigle)
-        
-        affiliations_str = ', '.join(sorted(affiliations)) if affiliations else ""
-        
-        comm_html += f"""
-        <div id="comm-{comm.id}" class="communication">
-            <h4 class="comm-title">{comm.title}</h4>
-            <div class="comm-authors">{authors_str}</div>
-            {f'<div class="comm-affiliations">{affiliations_str}</div>' if affiliations_str else ''}
-            
-            <div class="comm-content">
-                <p>[Contenu de la communication - sera intégré depuis le fichier PDF]</p>
-            </div>
+        <div class="authors-grid">
+            {authors_entries}
         </div>
-        """
-    
-    return comm_html
+    </div>
+</body>
+</html>
+"""
 
 
-# Reprendre les routes existantes
+def generate_theme_separator_pdf(theme_name):
+    """Génère une page de séparation pour une thématique."""
+    html = f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Thématique</title>
+    <style>{get_book_css()}</style>
+</head>
+<body>
+    <div class="part-page">
+        <div class="part-title">{theme_name}</div>
+    </div>
+</body>
+</html>
+"""
+    return html_to_pdf(html)
+
+
+def generate_placeholder_pdf(communication):
+    """Génère une page placeholder pour une communication sans PDF."""
+    html = f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Communication manquante</title>
+    <style>{get_book_css()}</style>
+</head>
+<body>
+    <div class="communication">
+        <h4 class="comm-title">{communication.title}</h4>
+        <div class="comm-authors">
+            {', '.join([f"{a.first_name} {a.last_name}" for a in communication.authors]) if communication.authors else "Auteur non spécifié"}
+        </div>
+        <div style="margin-top: 2em; text-align: center; color: #666;">
+            <p><em>PDF de la communication en attente</em></p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+    return html_to_pdf(html)
+
+
+def get_presidents_names(config):
+    """Récupère les noms des présidents."""
+    if 'presidents' in config.get('conference', {}) and config['conference']['presidents']:
+        return "<br>".join([p['name'] for p in config['conference']['presidents']])
+    else:
+        return "Jean-Baptiste Biot, Joseph Fourier"
+
+
+def get_book_title_type(title):
+    """Détermine le titre et type de livre."""
+    if 'article' in title.lower():
+        return "ACTES", "du"
+    else:
+        return "RECUEIL DES RÉSUMÉS", "du"
+
+
+# === ROUTES PRINCIPALES ===
+
 @books.route('/tome1.pdf')
 @login_required
 def generate_tome1():
-    """Génère le Tome 1 des articles."""
+    """Génère le Tome 1 des articles par agrégation PDF."""
     if not current_user.is_admin:
         abort(403)
     
-    if not WEASYPRINT_AVAILABLE:
-        return "WeasyPrint non disponible", 500
+    if not PDF_TOOLS_AVAILABLE:
+        return "PyPDF2 et reportlab requis pour l'agrégation PDF", 500
     
-    communications = get_communications_by_type_and_status()
-    tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
-    
-    page_mapping = generate_page_mapping(tomes_split['tome1'])
-    authors_index = generate_author_index(
-        [comm for theme_comms in tomes_split['tome1'].values() for comm in theme_comms],
-        page_mapping
-    )
-    
-    html_content = render_tome_html(
-        "Articles - Tome 1",
-        tomes_split['tome1'],
-        page_mapping,
-        authors_index,
-        'article'
-    )
-
-
-    config = get_conference_config()
-    filename = f"{config['conference']['acronym']}_Articles_Tome1.pdf"
-    return generate_pdf_response(html_content, filename)
-
-
-@books.route('/tome2.pdf')
-@login_required
-def generate_tome2():
-    """Génère le Tome 2 des articles."""
-    if not current_user.is_admin:
-        abort(403)
-    
-    if not WEASYPRINT_AVAILABLE:
-        return "WeasyPrint non disponible", 500
-    
-    communications = get_communications_by_type_and_status()
-    tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
-    
-    page_mapping = generate_page_mapping(tomes_split['tome2'])
-    authors_index = generate_author_index(
-        [comm for theme_comms in tomes_split['tome2'].values() for comm in theme_comms],
-        page_mapping
-    )
-    
-    html_content = render_tome_html(
-        "Articles - Tome 2",
-        tomes_split['tome2'],
-        page_mapping,
-        authors_index,
-        'article'
-    )
-    
-    config = get_conference_config()
-    filename = f"{config['conference']['acronym']}_Articles_Tome2.pdf"
-    return generate_pdf_response(html_content, filename)
-
-
-@books.route('/resumes-wip.pdf')
-@login_required
-def generate_resumes_wip():
-    """Génère le livre des résumés et work in progress."""
-    if not current_user.is_admin:
-        abort(403)
-    
-    if not WEASYPRINT_AVAILABLE:
-        return "WeasyPrint non disponible", 500
-    
-    communications = get_communications_by_type_and_status()
-    
-    # Grouper résumés et WIP par thématique
-    resumes_by_theme = group_communications_by_thematique(communications['resumes'])
-    wips_by_theme = group_communications_by_thematique(communications['wips'])
-    
-    # Combiner pour le mapping des pages
-    all_communications = communications['resumes'] + communications['wips']
-    all_by_theme = group_communications_by_thematique(all_communications)
-    page_mapping = generate_page_mapping(all_by_theme, start_page=5)
-    
-    # Index des auteurs (tous)
-    authors_index = generate_author_index(all_communications, page_mapping)
-    
-    html_content = render_tome_html(
-        "Résumés et Work in Progress",
-        all_by_theme,
-        page_mapping,
-        authors_index,
-        'resume'
-    )
-    
-    config = get_conference_config()
-    filename = f"{config['conference']['acronym']}_Resumes_WorkInProgress.pdf"
-    return generate_pdf_response(html_content, filename)
-
-
-def generate_pdf_response(html_content, filename):
-    """Génère et retourne la réponse PDF."""
     try:
-        html_doc = HTML(string=html_content)
-        pdf_buffer = BytesIO()
-        html_doc.write_pdf(pdf_buffer)
-        pdf_buffer.seek(0)
+        communications = get_communications_by_type_and_status()
+        tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
+        
+        # Générer l'index des auteurs
+        authors_index = generate_author_index(
+            [comm for theme_comms in tomes_split['tome1'].values() for comm in theme_comms],
+            {}  # Le page_mapping sera calculé dans generate_complete_book_pdf
+        )
+        
+        # Générer le PDF complet
+        pdf_content = generate_complete_book_pdf(
+            "Articles - Tome 1",
+            tomes_split['tome1'],
+            authors_index,
+            'article'
+        )
+        
+        # Créer la réponse
+        config = get_conference_config()
+        filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_Articles_Tome1.pdf"
         
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-            tmp_file.write(pdf_buffer.getvalue())
+            tmp_file.write(pdf_content)
             tmp_file_path = tmp_file.name
         
         return send_file(
@@ -879,7 +1030,117 @@ def generate_pdf_response(html_content, filename):
         )
         
     except Exception as e:
-        current_app.logger.error(f"Erreur génération PDF {filename}: {e}")
+        current_app.logger.error(f"Erreur génération Tome 1: {e}")
+        return f"Erreur lors de la génération du PDF: {str(e)}", 500
+    
+    finally:
+        try:
+            if 'tmp_file_path' in locals():
+                os.unlink(tmp_file_path)
+        except:
+            pass
+
+
+@books.route('/tome2.pdf')
+@login_required
+def generate_tome2():
+    """Génère le Tome 2 des articles par agrégation PDF."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    if not PDF_TOOLS_AVAILABLE:
+        return "PyPDF2 et reportlab requis pour l'agrégation PDF", 500
+    
+    try:
+        communications = get_communications_by_type_and_status()
+        tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
+        
+        # Générer l'index des auteurs
+        authors_index = generate_author_index(
+            [comm for theme_comms in tomes_split['tome2'].values() for comm in theme_comms],
+            {}
+        )
+        
+        # Générer le PDF complet
+        pdf_content = generate_complete_book_pdf(
+            "Articles - Tome 2",
+            tomes_split['tome2'],
+            authors_index,
+            'article'
+        )
+        
+        # Créer la réponse
+        config = get_conference_config()
+        filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_Articles_Tome2.pdf"
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            tmp_file.write(pdf_content)
+            tmp_file_path = tmp_file.name
+        
+        return send_file(
+            tmp_file_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération Tome 2: {e}")
+        return f"Erreur lors de la génération du PDF: {str(e)}", 500
+    
+    finally:
+        try:
+            if 'tmp_file_path' in locals():
+                os.unlink(tmp_file_path)
+        except:
+            pass
+
+
+@books.route('/resumes-wip.pdf')
+@login_required
+def generate_resumes_wip():
+    """Génère le livre des résumés et WIP par agrégation PDF avec filigrane."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    if not PDF_TOOLS_AVAILABLE:
+        return "PyPDF2 et reportlab requis pour l'agrégation PDF", 500
+    
+    try:
+        communications = get_communications_by_type_and_status()
+        
+        # Combiner résumés et WIP
+        all_communications = communications['resumes'] + communications['wips']
+        all_by_theme = group_communications_by_thematique(all_communications)
+        
+        # Générer l'index des auteurs
+        authors_index = generate_author_index(all_communications, {})
+        
+        # Générer le PDF complet (avec filigrane WIP automatique)
+        pdf_content = generate_complete_book_pdf(
+            "Résumés et Work in Progress",
+            all_by_theme,
+            authors_index,
+            'resume'  # Ce type déclenchera le filigrane pour les WIP
+        )
+        
+        # Créer la réponse
+        config = get_conference_config()
+        filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_Resumes_WorkInProgress.pdf"
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            tmp_file.write(pdf_content)
+            tmp_file_path = tmp_file.name
+        
+        return send_file(
+            tmp_file_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération Résumés/WIP: {e}")
         return f"Erreur lors de la génération du PDF: {str(e)}", 500
     
     finally:
@@ -893,56 +1154,36 @@ def generate_pdf_response(html_content, filename):
 @books.route('/preview/<book_type>')
 @login_required
 def preview_book(book_type):
-    """Prévisualise un livre en HTML."""
+    """Prévisualise un livre en HTML (version simplifiée)."""
     if not current_user.is_admin:
         abort(403)
     
     if book_type not in ['tome1', 'tome2', 'resumes-wip']:
         abort(404)
     
-    communications = get_communications_by_type_and_status()
-    
-    if book_type == 'tome1':
-        tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
-        page_mapping = generate_page_mapping(tomes_split['tome1'])
-        authors_index = generate_author_index(
-            [comm for theme_comms in tomes_split['tome1'].values() for comm in theme_comms],
-            page_mapping
-        )
-        html_content = render_tome_html(
-            "Articles - Tome 1", 
-            tomes_split['tome1'], 
-            page_mapping, 
-            authors_index, 
-            'article'
-        )
-    elif book_type == 'tome2':
-        tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
-        page_mapping = generate_page_mapping(tomes_split['tome2'])
-        authors_index = generate_author_index(
-            [comm for theme_comms in tomes_split['tome2'].values() for comm in theme_comms],
-            page_mapping
-        )
-        html_content = render_tome_html(
-            "Articles - Tome 2", 
-            tomes_split['tome2'], 
-            page_mapping, 
-            authors_index, 
-            'article'
-        )
-    else:  # resumes-wip
-        resumes_by_theme = group_communications_by_thematique(communications['resumes'])
-        wips_by_theme = group_communications_by_thematique(communications['wips'])
-        all_communications = communications['resumes'] + communications['wips']
-        all_by_theme = group_communications_by_thematique(all_communications)
-        page_mapping = generate_page_mapping(all_by_theme, start_page=5)
-        authors_index = generate_author_index(all_communications, page_mapping)
-        html_content = render_tome_html(
-            "Résumés et Work in Progress",
-            all_by_theme,
-            page_mapping,
-            authors_index,
-            'resume'
-        )
-    
-    return html_content
+    try:
+        communications = get_communications_by_type_and_status()
+        config = get_conference_config()
+        
+        if book_type == 'tome1':
+            tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
+            title = "Articles - Tome 1"
+            communications_data = tomes_split['tome1']
+        elif book_type == 'tome2':
+            tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
+            title = "Articles - Tome 2"
+            communications_data = tomes_split['tome2']
+        else:  # resumes-wip
+            all_communications = communications['resumes'] + communications['wips']
+            title = "Résumés et Work in Progress"
+            communications_data = group_communications_by_thematique(all_communications)
+        
+        # Générer une prévisualisation simple
+        html_content = generate_cover_only_html(title, config)
+        
+        return html_content
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur prévisualisation {book_type}: {e}")
+        return f"Erreur lors de la prévisualisation: {str(e)}", 500
+

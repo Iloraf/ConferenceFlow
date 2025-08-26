@@ -17,3 +17,5 @@ faker==37.5.3
 psycopg2-binary
 requests
 gunicorn
+PyPDF2
+reportlab
