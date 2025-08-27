@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Export - {{ conference.short_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 text-primary mb-0">
+                <i class="fas fa-upload me-2"></i>Exports HAL & DOI
+            </h1>
+            <p class="text-muted">Gestion unifiée des exports vers HAL et génération des DOI</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-2 text-primary">
+                        <i class="fas fa-file-alt fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">{{ stats.total_communications }}</h3>
+                    <small class="text-muted">Communications totales</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-2 text-success">
+                        <i class="fas fa-fingerprint fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">{{ stats.with_doi }}</h3>
+                    <small class="text-muted">Avec DOI généré</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-2 text-info">
+                        <i class="fas fa-database fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">{{ stats.on_hal }}</h3>
+                    <small class="text-muted">Déposés sur HAL</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-2 text-warning">
+                        <i class="fas fa-rocket fa-2x"></i>
+                    </div>
+                    <h3 class="mb-1">{{ stats.ready_for_export }}</h3>
+                    <small class="text-muted">Prêts pour export</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions rapides -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Actions rapides
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-success w-100" onclick="bulkGenerateDOI()">
+                                <i class="fas fa-fingerprint me-2"></i>
+                                Générer tous les DOI manquants
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-info w-100" onclick="bulkExportToHAL()">
+                                <i class="fas fa-cloud-upload-alt me-2"></i>
+                                Export en lot vers HAL
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-warning w-100" onclick="downloadAllDOIXML()">
+                                <i class="fas fa-download me-2"></i>
+                                Télécharger tous les XML DOI
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des communications -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Communications par statut d'export
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Onglets -->
+                    <ul class="nav nav-tabs" id="exportTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="ready-tab" data-bs-toggle="tab" data-bs-target="#ready" type="button">
+                                <i class="fas fa-check-circle text-success me-2"></i>Prêtes ({{ stats.ready_for_export }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button">
+                                <i class="fas fa-clock text-warning me-2"></i>En attente
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button">
+                                <i class="fas fa-cloud text-info me-2"></i>Exportées
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content mt-3" id="exportTabsContent">
+                        <!-- Communications prêtes -->
+                        <div class="tab-pane fade show active" id="ready" role="tabpanel">
+                            <div id="ready-communications">
+                                <p class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin me-2"></i>Chargement...
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Communications en attente -->
+                        <div class="tab-pane fade" id="pending" role="tabpanel">
+                            <div id="pending-communications">
+                                <p class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin me-2"></i>Chargement...
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Communications exportées -->
+                        <div class="tab-pane fade" id="completed" role="tabpanel">
+                            <div id="completed-communications">
+                                <p class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin me-2"></i>Chargement...
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts JavaScript -->
+<script>
+// Fonctions pour les actions rapides
+function bulkGenerateDOI() {
+    if (confirm('Générer les DOI pour toutes les communications qui n\'en ont pas ?')) {
+        // TODO: Implémenter l'action en lot
+        showToast('Génération DOI en cours...', 'info');
+    }
+}
+
+function bulkExportToHAL() {
+    if (confirm('Exporter vers HAL toutes les communications prêtes ?')) {
+        // TODO: Implémenter l'export en lot
+        showToast('Export HAL en cours...', 'info');
+    }
+}
+
+function downloadAllDOIXML() {
+    if (confirm('Télécharger tous les fichiers XML DataCite ?')) {
+        // TODO: Implémenter le téléchargement en lot
+        showToast('Préparation du téléchargement...', 'info');
+    }
+}
+
+function showToast(message, type = 'info') {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+    toast.style.zIndex = '9999';
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Chargement des données au chargement de la page
+document.addEventListener('DOMContentLoaded', function() {
+    loadCommunicationsList('ready');
+    
+    // Gérer les changements d'onglets
+    document.getElementById('exportTabs').addEventListener('shown.bs.tab', function(event) {
+        const targetId = event.target.getAttribute('data-bs-target').replace('#', '');
+        loadCommunicationsList(targetId);
+    });
+});
+
+function loadCommunicationsList(status) {
+    // TODO: Charger la liste des communications via AJAX
+    const container = document.getElementById(`${status}-communications`);
+    container.innerHTML = '<p class="text-center text-muted">Liste en cours de développement...</p>';
+}
+</script>
+{% endblock %}

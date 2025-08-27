@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+
+{% block title %}Export Communication #{{ status.communication_id }} - {{ conference.short_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 text-primary mb-0">
+                <i class="fas fa-file-export me-2"></i>Export Communication #{{ status.communication_id }}
+            </h1>
+            <p class="text-muted mb-0">{{ status.title }}</p>
+        </div>
+        <div>
+            <a href="{{ url_for('export.dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour Dashboard Export
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Statut de la communication -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Statut d'export
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Progression -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="badge {% if status.has_abstract %}bg-success{% else %}bg-secondary{% endif %}">
+                            {% if status.has_abstract %}✓{% else %}○{% endif %} Résumé
+                        </span>
+                        <div class="flex-grow-1 mx-2">
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar" style="width: {% if status.has_abstract %}25{% else %}0{% endif %}%;"></div>
+                            </div>
+                        </div>
+                        
+                        <span class="badge {% if status.has_doi %}bg-success{% else %}bg-secondary{% endif %}">
+                            {% if status.has_doi %}✓{% else %}○{% endif %} DOI
+                        </span>
+                        <div class="flex-grow-1 mx-2">
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar" style="width: {% if status.has_doi %}50{% else %}25{% endif %}%;"></div>
+                            </div>
+                        </div>
+                        
+                        <span class="badge {% if status.hal_deposited %}bg-success{% else %}bg-secondary{% endif %}">
+                            {% if status.hal_deposited %}✓{% else %}○{% endif %} HAL
+                        </span>
+                        <div class="flex-grow-1 mx-2">
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar" style="width: {% if status.hal_deposited %}75{% else %}50{% endif %}%;"></div>
+                            </div>
+                        </div>
+                        
+                        <span class="badge {% if status.public_url %}bg-success{% else %}bg-secondary{% endif %}">
+                            {% if status.public_url %}✓{% else %}○{% endif %} URL
+                        </span>
+                    </div>
+
+                    <!-- Détails -->
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-fingerprint me-2"></i>DOI</h6>
+                            {% if status.doi %}
+                                <p class="text-success">
+                                    <code>{{ status.doi }}</code>
+                                    <a href="https://doi.org/{{ status.doi }}" target="_blank" class="ms-2">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                </p>
+                            {% else %}
+                                <p class="text-muted">Non généré</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-link me-2"></i>URL publique</h6>
+                            {% if status.public_url %}
+                                <p class="text-success">
+                                    <a href="{{ status.public_url }}" target="_blank">
+                                        {{ status.public_url[:50] }}...
+                                        <i class="fas fa-external-link-alt ms-1"></i>
+                                    </a>
+                                </p>
+                            {% else %}
+                                <p class="text-muted">Non disponible</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if status.export_date %}
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-calendar me-1"></i>
+                            Exporté le {{ status.export_date.strftime('%d/%m/%Y à %H:%M') }}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions d'export -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>Actions d'export
+                    </h5>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Préparation -->
+                    {% if not status.ready_for_export %}
+                    <button class="btn btn-warning w-100 mb-3" onclick="prepareCommunication({{ status.communication_id }})">
+                        <i class="fas fa-wrench me-2"></i>
+                        Préparer pour export
+                    </button>
+                    <small class="text-muted d-block mb-3">
+                        Génère le DOI et extrait le résumé si nécessaire
+                    </small>
+                    {% endif %}
+                    
+                    <!-- Export HAL -->
+                    {% if status.ready_for_export %}
+                    <button class="btn btn-primary w-100 mb-3" 
+                            onclick="exportToHAL({{ status.communication_id }})"
+                            {% if status.hal_deposited %}disabled{% endif %}>
+                        <i class="fas fa-cloud-upload-alt me-2"></i>
+                        {% if status.hal_deposited %}
+                            Déjà exporté vers HAL
+                        {% else %}
+                            Exporter vers HAL
+                        {% endif %}
+                    </button>
+                    {% endif %}
+                    
+                    <!-- Téléchargement XML DOI -->
+                    {% if status.has_doi %}
+                    <a href="{{ url_for('export.download_doi_xml', comm_id=status.communication_id) }}" 
+                       class="btn btn-outline-success w-100 mb-3">
+                        <i class="fas fa-file-code me-2"></i>
+                        Télécharger XML DataCite
+                    </a>
+                    {% endif %}
+                    
+                    <!-- Informations complémentaires -->
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <strong>Processus d'export :</strong><br>
+                            1. Préparation (DOI + résumé)<br>
+                            2. Export vers HAL<br>
+                            3. Récupération URL pérenne<br>
+                            4. Génération XML DataCite
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations détaillées -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>Informations de la communication
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Titre</h6>
+                            <p>{{ status.title }}</p>
+                            
+                            <h6>Résumé</h6>
+                            {% if status.has_abstract %}
+                                <p class="text-success">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    Résumé disponible
+                                </p>
+                            {% else %}
+                                <p class="text-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Résumé manquant - sera extrait du PDF
+                                </p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>URLs et liens</h6>
+                            {% if status.hal_url %}
+                                <p>
+                                    <strong>HAL :</strong> 
+                                    <a href="{{ status.hal_url }}" target="_blank">
+                                        {{ status.hal_url[:40] }}...
+                                        <i class="fas fa-external-link-alt ms-1"></i>
+                                    </a>
+                                </p>
+                            {% endif %}
+                            
+                            {% if status.doi %}
+                                <p>
+                                    <strong>DOI :</strong> 
+                                    <a href="https://doi.org/{{ status.doi }}" target="_blank">
+                                        {{ status.doi }}
+                                        <i class="fas fa-external-link-alt ms-1"></i>
+                                    </a>
+                                </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts JavaScript -->
+<script>
+async function prepareCommunication(commId) {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Préparation...';
+    
+    try {
+        const response = await fetch(`/admin/export/prepare/${commId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showToast(data.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Erreur de communication avec le serveur', 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+async function exportToHAL(commId) {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Export en cours...';
+    
+    try {
+        const response = await fetch(`/admin/export/hal/${commId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(data.message, 'success');
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showToast(data.message, 'danger');
+        }
+    } catch (error) {
+        showToast('Erreur de communication avec le serveur', 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function showToast(message, type = 'info') {
+    const alertClass = type === 'danger' ? 'alert-danger' : type === 'success' ? 'alert-success' : 'alert-primary';
+    const toast = document.createElement('div');
+    toast.className = `alert ${alertClass} position-fixed top-0 end-0 m-3`;
+    toast.style.zIndex = '9999';
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 4000);
+}
+</script>
+{% endblock %}
