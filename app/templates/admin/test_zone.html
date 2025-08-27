@@ -227,6 +227,179 @@
         </div>
     </div>
 
+
+<!-- INSTRUCTION: Ajoutez cette section dans app/templates/admin/test_zone.html -->
+<!-- après la section "Tests du système HAL" -->
+
+    <!-- Section 5: Scénarios de Review -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card h-100 border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-tasks"></i> 5. Scénarios de Review Complets</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6>Générateur de workflow de review complet :</h6>
+                            <p class="text-muted mb-3">Crée un environnement de test réaliste avec :</p>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <ul class="mb-3">
+                                        <li><strong>3 reviewers</strong> avec spécialités différentes</li>
+                                        <li><strong>3 auteurs</strong> pour les soumissions</li>
+                                        <li><strong>4 communications</strong> avec statuts variés</li>
+                                        <li><strong>Documents PDF</strong> factices générés</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <ul class="mb-3">
+                                        <li>Scénario <span class="badge bg-success">ACCEPTÉ</span></li>
+                                        <li>Scénario <span class="badge bg-warning">RÉVISION</span></li>
+                                        <li>Scénario <span class="badge bg-danger">REJETÉ</span></li>
+                                        <li>Scénario <span class="badge bg-info">WIP</span></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('admin.generate_review_scenario') }}" class="btn btn-success">
+                                    <i class="fas fa-magic"></i> Créer Scénarios Review
+                                </a>
+                                <a href="{{ url_for('admin.reset_review_scenario') }}" class="btn btn-outline-danger">
+                                    <i class="fas fa-trash"></i> Reset Scénarios
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Guide de test -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6><i class="fas fa-route me-2"></i>Guide de test après génération :</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>Pour les admins :</strong>
+                                            <ol class="small">
+                                                <li>Allez dans <a href="{{ url_for('admin.view_assignments') }}" target="_blank">Gestion des Reviews</a></li>
+                                                <li>Vérifiez les affectations créées</li>
+                                                <li>Testez les notifications groupées</li>
+                                                <li>Consultez les reviews terminées</li>
+                                                <li>Testez la prise de décision finale</li>
+                                            </ol>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Pour les reviewers (connexion avec mot de passe <code>password123</code>) :</strong>
+                                            <ul class="small">
+                                                <li><strong>reviewer1@test-sft.fr</strong> - Spécialiste COND/CONVECTION</li>
+                                                <li><strong>reviewer2@test-sft.fr</strong> - Spécialiste COMBUST/SIMUL</li>
+                                                <li><strong>reviewer3@test-sft.fr</strong> - Spécialiste ECHANG/POREUX</li>
+                                            </ul>
+                                            <p class="small text-muted">Connectez-vous avec ces comptes pour tester l'interface reviewer</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Liens de test rapide -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>🎯 Accès rapide pour les tests :</h6>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('admin.view_assignments') }}" class="btn btn-outline-primary btn-sm" target="_blank">
+                                    <i class="fas fa-tasks"></i> Reviews
+                                </a>
+                                <a href="{{ url_for('admin.send_grouped_notifications') }}" class="btn btn-outline-info btn-sm" target="_blank">
+                                    <i class="fas fa-bell"></i> Notifications
+                                </a>
+                                <a href="{{ url_for('admin.completed_reviews') }}" class="btn btn-outline-success btn-sm" target="_blank">
+                                    <i class="fas fa-check-circle"></i> Reviews terminées
+                                </a>
+                                <a href="{{ url_for('admin.communications_dashboard') }}" class="btn btn-outline-secondary btn-sm" target="_blank">
+                                    <i class="fas fa-chart-line"></i> Dashboard Communications
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 6: Tests d'export -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100 border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-cloud-upload-alt"></i> 6. Tests Export HAL & DOI</h5>
+                </div>
+                <div class="card-body">
+                    <p>Tester le module d'export unifié après avoir créé les scénarios de review.</p>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Prérequis :</strong> Communications avec statut ACCEPTÉ
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('export.dashboard') }}" class="btn btn-info" target="_blank">
+                            <i class="fas fa-upload"></i> Dashboard Export HAL+DOI
+                        </a>
+                        <a href="{{ url_for('export.dashboard') }}" class="btn btn-outline-info" target="_blank">
+                            <i class="fas fa-database"></i> Dashboard HAL uniquement
+                        </a>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6 class="small">Tests à effectuer :</h6>
+                        <ul class="small">
+                            <li>Génération automatique des DOI</li>
+                            <li>Extraction des résumés depuis PDF</li>
+                            <li>Export vers HAL (mode test)</li>
+                            <li>Téléchargement XML DataCite</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-mobile-alt"></i> 7. Tests PWA & Mobile</h5>
+                </div>
+                <div class="card-body">
+                    <p>Tester les fonctionnalités PWA avec les données factices.</p>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('main.index') }}" class="btn btn-warning" target="_blank">
+                            <i class="fas fa-mobile"></i> Interface utilisateur
+                        </a>
+                        <a href="/manifest.json" class="btn btn-outline-warning" target="_blank">
+                            <i class="fas fa-file-code"></i> Vérifier manifest.json
+                        </a>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <h6 class="small">À vérifier :</h6>
+                        <ul class="small">
+                            <li>Manifest avec "{{ conference.short_name }}"</li>
+                            <li>Installation PWA sur mobile</li>
+                            <li>QR codes pour communications</li>
+                            <li>Interface responsive</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
     <!-- Section 4: Emails de test -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -252,6 +425,12 @@
             </div>
         </div>
 
+
+
+
+
+
+	
         <div class="col-md-6">
             <div class="card h-100">
                 <div class="card-header bg-dark text-white">
@@ -276,6 +455,10 @@
         </div>
     </div>
 
+
+
+
+    
     <!-- Section d'urgence -->
     <div class="row">
         <div class="col-12">

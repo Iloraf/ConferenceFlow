@@ -207,7 +207,7 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                {% set potential_count = comm.get_potential_reviewers()|length %}
+                                {% set potential_count = comm.get_potential_reviewers_advanced()|length %}
                                 {% if potential_count >= 2 %}
                                 <span class="badge bg-success">{{ potential_count }}</span>
                                 {% elif potential_count == 1 %}

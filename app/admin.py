@@ -690,9 +690,14 @@ def auto_assign_reviews():
         return redirect(url_for("main.index"))
     
     # Communications sans reviewers ou avec moins de 2 reviewers
-    communications_pending = Communication.query.filter(
-        Communication.nb_reviewers_assigned < 2
-    ).all()
+    all_communications = Communication.query.all()
+    communications_pending = [comm for comm in all_communications if comm.nb_reviewers_assigned < 2]
+
+    ########################################################
+    # communications_pending = Communication.query.filter( #
+    #     Communication.nb_reviewers_assigned < 2          #
+    # ).all()                                              #
+    ########################################################
     
     # Statistiques
     stats = {
@@ -1686,6 +1691,284 @@ def generate_test_data():
         current_app.logger.error(f"Erreur génération données test: {e}")
     
     return redirect(url_for("admin.admin_dashboard"))
+
+
+@admin.route("/test-zone/generate-review-scenario")
+@login_required
+def generate_review_scenario():
+    """Génère un scénario complet de test pour le workflow de review."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    try:
+        from datetime import datetime, timedelta
+        
+        scenarios_created = 0
+        
+        # 1. Créer des utilisateurs reviewers test
+        test_reviewers = []
+        reviewer_data = [
+            {"email": "reviewer1@test-sft.fr", "first_name": "Pierre", "last_name": "Thermal", "specialites": "COND,CONVECTION"},
+            {"email": "reviewer2@test-sft.fr", "first_name": "Marie", "last_name": "Combustion", "specialites": "COMBUST,SIMUL"},
+            {"email": "reviewer3@test-sft.fr", "first_name": "Jean", "last_name": "Echangeur", "specialites": "ECHANG,POREUX"},
+        ]
+        
+        for data in reviewer_data:
+            reviewer = User.query.filter_by(email=data["email"]).first()
+            if not reviewer:
+                reviewer = User(
+                    email=data["email"],
+                    first_name=data["first_name"],
+                    last_name=data["last_name"],
+                    is_reviewer=True,
+                    is_activated=True,
+                    specialites_codes=data["specialites"]
+                )
+                reviewer.set_password("password123")
+                db.session.add(reviewer)
+            test_reviewers.append(reviewer)
+        
+        # 2. Créer des auteurs test
+        test_authors = []
+        author_data = [
+            {"email": "auteur1@test-sft.fr", "first_name": "Alice", "last_name": "Chercheur"},
+            {"email": "auteur2@test-sft.fr", "first_name": "Bob", "last_name": "Scientifique"},
+            {"email": "auteur3@test-sft.fr", "first_name": "Clara", "last_name": "Ingenieur"},
+        ]
+        
+        for data in author_data:
+            author = User.query.filter_by(email=data["email"]).first()
+            if not author:
+                author = User(
+                    email=data["email"],
+                    first_name=data["first_name"],
+                    last_name=data["last_name"],
+                    is_activated=True
+                )
+                author.set_password("password123")
+                db.session.add(author)
+            test_authors.append(author)
+        
+        # Commit pour avoir les IDs des utilisateurs
+        db.session.commit()
+        
+        # 3. Scénarios de communications
+        test_scenarios = [
+            {
+                "title": "Étude expérimentale de la convection naturelle - Scénario ACCEPTÉ",
+                "type": "article",
+                "status": CommunicationStatus.EN_REVIEW,
+                "thematiques": "CONVECTION,SIMUL",
+                "abstract": "Cette étude présente une analyse détaillée de la convection naturelle dans une cavité rectangulaire.",
+            },
+            {
+                "title": "Optimisation des échangeurs de chaleur - Scénario RÉVISION", 
+                "type": "article",
+                "status": CommunicationStatus.EN_REVIEW,
+                "thematiques": "ECHANG,OPTIMIS",
+                "abstract": "Développement d'une méthode d'optimisation pour améliorer l'efficacité des échangeurs de chaleur.",
+            },
+            {
+                "title": "Work in Progress - Transferts en milieux poreux",
+                "type": "wip",
+                "status": CommunicationStatus.WIP_SOUMIS,
+                "thematiques": "POREUX,SIMUL",
+                "abstract": "Travaux préliminaires sur la modélisation des transferts thermiques en milieux poreux."
+            }
+        ]
+        
+        # 4. Créer les communications
+        upload_dir = os.path.join(current_app.static_folder, "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        for i, scenario in enumerate(test_scenarios):
+            # Vérifier si existe déjà
+            existing = Communication.query.filter_by(title=scenario["title"]).first()
+            if existing:
+                continue
+            
+            # Créer la communication
+            comm = Communication(
+                title=scenario["title"],
+                type=scenario["type"],
+                status=scenario["status"],
+                thematiques_codes=scenario["thematiques"],
+                abstract=scenario["abstract"],
+                keywords="test, review, scenario",
+                hal_authorization=True
+            )
+            
+            # Assigner auteur
+            if test_authors:
+                author = test_authors[i % len(test_authors)]
+                comm.authors.append(author)
+            
+            db.session.add(comm)
+            db.session.flush()  # Pour obtenir l'ID sans commit complet
+            
+            # 5. Créer le fichier de test
+            filename = f"test_{scenario['type']}_{comm.id}.pdf"
+            original_filename = f"{scenario['title'][:30]}.pdf"  # Nom plus court
+            
+            # Contenu du fichier de test
+            file_content = f"""Document de test PDF
+Titre: {scenario['title']}
+Type: {scenario['type']}
+Résumé: {scenario['abstract']}
+
+Ce fichier a été généré automatiquement pour tester le workflow de review.
+Communication ID: {comm.id}
+Date de création: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+""".encode('utf-8')
+            
+            # Écrire le fichier
+            filepath = os.path.join(upload_dir, filename)
+            with open(filepath, 'wb') as f:
+                f.write(file_content)
+            
+            # Déterminer le type de fichier
+            file_type = "résumé" if scenario["type"] == "article" else "wip"
+            
+            # Créer l'enregistrement SubmissionFile avec des valeurs explicites
+            submission_file = SubmissionFile(
+                communication_id=comm.id,
+                filename=filename,
+                original_filename=original_filename,
+                file_type=file_type,
+                file_size=len(file_content),
+                upload_date=datetime.utcnow(),
+                file_path=filename,
+                version=1
+            )
+            
+            db.session.add(submission_file)
+            
+            # 6. Créer les affectations de reviewers pour les articles en review
+            if scenario["status"] == CommunicationStatus.EN_REVIEW and test_reviewers:
+                # Assigner 2 reviewers
+                for j in range(min(2, len(test_reviewers))):
+                    reviewer = test_reviewers[j]
+                    assignment = ReviewAssignment(
+                        communication_id=comm.id,
+                        reviewer_id=reviewer.id,
+                        assigned_at=datetime.utcnow(),
+                        due_date=datetime.utcnow() + timedelta(days=14)
+                    )
+                    db.session.add(assignment)
+            
+            scenarios_created += 1
+        
+        # Commit final
+        db.session.commit()
+        
+        flash(f"✅ {scenarios_created} scénarios de test générés!", "success")
+        flash(f"👥 {len(test_reviewers)} reviewers et {len(test_authors)} auteurs créés", "info")
+        flash(f"📄 Fichiers PDF de test créés dans {upload_dir}", "info")
+        flash(f"🔑 Mot de passe pour tous les comptes test: password123", "warning")
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f"❌ Erreur lors de la génération : {str(e)}", "danger")
+        
+        # Log détaillé pour debugging
+        import traceback
+        error_trace = traceback.format_exc()
+        current_app.logger.error(f"Erreur scénarios review: {error_trace}")
+    
+    return redirect(url_for("admin.test_zone"))
+
+
+def generate_test_pdf_content(title, abstract):
+    """Génère un contenu PDF basique pour les tests."""
+    # Pour simplifier, on génère un contenu texte qui simule un PDF
+    content = f"""
+%PDF-1.4 Test Document
+{title}
+
+Résumé : {abstract}
+
+Ceci est un document PDF de test généré automatiquement pour tester
+le workflow de review de Conference Flow.
+
+Les fonctionnalités testées incluent :
+- Soumission de documents
+- Affectation aux reviewers  
+- Processus de review
+- Notifications automatiques
+- Export HAL et génération DOI
+
+Ce document ne contient pas de vraie recherche scientifique.
+""".encode('utf-8')
+    
+    return content
+
+@admin.route("/test-zone/reset-review-scenario")
+@login_required 
+def reset_review_scenario():
+    """Supprime tous les scénarios de test."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    try:
+        # Supprimer les reviews test
+        test_reviews = Review.query.join(Communication).filter(
+            Communication.title.like('%Scénario%')
+        ).all()
+        
+        for review in test_reviews:
+            db.session.delete(review)
+        
+        # Supprimer les affectations test
+        test_assignments = ReviewAssignment.query.join(Communication).filter(
+            Communication.title.like('%Scénario%')
+        ).all()
+        
+        for assignment in test_assignments:
+            db.session.delete(assignment)
+        
+        # Supprimer les fichiers test
+        test_files = SubmissionFile.query.join(Communication).filter(
+            Communication.title.like('%Scénario%')
+        ).all()
+        
+        files_deleted = 0
+        for file in test_files:
+            # Supprimer le fichier physique
+            filepath = os.path.join(current_app.static_folder, "uploads", file.file_path)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+                files_deleted += 1
+            db.session.delete(file)
+        
+        # Supprimer les communications test
+        test_communications = Communication.query.filter(
+            Communication.title.like('%Scénario%')
+        ).all()
+        
+        comm_deleted = len(test_communications)
+        for comm in test_communications:
+            db.session.delete(comm)
+        
+        # Supprimer les utilisateurs test
+        test_users = User.query.filter(
+            User.email.like('%@test-sft.fr')
+        ).all()
+        
+        users_deleted = len(test_users)
+        for user in test_users:
+            db.session.delete(user)
+        
+        db.session.commit()
+        
+        flash(f"🧹 Scénarios supprimés : {comm_deleted} communications, {files_deleted} fichiers, {users_deleted} utilisateurs", "success")
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f"❌ Erreur lors de la suppression : {str(e)}", "danger")
+    
+    return redirect(url_for("admin.test_zone"))
 
 
 @admin.route("/cleanup-test-data")

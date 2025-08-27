@@ -586,6 +586,12 @@ class Communication(db.Model):
             'message': message
         }
 
+    @property
+    def nb_reviewers_assigned(self):
+        """Retourne le nombre de reviewers assignés à cette communication."""
+        return ReviewAssignment.query.filter_by(
+            communication_id=self.id
+        ).filter(ReviewAssignment.status != 'declined').count()
 
     def make_final_decision(self, decision, admin_user, comments=None):
         """
