@@ -435,8 +435,80 @@ class Communication(db.Model):
             return False
         return code.upper() in self.thematiques_codes.split(',')
 
-    # Dans la classe Communication, ajoutez ces nouvelles méthodes :
+    def auto_assign_reviewers(self, nb_reviewers=2):
+        """
+        Assigne automatiquement des reviewers à cette communication.
+        Utilise le système de suggestions pour créer des ReviewAssignments.
+        """
+        from datetime import timedelta
+        
+        try:
+            # Obtenir les suggestions de reviewers
+            suggestions_result = self.suggest_reviewers(nb_reviewers=nb_reviewers)
+            
+            if not suggestions_result['success'] or not suggestions_result['suggestions']:
+                return {
+                    'success': False,
+                    'message': suggestions_result.get('message', 'Aucun reviewer disponible'),
+                    'assigned_reviewers': []
+                }
+            
+            assigned_reviewers = []
+            
+            # Calculer la date d'échéance (3 semaines par défaut)
+            due_date = datetime.utcnow() + timedelta(weeks=3)
+            
+            # Créer les assignments pour chaque suggestion
+            for suggestion in suggestions_result['suggestions']:
+                reviewer = suggestion['reviewer']
+                
+                # Vérifier qu'il n'est pas déjà assigné
+                existing = ReviewAssignment.query.filter_by(
+                    communication_id=self.id,
+                    reviewer_id=reviewer.id
+                ).filter(ReviewAssignment.status != 'declined').first()
+                
+                if existing:
+                    continue  # Skip si déjà assigné
+                
+                # Créer l'assignation
+                assignment = ReviewAssignment(
+                    communication_id=self.id,
+                    reviewer_id=reviewer.id,
+                    assigned_by_id=1,  # ID de l'admin système - À adapter selon votre logique
+                    due_date=due_date,
+                    auto_suggested=True,
+                    status='assigned'
+                )
+                
+                db.session.add(assignment)
+                assigned_reviewers.append({
+                    'id': reviewer.id,
+                    'name': reviewer.full_name,
+                    'email': reviewer.email
+                })
+            
+            # Changer le statut de la communication si des reviewers ont été assignés
+            if assigned_reviewers:
+                self.status = CommunicationStatus.EN_REVIEW
+                db.session.flush()  # Pour que les changements soient visibles immédiatement
+            
+            return {
+                'success': True,
+                'message': f'{len(assigned_reviewers)} reviewer(s) assigné(s)',
+                'assigned_reviewers': assigned_reviewers,
+                'total_assigned': len(assigned_reviewers)
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'message': f'Erreur lors de l\'assignation : {str(e)}',
+                'assigned_reviewers': []
+            }
 
+    
     def get_potential_reviewers_advanced(self):
         """Trouve les reviewers potentiels avec détection de conflits avancée."""
         if not self.thematiques_codes:

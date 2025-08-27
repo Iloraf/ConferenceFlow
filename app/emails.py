@@ -636,3 +636,33 @@ def send_existing_coauthor_notification_email(user, communication):
     except Exception as e:
         logger.error(f"Erreur notification co-auteur existant à {user.email}: {e}")
         raise
+
+def send_reviewer_assignment_email(reviewer, communication, assignment):
+    """Envoie un email de notification d'assignation à un reviewer."""
+    try:
+        # Utiliser le template reviewer_assignment qui existe déjà
+        base_context = {
+            'REVIEWER_NAME': reviewer.full_name or reviewer.email,
+            'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
+            'COMMUNICATION_TITLE': communication.title,
+            'COMMUNICATION_ID': communication.id,
+            'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
+        }
+        
+        # Ne passer que les paramètres acceptés par send_any_email_with_themes
+        send_any_email_with_themes(
+            template_name='reviewer_assignment',
+            recipient_email=reviewer.email,
+            base_context=base_context,
+            communication=communication,
+            user=reviewer,
+            reviewer=reviewer,
+            color_scheme='blue'
+        )
+        
+        logger.info(f"Email d'assignation envoyé à {reviewer.email} pour communication {communication.id}")
+        
+    except Exception as e:
+        logger.error(f"Erreur envoi email assignation reviewer {reviewer.email}: {e}")
+        raise
+

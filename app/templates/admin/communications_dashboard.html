@@ -73,71 +73,104 @@
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+<div class="table-responsive">
+                    <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
-                                <th>
-                                    <input type="checkbox" class="form-check-input" id="selectAllArticles" 
-                                           onchange="toggleSelectAll('articles')">
-                                </th>
                                 <th>Titre</th>
-                                <th>Auteurs</th>
+                                <th>Auteur principal</th>
                                 <th>Statut</th>
-                                <th>Reviews</th>
+                                <th>Reviewers assignés</th>
                                 <th>Thématiques</th>
-                                <th>Actions</th>
+                                <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for article in articles %}
-                            <tr data-communication-id="{{ article.id }}" class="communication-row">
+                            <tr>
                                 <td>
-                                    <input type="checkbox" class="form-check-input article-checkbox" 
-                                           value="{{ article.id }}">
+                                    <strong>{{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>{{ article.created_at.strftime('%d/%m/%Y') }}
+                                    </small>
                                 </td>
                                 <td>
-                                    <div>
-                                        <strong>{{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}</strong>
-                                        <br><small class="text-muted">ID: {{ article.id }}</small>
+                                    {% set main_author = article.authors|first %}
+                                    {% if main_author %}
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" 
+                                             style="width: 30px; height: 30px; font-size: 12px;">
+                                            {{ (main_author.first_name or main_author.email)[0].upper() }}
+                                        </div>
+                                        <div>
+                                            <div>{{ main_author.first_name or '' }} {{ main_author.last_name or '' }}</div>
+                                            {% if not main_author.first_name and not main_author.last_name %}
+                                            <small class="text-muted">{{ main_author.email[:20] }}{% if main_author.email|length > 20 %}...{% endif %}</small>
+                                            {% endif %}
+                                            {% if article.authors|length > 1 %}
+                                            <small class="text-muted">+{{ article.authors|length - 1 }} co-auteur(s)</small>
+                                            {% endif %}
+                                        </div>
                                     </div>
-                                </td>
-                                <td>
-                                    {% for author in article.authors[:2] %}
-                                        <div class="small">{{ author.full_name or author.email }}</div>
-                                    {% endfor %}
-                                    {% if article.authors|length > 2 %}
-                                        <small class="text-muted">+{{ article.authors|length - 2 }} autres</small>
+                                    {% else %}
+                                    <div class="text-muted">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        Données de test incomplètes
+                                    </div>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% set status_colors = {
-                                        'résumé_soumis': 'info',
-                                        'article_soumis': 'warning',
-                                        'en_review': 'primary',
-                                        'révision_demandée': 'warning',
-                                        'accepté': 'success',
-                                        'rejeté': 'danger',
-                                        'poster_soumis': 'info'
-                                    } %}
-                                    <span class="badge bg-{{ status_colors.get(article.status.value, 'secondary') }}">
+                                    <span class="badge bg-{% if article.status.value == 'accepte' %}success{% elif article.status.value == 'rejete' %}danger{% elif article.status.value == 'en_review' %}warning{% else %}secondary{% endif %}">
                                         {{ article.status.value.replace('_', ' ').title() }}
                                     </span>
                                 </td>
                                 <td>
-                                    {% set review_count = article.reviews|length %}
-                                    {% if review_count == 0 %}
-                                        <span class="badge bg-light text-dark">Aucune</span>
-                                    {% elif review_count < 2 %}
-                                        <span class="badge bg-warning">{{ review_count }}/2</span>
+                                    {% set assignments = article.assignments %}
+                                    {% if assignments %}
+                                        <div class="reviewer-list">
+                                            {% for assignment in assignments %}
+                                                {% if assignment.status != 'declined' %}
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center me-2" 
+                                                         style="width: 24px; height: 24px; font-size: 10px;">
+                                                        {{ (assignment.reviewer.first_name or assignment.reviewer.email)[0].upper() }}
+                                                    </div>
+                                                    <div class="flex-grow-1">
+                                                        <div class="fw-bold" style="font-size: 12px;">
+                                                            {{ assignment.reviewer.first_name or '' }} {{ assignment.reviewer.last_name or '' }}
+                                                        </div>
+                                                        <div class="text-muted" style="font-size: 10px;">
+                                                            {% if assignment.reviewer.first_name and assignment.reviewer.last_name %}
+                                                                {{ assignment.reviewer.email[:25] }}{% if assignment.reviewer.email|length > 25 %}...{% endif %}
+                                                            {% else %}
+                                                                {{ assignment.reviewer.email[:25] }}{% if assignment.reviewer.email|length > 25 %}...{% endif %}
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                    <span class="badge badge-sm bg-{% if assignment.status == 'completed' %}success{% elif assignment.status == 'in_progress' %}info{% else %}secondary{% endif %}">
+                                                        {% if assignment.status == 'assigned' %}Assigné{% elif assignment.status == 'in_progress' %}En cours{% elif assignment.status == 'completed' %}Terminé{% else %}{{ assignment.status }}{% endif %}
+                                                    </span>
+                                                </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        <div class="mt-1">
+                                            <small class="text-muted">
+                                                {{ assignments|selectattr('status', 'ne', 'declined')|list|length }} reviewer(s) assigné(s)
+                                            </small>
+                                        </div>
                                     {% else %}
-                                        <span class="badge bg-success">{{ review_count }}/2</span>
+                                        <div class="text-center">
+                                            <i class="fas fa-user-slash text-muted"></i>
+                                            <small class="text-muted d-block">Aucun reviewer</small>
+                                        </div>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if article.thematiques_codes %}
                                         {% for code in article.thematiques_codes.split(',')[:2] %}
-                                            <span class="badge bg-secondary me-1">{{ code.strip() }}</span>
+                                            <span class="badge bg-info text-dark me-1" style="font-size: 10px;">{{ code.strip() }}</span>
                                         {% endfor %}
                                         {% if article.thematiques_codes.split(',')|length > 2 %}
                                             <span class="badge bg-light text-dark">+{{ article.thematiques_codes.split(',')|length - 2 }}</span>
@@ -154,7 +187,13 @@
                                            class="btn btn-outline-info btn-sm" title="Email auteurs">
                                             <i class="fas fa-envelope"></i>
                                         </a>
-                                        {% if article.reviews %}
+                                        {% if article.status.value == 'article_soumis' or (article.assignments and article.assignments|selectattr('status', 'ne', 'declined')|list|length < 2) %}
+                                        <a href="{{ url_for('admin.suggest_reviewers', comm_id=article.id) }}" 
+                                           class="btn btn-outline-success btn-sm" title="Assigner reviewers">
+                                            <i class="fas fa-user-plus"></i>
+                                        </a>
+                                        {% endif %}
+                                        {% if article.assignments %}
                                         <a href="{{ url_for('admin.email_reviewers', comm_id=article.id) }}" 
                                            class="btn btn-outline-warning btn-sm" title="Email reviewers">
                                             <i class="fas fa-user-edit"></i>
@@ -167,6 +206,11 @@
                         </tbody>
                     </table>
                 </div>
+	      
+
+
+
+	      
             </div>
         </div>
     </div>

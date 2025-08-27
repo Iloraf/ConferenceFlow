@@ -2950,8 +2950,6 @@ def preview_grouped_email(reviewer_id):
 
 
 
-# À ajouter dans app/admin.py
-
 @admin.route('/communications-dashboard')
 @login_required
 def communications_dashboard():
@@ -2962,7 +2960,7 @@ def communications_dashboard():
     # Utiliser le système de statistiques unifié
     from app.statistics import StatisticsManager
     
-    # Récupérer tous les articles et WIPs
+    # Récupérer tous les articles et WIPs avec leurs assignations
     articles = Communication.query.filter_by(type='article').order_by(
         Communication.created_at.desc()
     ).all()
@@ -2970,6 +2968,13 @@ def communications_dashboard():
     wips = Communication.query.filter_by(type='wip').order_by(
         Communication.created_at.desc()
     ).all()
+    
+    # Charger les assignations de reviewers pour chaque article
+    for article in articles:
+        assignments = ReviewAssignment.query.filter_by(
+            communication_id=article.id
+        ).join(User, ReviewAssignment.reviewer_id == User.id).all()
+        article.assignments = assignments
     
     # Statistiques harmonisées
     stats = StatisticsManager.get_communications_dashboard_stats()
@@ -3012,8 +3017,70 @@ def communications_dashboard():
                          stats=stats,
                          stats_cards=stats_cards,
                          thematiques=thematiques)
-
-# Vers la ligne 2850-2890 dans admin.py, remplacez cette section :
+##########################################################################
+# @admin.route('/communications-dashboard')                              #
+# @login_required                                                        #
+# def communications_dashboard():                                        #
+#     """Tableau de bord synthétique de toutes les communications."""    #
+#     if not current_user.is_admin:                                      #
+#         abort(403)                                                     #
+#                                                                        #
+#     # Utiliser le système de statistiques unifié                       #
+#     from app.statistics import StatisticsManager                       #
+#                                                                        #
+#     # Récupérer tous les articles et WIPs                              #
+#     articles = Communication.query.filter_by(type='article').order_by( #
+#         Communication.created_at.desc()                                #
+#     ).all()                                                            #
+#                                                                        #
+#     wips = Communication.query.filter_by(type='wip').order_by(         #
+#         Communication.created_at.desc()                                #
+#     ).all()                                                            #
+#                                                                        #
+#     # Statistiques harmonisées                                         #
+#     stats = StatisticsManager.get_communications_dashboard_stats()     #
+#                                                                        #
+#     # Préparer les données pour les cartes de statistiques             #
+#     stats_cards = [                                                    #
+#         StatisticsManager.get_stat_card_data(                          #
+#             'articles',                                                #
+#             stats['communications']['articles']['total'],              #
+#             'articles',                                                #
+#             'primary'                                                  #
+#         ),                                                             #
+#         StatisticsManager.get_stat_card_data(                          #
+#             'wips',                                                    #
+#             stats['communications']['wips']['total'],                  #
+#             'wips',                                                    #
+#             'purple'                                                   #
+#         ),                                                             #
+#         StatisticsManager.get_stat_card_data(                          #
+#             'en_review',                                               #
+#             stats['reviews']['en_cours'],                              #
+#             'reviews',                                                 #
+#             'orange'                                                   #
+#         ),                                                             #
+#         StatisticsManager.get_stat_card_data(                          #
+#             'acceptés',                                                #
+#             stats['communications']['articles']['acceptés'],           #
+#             'acceptes',                                                #
+#             'success'                                                  #
+#         ),                                                             #
+#     ]                                                                  #
+#                                                                        #
+#     # Charger les thématiques pour les filtres                         #
+#     from app.config_loader import ThematiqueLoader                     #
+#     thematiques = ThematiqueLoader.load_themes()                       #
+#                                                                        #
+#     return render_template('admin/communications_dashboard.html',      #
+#                          articles=articles,                            #
+#                          wips=wips,                                    #
+#                          stats=stats,                                  #
+#                          stats_cards=stats_cards,                      #
+#                          thematiques=thematiques)                      #
+#                                                                        #
+# # Vers la ligne 2850-2890 dans admin.py, remplacez cette section :     #
+##########################################################################
 
 @admin.route('/send-bulk-email', methods=['POST'])
 @login_required
@@ -3234,94 +3301,6 @@ def send_custom_admin_email(recipient_email, subject, content, context, communic
     except Exception as e:
         current_app.logger.error(f"Erreur envoi email admin personnalisé: {e}")
         raise   
-###########################################################################################################################################
-# def send_custom_admin_email(recipient_email, subject, content, context, communication=None):                                            #
-#     """Envoie un email personnalisé d'admin en utilisant le système centralisé."""                                                      #
-#     try:                                                                                                                                #
-#         from app.emails import send_email, _build_html_email, _build_text_email, prepare_email_context                                  #
-#                                                                                                                                         #
-#         # Préparer le contexte avec conversion des thématiques                                                                          #
-#         full_context = prepare_email_context(context, communication=communication)                                                      #
-#                                                                                                                                         #
-#         # Construire le contenu personnalisé                                                                                            #
-#         personalized_content = content.replace('[PRENOM]', full_context.get('USER_FIRST_NAME', ''))                                     #
-#         personalized_content = personalized_content.replace('[NOM]', full_context.get('USER_LAST_NAME', ''))                            #
-#         personalized_content = personalized_content.replace('[TITRE_COMMUNICATION]', full_context.get('COMMUNICATION_TITLE', ''))       #
-#         personalized_content = personalized_content.replace('[ID_COMMUNICATION]', str(full_context.get('COMMUNICATION_ID', '')))        #
-#                                                                                                                                         #
-#         # Construire l'email avec le style standard                                                                                     #
-#         config_loader = current_app.config_loader                                                                                       #
-#         signature = config_loader.get_email_signature('default', **full_context)                                                        #
-#                                                                                                                                         #
-#         # Version texte                                                                                                                 #
-#         text_parts = [                                                                                                                  #
-#             f"Bonjour {full_context.get('USER_FIRST_NAME', '')},",                                                                      #
-#             f"\n\n{personalized_content}"                                                                                               #
-#         ]                                                                                                                               #
-#                                                                                                                                         #
-#         if communication:                                                                                                               #
-#             text_parts.append(f"\n\nCommunication : {communication.title} (ID: {communication.id})")                                    #
-#             if hasattr(communication, 'thematiques') and communication.thematiques:                                                     #
-#                 from app.emails import _convert_codes_to_names                                                                          #
-#                 themes_text = _convert_codes_to_names(communication.thematiques)                                                        #
-#                 text_parts.append(f"Thématiques : {themes_text}")                                                                       #
-#                                                                                                                                         #
-#         if full_context.get('call_to_action_url'):                                                                                      #
-#             text_parts.append(f"\n\nAccéder à la plateforme : {full_context['call_to_action_url']}")                                    #
-#                                                                                                                                         #
-#         if signature:                                                                                                                   #
-#             text_parts.append(f"\n\n{signature}")                                                                                       #
-#                                                                                                                                         #
-#         text_body = ''.join(text_parts)                                                                                                 #
-#                                                                                                                                         #
-#         # Version HTML                                                                                                                  #
-#         html_parts = [                                                                                                                  #
-#             f"<p><strong>Bonjour {full_context.get('USER_FIRST_NAME', '')},</strong></p>",                                              #
-#             f"<p>{personalized_content.replace(chr(10), '<br>')}</p>"                                                                   #
-#         ]                                                                                                                               #
-#                                                                                                                                         #
-#         if communication:                                                                                                               #
-#             html_parts.append(f"""                                                                                                      #
-#             <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #007bff;"> #
-#                 <h4 style="margin-top: 0; color: #007bff;">Communication concernée :</h4>                                               #
-#                 <ul>                                                                                                                    #
-#                     <li><strong>Titre :</strong> {communication.title}</li>                                                             #
-#                     <li><strong>ID :</strong> {communication.id}</li>                                                                   #
-#             """)                                                                                                                        #
-#                                                                                                                                         #
-#             if hasattr(communication, 'thematiques') and communication.thematiques:                                                     #
-#                 from app.emails import _convert_codes_to_names                                                                          #
-#                 themes_html = _convert_codes_to_names(communication.thematiques)                                                        #
-#                 html_parts.append(f"<li><strong>Thématiques :</strong> {themes_html}</li>")                                             #
-#                                                                                                                                         #
-#             html_parts.append("</ul></div>")                                                                                            #
-#                                                                                                                                         #
-#         if full_context.get('call_to_action_url'):                                                                                      #
-#             html_parts.append(f'''                                                                                                      #
-#             <div style="text-align: center; margin: 30px 0;">                                                                           #
-#                 <a href="{full_context['call_to_action_url']}"                                                                          #
-#                    style="background-color: #007bff; color: white; padding: 12px 25px;                                                  #
-#                           text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">                        #
-#                     Accéder à mes communications                                                                                        #
-#                 </a>                                                                                                                    #
-#             </div>                                                                                                                      #
-#             ''')                                                                                                                        #
-#                                                                                                                                         #
-#         if signature:                                                                                                                   #
-#             signature_html = signature.replace('\n', '<br>')                                                                            #
-#             html_parts.append(f"<hr><p>{signature_html}</p>")                                                                           #
-#                                                                                                                                         #
-#         html_body = ''.join(html_parts)                                                                                                 #
-#                                                                                                                                         #
-#         # Envoyer l'email                                                                                                               #
-#         send_email(subject, [recipient_email], text_body, html_body)                                                                    #
-#                                                                                                                                         #
-#     except Exception as e:                                                                                                              #
-#         current_app.logger.error(f"Erreur envoi email admin personnalisé: {e}")                                                         #
-#         raise                                                                                                                           #
-###########################################################################################################################################
-
-
 
 @admin.route('/communication/<int:comm_id>')
 @login_required
@@ -3332,15 +3311,16 @@ def view_communication_details(comm_id):
     
     communication = Communication.query.get_or_404(comm_id)
     
-    # Récupérer les informations supplémentaires
+    # Récupérer les assignations de reviewers avec jointure explicite
     review_assignments = ReviewAssignment.query.filter_by(
         communication_id=comm_id
+    ).join(User, ReviewAssignment.reviewer_id == User.id).order_by(
+        ReviewAssignment.assigned_at.desc()
     ).all()
     
     return render_template('admin/communication_details.html',
                          communication=communication,
                          review_assignments=review_assignments)
-
 
 @admin.route('/export-communications-csv')
 @login_required
@@ -4854,7 +4834,8 @@ def send_review_notifications(comm_id):
             review = assignment.get_or_create_review()
             
             # Envoyer l'email de notification
-            current_app.send_review_notification_email(assignment.reviewer, communication, assignment)
+           # current_app.send_review_notification_email(assignment.reviewer, communication, assignment)
+            current_app.send_reviewer_assignment_email(assignment.reviewer, communication, assignment)
             
             # Marquer comme notifié
             assignment.notification_sent_at = datetime.utcnow()

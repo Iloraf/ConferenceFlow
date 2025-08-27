@@ -192,6 +192,191 @@
                 </div>
             </div>
 
+<!-- Section Reviewers -->
+            {% if review_assignments %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-edit me-2"></i>
+                        Reviewers assignés ({{ review_assignments|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if review_assignments %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Reviewer</th>
+                                        <th>Spécialités</th>
+                                        <th>Assigné le</th>
+                                        <th>Échéance</th>
+                                        <th>Statut</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for assignment in review_assignments %}
+                                    <tr class="{% if assignment.is_overdue and assignment.status == 'assigned' %}table-danger{% elif assignment.status == 'completed' %}table-success{% endif %}">
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="rounded-circle bg-{% if assignment.status == 'completed' %}success{% elif assignment.status == 'declined' %}danger{% else %}primary{% endif %} text-white d-flex align-items-center justify-content-center me-3" 
+                                                     style="width: 40px; height: 40px;">
+                                                    {{ (assignment.reviewer.first_name or assignment.reviewer.email)[0].upper() }}
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold">
+                                                        {{ assignment.reviewer.first_name or '' }} {{ assignment.reviewer.last_name or '' }}
+                                                    </div>
+                                                    <small class="text-muted">{{ assignment.reviewer.email }}</small>
+                                                    {% if assignment.reviewer.affiliations %}
+                                                    <div class="mt-1">
+                                                        {% for affiliation in assignment.reviewer.affiliations %}
+                                                        <span class="badge bg-light text-dark me-1">{{ affiliation.sigle }}</span>
+                                                        {% endfor %}
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if assignment.reviewer.specialites_codes %}
+                                                {% for code in assignment.reviewer.specialites_codes.split(',')[:3] %}
+                                                <span class="badge bg-info text-dark me-1" style="font-size: 10px;">{{ code.strip() }}</span>
+                                                {% endfor %}
+                                                {% if assignment.reviewer.specialites_codes.split(',')|length > 3 %}
+                                                <span class="badge bg-light text-dark">+{{ assignment.reviewer.specialites_codes.split(',')|length - 3 }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Aucune spécialité</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div>{{ assignment.assigned_at.strftime('%d/%m/%Y') }}</div>
+                                            <small class="text-muted">{{ assignment.assigned_at.strftime('%H:%M') }}</small>
+                                        </td>
+                                        <td>
+                                            {% if assignment.due_date %}
+                                                <div class="{% if assignment.is_overdue and assignment.status == 'assigned' %}text-danger fw-bold{% endif %}">
+                                                    {{ assignment.due_date.strftime('%d/%m/%Y') }}
+                                                </div>
+                                                {% if assignment.is_overdue and assignment.status == 'assigned' %}
+                                                <small class="text-danger">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                    En retard
+                                                </small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Non définie</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if assignment.status == 'assigned' %}
+                                                {% if assignment.is_overdue %}
+                                                <span class="badge bg-danger">En retard</span>
+                                                {% else %}
+                                                <span class="badge bg-warning">Assigné</span>
+                                                {% endif %}
+                                            {% elif assignment.status == 'in_progress' %}
+                                                <span class="badge bg-info">En cours</span>
+                                            {% elif assignment.status == 'completed' %}
+                                                <span class="badge bg-success">Terminé</span>
+                                            {% elif assignment.status == 'declined' %}
+                                                <span class="badge bg-danger">Refusé</span>
+                                                {% if assignment.decline_reason_display %}
+                                                <small class="d-block text-muted mt-1">{{ assignment.decline_reason_display }}</small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ assignment.status }}</span>
+                                            {% endif %}
+                                            
+                                            {% if assignment.notification_sent_at %}
+                                            <div class="mt-1">
+                                                <small class="text-success">
+                                                    <i class="fas fa-check-circle"></i>
+                                                    Notifié le {{ assignment.notification_sent_at.strftime('%d/%m') }}
+                                                </small>
+                                            </div>
+                                            {% else %}
+                                            <div class="mt-1">
+                                                <small class="text-warning">
+                                                    <i class="fas fa-exclamation-circle"></i>
+                                                    Non notifié
+                                                </small>
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('admin.email_reviewers', comm_id=communication.id) }}" 
+                                                   class="btn btn-outline-primary" title="Email reviewer">
+                                                    <i class="fas fa-envelope"></i>
+                                                </a>
+                                                {% if assignment.status == 'assigned' and not assignment.notification_sent_at %}
+                                                <form method="POST" action="{{ url_for('admin.send_review_notifications', comm_id=communication.id) }}" class="d-inline">
+                                                    <button type="submit" class="btn btn-outline-success" 
+                                                            title="Envoyer notification">
+                                                        <i class="fas fa-paper-plane"></i>
+                                                    </button>
+                                                </form>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Actions globales -->
+                        <div class="mt-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle"></i>
+                                        {{ review_assignments|selectattr('status', 'ne', 'declined')|list|length }} reviewer(s) actif(s), 
+                                        {{ review_assignments|selectattr('status', 'equalto', 'completed')|list|length }} review(s) terminée(s)
+                                    </small>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    {% if review_assignments|selectattr('status', 'ne', 'declined')|list|length < 2 %}
+                                    <a href="{{ url_for('admin.suggest_reviewers', comm_id=communication.id) }}" 
+                                       class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-user-plus"></i> Assigner plus de reviewers
+                                    </a>
+                                    {% endif %}
+                                    
+                                    <a href="{{ url_for('admin.email_reviewers', comm_id=communication.id) }}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-envelope"></i> Email aux reviewers
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <!-- Pas de reviewers -->
+            <div class="card mb-4 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Aucun reviewer assigné
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <p class="text-muted">Cette communication n'a pas encore de reviewers assignés.</p>
+                    <a href="{{ url_for('admin.suggest_reviewers', comm_id=communication.id) }}" 
+                       class="btn btn-success">
+                        <i class="fas fa-user-plus me-2"></i>Assigner des reviewers
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+
+	    
             <!-- Reviews (pour les articles) -->
             {% if communication.type == 'article' %}
             <div class="card mb-4">

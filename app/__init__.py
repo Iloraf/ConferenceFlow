@@ -191,6 +191,7 @@ def create_app():
         send_qr_code_reminder_email,
         send_decision_email,
         send_biot_fourier_audition_notification,
+        send_reviewer_assignment_email,
         send_hal_collection_request
     )
 
@@ -203,6 +204,7 @@ def create_app():
     app.send_qr_code_reminder_email = send_qr_code_reminder_email
     app.send_decision_email = send_decision_email 
     app.send_biot_fourier_audition_notification = send_biot_fourier_audition_notification
+    app.send_reviewer_assignment_email = send_reviewer_assignment_email
     app.send_hal_collection_request = send_hal_collection_request
     
     app.register_blueprint(main)
