@@ -266,8 +266,8 @@ def get_book_css():
     p {
         margin: 0;
         padding: 0;
-        text-indent: 10mm;  /* \parindent{10mm} */
-        margin-bottom: 2mm; /* \parskip{2mm} */
+        text-indent: 10mm;  
+        margin-bottom: 2mm; 
         text-align: justify;
     }
     
