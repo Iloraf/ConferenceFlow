@@ -43,7 +43,7 @@ def generate_secure_password(length=16):
     # Caractères autorisés (évite les caractères ambigus comme 0, O, l, I)
     letters = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ"
     digits = "23456789"
-    special = "!@#$%&*+"
+    special = "!@#%&*+"
     
     # Assurer au moins un caractère de chaque type
     password = [
