@@ -301,7 +301,7 @@ def get_book_css():
     }
     
     .cover-theme-line {
-        font-size: 18pt;  /* \LARGE */
+        font-size: 18pt;  
         font-weight: normal;
         margin-bottom: 1em;
         text-transform: uppercase;
@@ -309,14 +309,14 @@ def get_book_css():
     }
     
     .cover-authors {
-        font-size: 12pt;  /* \normalsize */
+        font-size: 12pt;  
         font-weight: normal;
         margin-bottom: 3em;
         line-height: 1.3;
     }
     
     .cover-actes {
-        font-size: 24pt;  /* \Huge */
+        font-size: 24pt;  
         font-weight: bold;
         margin-bottom: 1em;
         text-transform: uppercase;
@@ -328,38 +328,38 @@ def get_book_css():
     }
     
     .cover-congres-title {
-        font-size: 24pt;  /* \Huge */
+        font-size: 24pt;  
         font-weight: normal;
         margin-bottom: 2em;
         line-height: 1.2;
     }
     
     .cover-event-code {
-        font-size: 24pt;  /* \Huge */
+        font-size: 24pt;  
         font-weight: bold;
         margin-bottom: 2em;
     }
     
     .cover-dates {
-        font-size: 14pt;  /* \Large */
+        font-size: 14pt;  
         font-weight: normal;
         margin-bottom: 0.5em;
     }
     
     .cover-location {
-        font-size: 14pt;  /* \Large */
+        font-size: 14pt;  
         font-weight: normal;
         margin-bottom: 2em;
     }
     
     .cover-organise {
-        font-size: 14pt;  /* \Large */
+        font-size: 14pt;  
         font-weight: normal;
         margin-bottom: 1em;
     }
     
     .cover-organizer {
-        font-size: 12pt;  /* \normalsize */
+        font-size: 12pt;  
         font-weight: normal;
         margin-bottom: 0.5em;
         line-height: 1.3;
