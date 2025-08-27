@@ -87,6 +87,42 @@ class User(UserMixin, db.Model):
     activation_sent_at = db.Column(db.DateTime, nullable=True)
     reset_password_token = db.Column(db.String(100), nullable=True)
     reset_password_expires = db.Column(db.DateTime, nullable=True)
+
+    enable_push_notifications = db.Column(db.Boolean, default=True)
+    enable_event_reminders = db.Column(db.Boolean, default=True)  # notifications 3min avant événements
+    enable_session_reminders = db.Column(db.Boolean, default=True)  # notifications 15min avant sessions
+    enable_admin_broadcasts = db.Column(db.Boolean, default=True)  # notifications admin générales
+
+    def has_active_push_subscription(self):
+        """Vérifie si l'utilisateur a au moins un abonnement push actif."""
+        return PushSubscription.query.filter_by(
+            user_id=self.id, 
+            is_active=True
+        ).first() is not None
+
+    def get_active_push_subscriptions(self):
+        """Retourne tous les abonnements push actifs de l'utilisateur."""
+        return PushSubscription.query.filter_by(
+            user_id=self.id, 
+            is_active=True
+        ).all()
+
+    def can_receive_notification(self, notification_type='general'):
+        """Vérifie si l'utilisateur peut recevoir un type de notification donné."""
+        if not self.enable_push_notifications:
+            return False
+    
+        if notification_type == 'event_reminder' and not self.enable_event_reminders:
+            return False
+    
+        if notification_type == 'session_reminder' and not self.enable_session_reminders:
+            return False
+        
+        if notification_type == 'admin_broadcast' and not self.enable_admin_broadcasts:
+            return False
+    
+        return self.has_active_push_subscription()
+
     
     def generate_activation_token(self):
         """Génère un token d'activation unique."""

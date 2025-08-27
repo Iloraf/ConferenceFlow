@@ -46,14 +46,9 @@ if __name__ == '__main__':
                 db.session.add(admin)
                 db.session.commit()
                 print(f"Admin créé automatiquement : {admin_email}")
-    
     # Port depuis la variable d'environnement ou 5000 par défaut
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     
-    app.run(
-        host='0.0.0.0',
-        port=port,
-        debug=debug
-    )
+    app.run(host='0.0.0.0', port=port, debug=debug)
 

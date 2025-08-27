@@ -1,3 +1,4 @@
+# === FLASK ET EXTENSIONS PRINCIPALES ===
 Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
 Flask-Migrate==4.0.5
@@ -5,17 +6,42 @@ Flask-Login==0.6.3
 Flask-Mail==0.9.1
 Flask-WTF==1.1.1
 WTForms==3.0.1
-python-dotenv==1.0.0
-#PyMuPDF==1.23.5
+Werkzeug==2.3.7
+
+# === BASE DE DONNÉES ===
+psycopg2-binary  # PostgreSQL
+python-dotenv==1.0.0  # Variables d'environnement
+
+# === GÉNÉRATION DE DOCUMENTS ===
+weasyprint==66.0  # PDF depuis HTML
+PyPDF2  # Manipulation PDF
+reportlab  # Génération PDF avancée
+
+# === QR CODES ET IMAGES ===
 qrcode[pil]==7.4.2
 Pillow==11.3.0
-weasyprint==66.0
-Werkzeug==2.3.7
-qrcode[pil]==7.4.2
-PyYAML==6.0.2
-faker==37.5.3
-psycopg2-binary
-requests
-gunicorn
-PyPDF2
-reportlab
+
+# === NOTIFICATIONS PUSH PWA ===
+pywebpush>=1.14.0  # Notifications push
+cryptography>=3.0,<42.0  # Cryptographie pour VAPID
+py-vapid>=1.7.0,<2.0  # Clés VAPID
+
+# === CONFIGURATION ET DONNÉES ===
+PyYAML==6.0.2  # Fichiers YAML de config
+
+# === DÉVELOPPEMENT ET TESTS ===
+faker==37.5.3  # Génération de données de test
+
+# === INTÉGRATIONS EXTERNES ===
+requests  # Requêtes HTTP (HAL, APIs)
+
+# === SERVEUR DE PRODUCTION ===
+gunicorn  # Serveur WSGI pour production
+
+# === OPTIONNEL - DÉCOMMENTEZ SI BESOIN ===
+# PyMuPDF==1.23.5  # Alternative pour PDF (plus puissant mais plus lourd)
+# celery  # Tâches asynchrones (pour notifications programmées)
+# redis  # Cache et message broker pour Celery
+# flask-caching  # Mise en cache des réponses
+# flask-limiter  # Rate limiting des API
+

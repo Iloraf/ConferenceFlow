@@ -64,6 +64,100 @@ def generate_secure_password(length=16):
     
     return ''.join(password)
 
+def generate_vapid_keys():
+    """Génère les clés VAPID - version compatible avec versions actuelles."""
+    try:
+        import base64
+        # AJOUT DE L'IMPORT MANQUANT :
+        from cryptography.hazmat.primitives import serialization
+        
+        # Méthode 1 : Essayer avec py_vapid moderne
+        try:
+            from py_vapid import Vapid01
+            vapid = Vapid01()
+            vapid.generate_keys()
+            
+            # Obtenir les clés au format DER puis les convertir
+            private_der = vapid.private_key.private_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()
+            )
+            public_der = vapid.public_key.public_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )
+            
+            private_key_b64 = base64.urlsafe_b64encode(private_der).decode('utf-8').rstrip('=')
+            public_key_b64 = base64.urlsafe_b64encode(public_der).decode('utf-8').rstrip('=')
+            
+            print("✅ Clés VAPID générées avec py_vapid (méthode DER)")
+            return private_key_b64, public_key_b64
+            
+        except Exception as e:
+            print(f"⚠️ Erreur py_vapid : {e}")
+            return generate_vapid_keys_simple()
+            
+    except ImportError:
+        print("⚠️ py_vapid non disponible, tentative méthode simple...")
+        return generate_vapid_keys_simple()
+
+def generate_vapid_keys_simple():
+    """Génère des clés VAPID avec cryptography - méthode simplifiée."""
+    try:
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives import serialization
+        import base64
+        
+        print("🔧 Génération simple des clés VAPID...")
+        
+        # Générer une paire de clés ECDSA P-256
+        private_key = ec.generate_private_key(ec.SECP256R1())
+        
+        # Sérialiser en format PEM (plus compatible)
+        private_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        
+        public_pem = private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        
+        # Encoder en base64 URL-safe
+        private_key_b64 = base64.urlsafe_b64encode(private_pem).decode('utf-8').rstrip('=')
+        public_key_b64 = base64.urlsafe_b64encode(public_pem).decode('utf-8').rstrip('=')
+        
+        print("✅ Clés VAPID générées avec cryptography (format PEM)")
+        return private_key_b64, public_key_b64
+        
+    except ImportError:
+        print("⚠️ cryptography non installé")
+        return generate_vapid_keys_fake()
+    except Exception as e:
+        print(f"⚠️ Erreur génération simple : {e}")
+        return generate_vapid_keys_fake()
+
+def generate_vapid_keys_fake():
+    """Génère des clés VAPID fictives pour le développement."""
+    import secrets
+    import base64
+    
+    print("🔧 Génération de clés VAPID fictives (DÉVELOPPEMENT UNIQUEMENT)")
+    print("⚠️ Ces clés ne fonctionneront pas pour les vraies notifications push")
+    print("   Installez les bonnes versions : pip install 'cryptography>=3.0' 'py-vapid>=1.7'")
+    
+    # Générer des clés factices mais de la bonne longueur
+    fake_private = f"FAKE_VAPID_PRIVATE_KEY_DEV_{secrets.token_hex(16)}"
+    fake_public = f"FAKE_VAPID_PUBLIC_KEY_DEV_{secrets.token_hex(16)}"
+    
+    private_key_b64 = base64.urlsafe_b64encode(fake_private.encode()).decode('utf-8').rstrip('=')
+    public_key_b64 = base64.urlsafe_b64encode(fake_public.encode()).decode('utf-8').rstrip('=')
+    
+    return private_key_b64, public_key_b64
+
 def get_user_input():
     """Demande les paramètres à l'utilisateur."""
     print("📝 Configuration des paramètres")
@@ -127,14 +221,51 @@ def get_user_input():
 
     config['mail_username'] = input("Utilisateur SMTP [your_email@example.com]: ").strip() or "your_email@example.com"
     config['mail_password'] = input("Mot de passe SMTP [your_password]: ").strip() or "your_password"
+
+    print("\n📚 Configuration HAL (Archives ouvertes) :")
+    enable_hal = input("Activer l'export HAL ? [Y/n]: ").strip().lower()
+    config['enable_hal'] = enable_hal in ['', 'y', 'yes', 'o', 'oui']
+    
+    if config['enable_hal']:
+        print("📋 Identifiants HAL pour l'export automatique :")
+        config['hal_username'] = input("Nom d'utilisateur HAL [votre_login_hal]: ").strip() or "votre_login_hal"
+        config['hal_password'] = input("Mot de passe HAL [votre_password_hal]: ").strip() or "votre_password_hal"
+        print("ℹ️  Ces identifiants seront utilisés pour l'export automatique vers HAL")
+    else:
+        config['hal_username'] = 'HAL_DISABLED'
+        config['hal_password'] = 'HAL_DISABLED'
     
     # Base URL
     print("\n🌐 Configuration serveur :")
     default_url = "https://your-domain.com" if config['flask_env'] == 'production' else "http://localhost:5000"
     config['base_url'] = input(f"URL de base [{default_url}]: ").strip() or default_url
     
+    # NOUVEAU : Configuration des notifications push
+    print("\n📱 Configuration des notifications push :")
+    enable_notifications = input("Activer les notifications push smartphone ? [Y/n]: ").strip().lower()
+    config['enable_notifications'] = enable_notifications in ['', 'y', 'yes', 'o', 'oui']
+    
+    if config['enable_notifications']:
+        print("📋 Génération des clés VAPID pour les notifications...")
+        private_key, public_key = generate_vapid_keys()
+        
+        if private_key and public_key:
+            config['vapid_private_key'] = private_key
+            config['vapid_public_key'] = public_key
+            config['vapid_subject'] = f"mailto:{config['admin_email']}"
+            print("✅ Clés VAPID générées avec succès")
+        else:
+            config['vapid_private_key'] = 'VAPID_KEYS_NOT_GENERATED'
+            config['vapid_public_key'] = 'VAPID_KEYS_NOT_GENERATED'
+            config['vapid_subject'] = f"mailto:{config['admin_email']}"
+            print("⚠️  Clés VAPID non générées - notifications désactivées")
+    else:
+        config['vapid_private_key'] = 'NOTIFICATIONS_DISABLED'
+        config['vapid_public_key'] = 'NOTIFICATIONS_DISABLED'
+        config['vapid_subject'] = f"mailto:{config['admin_email']}"
+    
     return config
-
+    
 def create_env_file(config):
     """Crée le fichier .env avec la configuration."""
     import os
@@ -155,7 +286,7 @@ DB_PASSWORD={config['db_password']}
 DB_NAME={config['db_name']}
 DB_HOST={config['db_host']}
 DB_PORT={config['db_port']}"""
-    
+
     env_content = f"""# Configuration Flask
 SECRET_KEY={secret_key}
 DATABASE_URL={database_url}
@@ -187,9 +318,19 @@ SESSION_TIMEOUT_MINUTES=120
 PASSWORD_MIN_LENGTH=8
 MAX_LOGIN_ATTEMPTS=5
 
-# Configuration HAL
+# Configuration HAL (Archives ouvertes)
 HAL_API_URL=https://api.archives-ouvertes.fr
-HAL_TEST_MODE=true
+HAL_TEST_MODE={str(config['flask_env'] != 'production').lower()}
+HAL_USERNAME={config['hal_username']}
+HAL_PASSWORD={config['hal_password']}
+    
+# NOUVEAU : Configuration notifications push
+VAPID_PRIVATE_KEY={config['vapid_private_key']}
+VAPID_PUBLIC_KEY={config['vapid_public_key']}
+VAPID_SUBJECT={config['vapid_subject']}
+NOTIFICATION_SEND_REMINDERS={str(config.get('enable_notifications', True)).lower()}
+NOTIFICATION_REMINDER_TIMES=15,3
+NOTIFICATION_MAX_RETRIES=3
 
 # ConferenceFlow
 APP_NAME=ConferenceFlow
@@ -199,7 +340,7 @@ APP_VERSION=1.0.0
 MAIL_DEBUG={config['flask_debug']}
 MAIL_SUPPRESS_SEND=false
 """
-    
+        
     # Vérifier si .env existe déjà
     if os.path.exists('.env'):
         response = input("\n⚠️  Le fichier .env existe déjà. Remplacer ? [y/N]: ")
@@ -232,7 +373,14 @@ def main():
         print("\n📋 Prochaines étapes (développement) :")
         print("1. Vérifiez le fichier .env créé")
         print("2. pip install -r requirements.txt")
-        print("3. python run.py")
+        
+        # NOUVEAU : Info notifications
+        if config.get('enable_notifications'):
+            print("3. pip install pywebpush  # Pour les notifications push")
+            print("4. python run.py")
+        else:
+            print("3. python run.py")
+            
         print("4. Accédez à http://localhost:5000")
     else:
         print("\n📋 Prochaines étapes (production) :")
@@ -243,6 +391,26 @@ def main():
     if 'admin_password' in config:
         print(f"🔑 Mot de passe : {config['admin_password']}")
 
+    # Info HAL
+    if config.get('enable_hal'):
+        print("📚 Export HAL activé")
+        if config.get('hal_username') != 'votre_login_hal':
+            print(f"   Utilisateur HAL : {config['hal_username']}")
+        else:
+            print("⚠️  Pensez à configurer vos vrais identifiants HAL dans le .env")
+    else:
+        print("📚 Export HAL désactivé")
+        
+    # NOUVEAU : Info notifications
+    if config.get('enable_notifications'):
+        print("📱 Notifications push activées")
+        if config.get('vapid_private_key') != 'VAPID_KEYS_NOT_GENERATED':
+            print("✅ Clés VAPID générées et configurées")
+        else:
+            print("⚠️  Clés VAPID à régénérer manuellement")
+    else:
+        print("📱 Notifications push désactivées")
+
+
 if __name__ == "__main__":
     main()
-

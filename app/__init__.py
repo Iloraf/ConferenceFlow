@@ -112,6 +112,28 @@ def create_app():
     if missing_vars:
         raise ValueError(f"Variables d'environnement manquantes : {', '.join(missing_vars)}")
 
+    # Configuration HAL (NOUVEAU)
+    app.config['HAL_API_URL'] = os.getenv('HAL_API_URL', 'https://api.archives-ouvertes.fr')
+    app.config['HAL_TEST_MODE'] = os.getenv('HAL_TEST_MODE', 'true').lower() == 'true'
+    app.config['HAL_USERNAME'] = os.getenv('HAL_USERNAME')
+    app.config['HAL_PASSWORD'] = os.getenv('HAL_PASSWORD')
+    
+    # Configuration notifications push (NOUVEAU)
+    app.config['VAPID_PRIVATE_KEY'] = os.getenv('VAPID_PRIVATE_KEY')
+    app.config['VAPID_PUBLIC_KEY'] = os.getenv('VAPID_PUBLIC_KEY') 
+    app.config['VAPID_SUBJECT'] = os.getenv('VAPID_SUBJECT', 'mailto:admin@conference-flow.com')
+    app.config['NOTIFICATION_SEND_REMINDERS'] = os.getenv('NOTIFICATION_SEND_REMINDERS', 'true').lower() == 'true'
+    
+    # Parser les temps de rappel (ex: "15,3" -> [15, 3])
+    reminder_times_str = os.getenv('NOTIFICATION_REMINDER_TIMES', '15,3')
+    try:
+        app.config['NOTIFICATION_REMINDER_TIMES'] = [int(x.strip()) for x in reminder_times_str.split(',')]
+    except (ValueError, AttributeError):
+        app.config['NOTIFICATION_REMINDER_TIMES'] = [15, 3]  # valeur par défaut
+    
+    app.config['NOTIFICATION_MAX_RETRIES'] = int(os.getenv('NOTIFICATION_MAX_RETRIES', 3))
+
+    
     app.jinja_env.filters['nl2br'] = nl2br_filter
     app.jinja_env.filters['datetime'] = datetime_filter
     app.jinja_env.filters['convert_theme_codes'] = convert_theme_codes_filter
@@ -123,7 +145,42 @@ def create_app():
     
     login_manager.login_view = 'auth.login'
 
+    try:
+        from app.notification_routes import notifications_api
+        app.register_blueprint(notifications_api)
+        app.logger.info("✅ Routes API notifications enregistrées")
+    except ImportError as e:
+        app.logger.warning(f"⚠️ Impossible de charger les routes notifications: {e}")
+    except Exception as e:
+        app.logger.error(f"❌ Erreur enregistrement routes notifications: {e}")
+    
     with app.app_context():
+
+        try:
+            # 1. Import des modèles existants
+            from app import models  # vos modèles existants si vous en avez
+            
+            # 2. Import des modèles de notifications
+            from app.models_notifications import PushSubscription, NotificationEvent, AdminNotification, NotificationLog
+            app.logger.info("✅ Modèles de notifications importés")
+            
+            # 3. Créer TOUTES les tables (existantes + notifications)
+            db.create_all()
+            app.logger.info("✅ Toutes les tables créées/vérifiées")
+            
+            # 4. Test du service de notification
+            from app.services.notification_service import notification_service
+            if notification_service.is_available():
+                app.logger.info("✅ Service de notifications disponible et configuré")
+            else:
+                app.logger.warning("⚠️ Service de notifications non configuré (clés VAPID manquantes)")
+                
+        except ImportError as e:
+            app.logger.warning(f"⚠️ Certains composants de notifications non disponibles: {e}")
+        except Exception as e:
+            app.logger.error(f"❌ Erreur initialisation base de données ou notifications: {e}")
+
+
         try:
             from .config_loader import ConfigLoader
             config_loader = ConfigLoader()
@@ -167,12 +224,15 @@ def create_app():
                 'themes_available': len(app.themes_config)
             }
 
-            
+
+        
     
     from .models import User
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
+
+
     
     from .routes import main
     from .auth import auth
@@ -194,6 +254,11 @@ def create_app():
         send_reviewer_assignment_email,
         send_hal_collection_request
     )
+    try:
+        from app.models_notifications import PushSubscription, NotificationEvent, AdminNotification, NotificationLog
+        app.logger.info("✅ Modèles de notifications importés")
+    except ImportError as e:
+        app.logger.warning(f"⚠️ Modèles de notifications non disponibles: {e}")
 
     app.send_email = send_email
     app.send_submission_confirmation_email = send_submission_confirmation_email
