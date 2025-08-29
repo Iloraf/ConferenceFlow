@@ -225,6 +225,9 @@
 
                         <!-- Boutons d'action -->
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" class="btn btn-outline-info" id="preview-btn">
+                                <i class="fas fa-eye me-2"></i>Prévisualiser
+                            </button>
                             <button type="button" class="btn btn-outline-secondary" id="test-btn">
                                 <i class="fas fa-vial me-2"></i>Test (à moi seul)
                             </button>
@@ -310,10 +313,13 @@
 <!-- JavaScript pour l'interface -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Interface notifications chargée');
+    
     // Initialiser l'interface
     initNotificationInterface();
     
-    // Charger les statistiques
+    // Charger les statistiques avec debug
+    console.log('Chargement des stats...');
     loadNotificationStats();
 });
 
@@ -424,16 +430,24 @@ function updateRecipientCount(audience) {
 
 async function loadNotificationStats() {
     try {
-        const response = await fetch('/api/notification-stats');
+        const response = await fetch('/admin/api/notification-stats');
         if (response.ok) {
             const stats = await response.json();
             
             // Mettre à jour l'interface
-            document.getElementById('service-status').className = 'badge bg-success p-2 mb-2';
-            document.getElementById('service-status').textContent = 'Actif';
-            
-            document.getElementById('vapid-status').className = 'badge bg-success p-2 mb-2';
-            document.getElementById('vapid-status').textContent = 'Configuré';
+            if (stats.service_available) {
+                document.getElementById('service-status').className = 'badge bg-success p-2 mb-2';
+                document.getElementById('service-status').textContent = 'Actif';
+                
+                document.getElementById('vapid-status').className = 'badge bg-success p-2 mb-2';
+                document.getElementById('vapid-status').textContent = 'Configuré';
+            } else {
+                document.getElementById('service-status').className = 'badge bg-danger p-2 mb-2';
+                document.getElementById('service-status').textContent = 'Inactif';
+                
+                document.getElementById('vapid-status').className = 'badge bg-warning p-2 mb-2';
+                document.getElementById('vapid-status').textContent = 'Configuration incomplète';
+            }
             
             document.getElementById('total-subscribers').textContent = stats.total_subscribers || 0;
             document.getElementById('active-subscribers').textContent = stats.active_subscribers || 0;
@@ -470,7 +484,7 @@ async function sendNotification() {
     };
 
     try {
-        const response = await fetch('/api/send-notification', {
+        const response = await fetch('/admin/api/send-notification', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -505,7 +519,7 @@ async function sendTestNotification() {
     };
 
     try {
-        const response = await fetch('/api/send-notification', {
+        const response = await fetch('/admin/api/send-notification', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
