@@ -45,3 +45,4 @@ gunicorn  # Serveur WSGI pour production
 # flask-caching  # Mise en cache des réponses
 # flask-limiter  # Rate limiting des API
 
+lxml
