@@ -1227,4 +1227,189 @@ class HALDeposit(db.Model):
         return status_map.get(self.status, {'text': 'Statut inconnu', 'class': 'secondary'})
 
 
+class PushSubscription(db.Model):
+    """Abonnements aux notifications push des utilisateurs."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Données de l'abonnement push
+    endpoint = db.Column(db.Text, nullable=False)
+    p256dh_key = db.Column(db.Text, nullable=False) 
+    auth_key = db.Column(db.Text, nullable=False)
+    
+    # Métadonnées
+    user_agent = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Préférences utilisateur
+    enable_event_reminders = db.Column(db.Boolean, default=True)
+    enable_admin_broadcasts = db.Column(db.Boolean, default=True)
+    enable_session_reminders = db.Column(db.Boolean, default=True)
+    
+    # Relations
+    user = db.relationship('User', backref='notification_subscriptions')
+    
+    @classmethod
+    def create_from_data(cls, user_id, subscription_data, preferences=None):
+        """Crée un abonnement à partir des données du navigateur."""
+        try:
+            keys = subscription_data['keys']
+            
+            subscription = cls(
+                user_id=user_id,
+                endpoint=subscription_data['endpoint'],
+                p256dh_key=keys['p256dh'],
+                auth_key=keys['auth'],
+                user_agent=preferences.get('userAgent', '') if preferences else ''
+            )
+            
+            # Appliquer les préférences si fournies
+            if preferences:
+                subscription.enable_event_reminders = preferences.get('eventReminders', True)
+                subscription.enable_admin_broadcasts = preferences.get('adminBroadcasts', True)
+                subscription.enable_session_reminders = preferences.get('sessionReminders', True)
+            
+            db.session.add(subscription)
+            db.session.commit()
+            return subscription
+            
+        except Exception as e:
+            db.session.rollback()
+            raise e
+    
+    def to_webpush_format(self):
+        """Convertit l'abonnement au format requis par pywebpush."""
+        return {
+            "endpoint": self.endpoint,
+            "keys": {
+                "p256dh": self.p256dh_key,
+                "auth": self.auth_key
+            }
+        }
+    
+    def __repr__(self):
+        return f'<PushSubscription {self.id}: {self.user.email}>'
 
+
+class AdminNotification(db.Model):
+    """Historique des notifications envoyées par les admins."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Contenu de la notification
+    title = db.Column(db.String(100), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    url = db.Column(db.String(500), nullable=True)
+    
+    # Paramètres d'envoi
+    target_audience = db.Column(db.String(50), nullable=False)  # 'all', 'authors', 'reviewers', etc.
+    priority = db.Column(db.String(20), default='normal')  # 'normal', 'high', 'urgent'
+    recipients_count = db.Column(db.Integer, default=0)
+    
+    # Dates
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    scheduled_for = db.Column(db.DateTime, nullable=True)
+    
+    # Statut
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'sent', 'failed', 'scheduled'
+    error_message = db.Column(db.Text, nullable=True)
+    
+    # Relations
+    sender = db.relationship('User', backref='admin_notifications_sent')
+
+    def __repr__(self):
+        return f'<AdminNotification {self.id}: {self.title}>'
+
+
+class NotificationEvent(db.Model):
+    """Événements programmés pour les rappels automatiques."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Informations sur l'événement
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    location = db.Column(db.String(100), nullable=True)
+    
+    # Dates et heures
+    start_time = db.Column(db.DateTime, nullable=False)
+    end_time = db.Column(db.DateTime, nullable=True)
+    
+    # Configuration des rappels
+    reminder_15min_sent = db.Column(db.Boolean, default=False)
+    reminder_3min_sent = db.Column(db.Boolean, default=False)
+    
+    # Métadonnées
+    event_type = db.Column(db.String(50), default='session')  # 'session', 'presentation', 'pause'
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Données source (pour synchronisation)
+    source_id = db.Column(db.String(100), nullable=True)  # ID depuis programme.csv
+    source_checksum = db.Column(db.String(64), nullable=True)  # Pour détecter les changements
+    
+    @classmethod
+    def create_from_program_csv(cls, csv_row):
+        """Crée un événement à partir d'une ligne du programme.csv."""
+        # À implémenter selon le format de votre programme.csv
+        pass
+    
+    def should_send_15min_reminder(self):
+        """Vérifie si il faut envoyer le rappel 15min."""
+        if self.reminder_15min_sent or not self.is_active:
+            return False
+        
+        now = datetime.utcnow()
+        reminder_time = self.start_time - timedelta(minutes=15)
+        
+        return now >= reminder_time and now < self.start_time
+    
+    def should_send_3min_reminder(self):
+        """Vérifie si il faut envoyer le rappel 3min."""
+        if self.reminder_3min_sent or not self.is_active:
+            return False
+        
+        now = datetime.utcnow()
+        reminder_time = self.start_time - timedelta(minutes=3)
+        
+        return now >= reminder_time and now < self.start_time
+    
+    def __repr__(self):
+        return f'<NotificationEvent {self.id}: {self.title}>'
+
+
+class NotificationLog(db.Model):
+    """Log détaillé des notifications envoyées."""
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Référence vers l'utilisateur destinataire
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Contenu de la notification
+    title = db.Column(db.String(100), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    
+    # Métadonnées
+    notification_type = db.Column(db.String(50), nullable=False)  # 'admin_broadcast', 'event_reminder', 'test'
+    priority = db.Column(db.String(20), default='normal')
+    
+    # Statut de livraison
+    status = db.Column(db.String(20), default='pending')  # 'pending', 'sent', 'failed', 'delivered'
+    error_message = db.Column(db.Text, nullable=True)
+    
+    # Dates
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    delivered_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relations
+    user = db.relationship('User', backref='notification_logs_received')
+
+    def __repr__(self):
+        return f'<NotificationLog {self.id}: {self.title} -> {self.user.email}>'

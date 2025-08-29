@@ -1,9 +1,11 @@
+import os
 import json
 import logging
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from flask import current_app, has_app_context
 from app import db
+from ..models import db, PushSubscription, NotificationLog, User
 
 # Import conditionnel de pywebpush
 try:
@@ -13,370 +15,219 @@ except ImportError:
     WEBPUSH_AVAILABLE = False
     logging.warning("pywebpush n'est pas installé. Les notifications push ne fonctionneront pas.")
 
+logger = logging.getLogger(__name__)
+
 class NotificationService:
-    """Service principal pour gérer les notifications push de Conference Flow."""
+    """Service centralisé pour l'envoi de notifications push."""
     
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        self.vapid_private_key = os.getenv('VAPID_PRIVATE_KEY')
+        self.vapid_public_key = os.getenv('VAPID_PUBLIC_KEY')
+        self.vapid_email = os.getenv('VAPID_EMAIL', 'admin@conference-flow.local')
         
-        # Les configurations seront chargées à la demande
-        self._vapid_private_key = None
-        self._vapid_public_key = None
-        self._vapid_claims = None
-        self._initialized = False
-        
-        if not WEBPUSH_AVAILABLE:
-            self.logger.warning("pywebpush non disponible - notifications push désactivées")
-    
-    def _ensure_initialized(self):
-        """Initialise le service avec les configurations de l'app si pas déjà fait."""
-        if self._initialized or not has_app_context():
-            return
-        
+        # Import conditionnel de pywebpush
         try:
-            # Charger la configuration depuis current_app
-            self._vapid_private_key = current_app.config.get('VAPID_PRIVATE_KEY')
-            self._vapid_public_key = current_app.config.get('VAPID_PUBLIC_KEY')
-            self._vapid_claims = {
-                "sub": current_app.config.get('VAPID_SUBJECT', "mailto:admin@conference-flow.com")
-            }
-            
-            if not self._vapid_private_key or not self._vapid_public_key:
-                self.logger.warning("Clés VAPID manquantes. Les notifications push ne fonctionneront pas.")
-            elif self._vapid_private_key in ['VAPID_KEYS_NOT_GENERATED', 'NOTIFICATIONS_DISABLED']:
-                self.logger.warning("Clés VAPID non configurées. Générez les clés avec configure.py.")
-            else:
-                self.logger.info("✅ Service de notifications initialisé avec les clés VAPID")
-            
-            self._initialized = True
-            
-        except Exception as e:
-            self.logger.error(f"Erreur initialisation service notifications: {e}")
-    
-    @property
-    def vapid_private_key(self):
-        """Getter pour la clé privée VAPID (initialisation lazy)."""
-        self._ensure_initialized()
-        return self._vapid_private_key
-    
-    @property
-    def vapid_public_key(self):
-        """Getter pour la clé publique VAPID (initialisation lazy)."""
-        self._ensure_initialized()
-        return self._vapid_public_key
-    
-    @property
-    def vapid_claims(self):
-        """Getter pour les claims VAPID (initialisation lazy)."""
-        self._ensure_initialized()
-        return self._vapid_claims
+            from pywebpush import webpush, WebPushException
+            self.webpush = webpush
+            self.WebPushException = WebPushException
+            self._available = True
+        except ImportError:
+            logger.warning("pywebpush non disponible - notifications désactivées")
+            self.webpush = None
+            self.WebPushException = None
+            self._available = False
     
     def is_available(self):
-        """Vérifie si le service de notifications est disponible et configuré."""
-        if not WEBPUSH_AVAILABLE:
-            return False
-        
-        self._ensure_initialized()
-        
-        return (self.vapid_private_key and 
-                self.vapid_public_key and 
-                self.vapid_private_key not in ['VAPID_KEYS_NOT_GENERATED', 'NOTIFICATIONS_DISABLED'])
+        """Vérifie si le service de notification est disponible."""
+        return (
+            self._available and 
+            self.vapid_private_key and 
+            self.vapid_public_key and
+            self.webpush is not None
+        )
     
-    def send_push_notification(self, subscription, title: str, 
-                             message: str, data: Dict[Any, Any] = None,
-                             notification_type: str = 'general') -> bool:
-        """
-        Envoie une notification push à un abonnement donné.
-        
-        Args:
-            subscription: L'abonnement push de l'utilisateur (objet PushSubscription)
-            title: Titre de la notification
-            message: Contenu de la notification
-            data: Données additionnelles (optionnel)
-            notification_type: Type de notification pour les logs
-            
-        Returns:
-            bool: True si envoyé avec succès, False sinon
-        """
+    def get_config_status(self):
+        """Retourne le statut de la configuration."""
+        return {
+            'pywebpush_available': self._available,
+            'vapid_keys_configured': bool(self.vapid_private_key and self.vapid_public_key),
+            'service_ready': self.is_available()
+        }
+    
+    def send_notification_to_subscription(self, subscription_data, notification_data):
+        """Envoie une notification à un abonnement spécifique."""
         if not self.is_available():
-            self.logger.error("Service de notifications non disponible")
+            logger.error("Service de notification non disponible")
             return False
         
         try:
-            # Préparer le payload de la notification
-            payload = {
-                "title": title,
-                "body": message,
-                "icon": "/static/icons/icon-192x192.png",
-                "badge": "/static/icons/badge-72x72.png",
-                "data": data or {},
-                "timestamp": int(datetime.now().timestamp() * 1000),
-                "requireInteraction": notification_type in ['event_reminder'],  # Notifications importantes
-                "actions": [
-                    {
-                        "action": "view",
-                        "title": "Voir",
-                        "icon": "/static/icons/view.png"
-                    },
-                    {
-                        "action": "dismiss",
-                        "title": "Fermer",
-                        "icon": "/static/icons/close.png"
-                    }
-                ]
-            }
+            # Préparer les données de la notification
+            payload = json.dumps(notification_data)
             
-            # Envoyer la notification
-            response = webpush(
-                subscription_info=subscription.to_dict(),
-                data=json.dumps(payload),
+            # Envoyer via pywebpush
+            self.webpush(
+                subscription_info=subscription_data,
+                data=payload,
                 vapid_private_key=self.vapid_private_key,
-                vapid_claims=self.vapid_claims,
-                timeout=10
+                vapid_claims={
+                    "sub": f"mailto:{self.vapid_email}",
+                    "aud": subscription_data['endpoint']
+                }
             )
             
-            # Logger le succès
-            self._log_notification(
-                subscription.user_id,
-                notification_type,
-                title,
-                message,
-                subscription.endpoint,
-                success=True,
-                response_code=response.status_code
-            )
-            
-            self.logger.info(f"✅ Notification envoyée à l'utilisateur {subscription.user_id}")
             return True
             
-        except WebPushException as e:
-            # Gérer les erreurs spécifiques à WebPush
-            error_msg = str(e)
-            response_code = getattr(e, 'response', {}).get('status_code', 0)
-            
-            # Si l'abonnement est expiré ou invalide, le désactiver
-            if response_code in [400, 404, 410, 413]:
-                self.logger.warning(f"Abonnement {subscription.id} invalide, désactivation")
-                subscription.is_active = False
-                db.session.commit()
-            
-            self._log_notification(
-                subscription.user_id,
-                notification_type,
-                title,
-                message,
-                subscription.endpoint,
-                success=False,
-                error_message=error_msg,
-                response_code=response_code
-            )
-            
-            self.logger.error(f"❌ Erreur WebPush pour utilisateur {subscription.user_id}: {error_msg}")
+        except self.WebPushException as e:
+            logger.error(f"Erreur WebPush: {e}")
             return False
-            
         except Exception as e:
-            # Autres erreurs
-            self._log_notification(
-                subscription.user_id,
-                notification_type,
-                title,
-                message,
-                subscription.endpoint,
-                success=False,
-                error_message=str(e)
-            )
-            
-            self.logger.error(f"❌ Erreur envoi notification à {subscription.user_id}: {str(e)}")
+            logger.error(f"Erreur envoi notification: {e}")
             return False
     
-    def send_event_reminder(self, event, minutes_before: int) -> Dict[str, int]:
-        """
-        Envoie un rappel d'événement à tous les utilisateurs éligibles.
+    def send_notification_to_user(self, user, title, body, url=None, priority='normal'):
+        """Envoie une notification à un utilisateur spécifique."""
+        if not user:
+            return False
         
-        Args:
-            event: L'événement du programme (objet NotificationEvent)
-            minutes_before: Nombre de minutes avant l'événement
-            
-        Returns:
-            Dict avec compteurs de succès/échecs
-        """
-        if not self.is_available():
-            return {"sent": 0, "failed": 1, "skipped": 0}
+        # Récupérer les abonnements actifs de l'utilisateur
+        subscriptions = PushSubscription.query.filter_by(
+            user_id=user.id, 
+            is_active=True
+        ).all()
         
-        results = {"sent": 0, "failed": 0, "skipped": 0}
+        if not subscriptions:
+            logger.info(f"Aucun abonnement actif pour {user.email}")
+            return False
         
-        try:
-            # Import local pour éviter les imports circulaires
-            from app.models_notifications import PushSubscription
-            from app.models import User
-            
-            # Récupérer tous les abonnements actifs d'utilisateurs qui acceptent ce type de notification
-            eligible_subscriptions = db.session.query(PushSubscription).join(User).filter(
-                PushSubscription.is_active == True,
-                User.enable_push_notifications == True,
-                User.enable_event_reminders == True
-            ).all()
-            
-            # Préparer le message
-            if minutes_before > 0:
-                title = f"📅 Dans {minutes_before} min : {event.title}"
-            else:
-                title = f"🔔 Début maintenant : {event.title}"
-            
-            message_parts = []
-            if event.location:
-                message_parts.append(f"📍 {event.location}")
-            if event.description:
-                message_parts.append(event.description[:100] + "..." if len(event.description) > 100 else event.description)
-            
-            message = " | ".join(message_parts) if message_parts else "Consultez le programme pour plus d'infos"
-            
-            # Données additionnelles
-            data = {
-                "type": "event_reminder",
-                "event_id": event.event_id,
-                "url": f"/conference/programme#{event.event_id}",
-                "minutes_before": minutes_before
-            }
-            
-            # Envoyer à tous les abonnements éligibles
-            for subscription in eligible_subscriptions:
-                try:
-                    success = self.send_push_notification(
-                        subscription=subscription,
-                        title=title,
-                        message=message,
-                        data=data,
-                        notification_type='event_reminder'
-                    )
-                    
-                    if success:
-                        results["sent"] += 1
-                    else:
-                        results["failed"] += 1
-                        
-                except Exception as e:
-                    self.logger.error(f"Erreur envoi rappel événement à {subscription.user_id}: {e}")
-                    results["failed"] += 1
-            
-            self.logger.info(f"📊 Rappel événement '{event.title}': {results['sent']} envoyés, {results['failed']} échecs")
-            
-        except Exception as e:
-            self.logger.error(f"Erreur envoi rappel événement: {e}")
-            results["failed"] += 1
+        notification_data = {
+            'title': title,
+            'body': body,
+            'icon': '/static/icons/icon-192x192.png',
+            'badge': '/static/icons/badge-72x72.png',
+            'url': url or '/',
+            'priority': priority,
+            'timestamp': datetime.utcnow().isoformat()
+        }
         
-        return results
-    
-    def send_admin_broadcast(self, notification) -> Dict[str, int]:
-        """
-        Envoie une notification manuelle de l'admin à tous les utilisateurs ciblés.
+        success_count = 0
         
-        Args:
-            notification: La notification admin à envoyer (objet AdminNotification)
-            
-        Returns:
-            Dict avec compteurs de succès/échecs
-        """
-        if not self.is_available():
-            return {"sent": 0, "failed": 1, "skipped": 0}
-        
-        results = {"sent": 0, "failed": 0, "skipped": 0}
-        
-        try:
-            # Import local pour éviter les imports circulaires
-            from app.models_notifications import PushSubscription
-            from app.models import User
-            
-            # Construire la requête selon les cibles
-            query = db.session.query(PushSubscription).join(User).filter(
-                PushSubscription.is_active == True,
-                User.enable_push_notifications == True,
-                User.enable_admin_broadcasts == True
-            )
-            
-            if not notification.target_all_users:
-                # Filtrage par rôle si pas tous les utilisateurs
-                conditions = []
-                if notification.target_reviewers:
-                    conditions.append(User.is_reviewer == True)
-                if notification.target_authors:
-                    conditions.append(User.communications.any())  # A au moins une communication
+        for subscription in subscriptions:
+            try:
+                subscription_info = subscription.to_webpush_format()
                 
-                if conditions:
-                    from sqlalchemy import or_
-                    query = query.filter(or_(*conditions))
-            
-            eligible_subscriptions = query.all()
-            
-            # Préparer le message
-            title = f"🔔 {notification.title}"
-            message = notification.message
-            
-            data = {
-                "type": "admin_broadcast",
-                "notification_id": notification.id,
-                "url": "/"
-            }
-            
-            # Envoyer à tous les abonnements éligibles
-            for subscription in eligible_subscriptions:
-                try:
-                    success = self.send_push_notification(
-                        subscription=subscription,
-                        title=title,
-                        message=message,
-                        data=data,
-                        notification_type='admin_broadcast'
-                    )
+                if self.send_notification_to_subscription(subscription_info, notification_data):
+                    success_count += 1
                     
-                    if success:
-                        results["sent"] += 1
-                    else:
-                        results["failed"] += 1
-                        
-                except Exception as e:
-                    self.logger.error(f"Erreur envoi broadcast admin à {subscription.user_id}: {e}")
-                    results["failed"] += 1
-            
-            # Mettre à jour les statistiques de la notification
-            notification.sent_at = datetime.utcnow()
-            notification.total_sent = results["sent"]
-            notification.total_failed = results["failed"]
-            db.session.commit()
-            
-            self.logger.info(f"📢 Broadcast admin '{notification.title}': {results['sent']} envoyés, {results['failed']} échecs")
-            
-        except Exception as e:
-            self.logger.error(f"Erreur envoi broadcast admin: {e}")
-            results["failed"] += 1
+                    # Log de réussite
+                    log_entry = NotificationLog(
+                        user_id=user.id,
+                        title=title,
+                        body=body,
+                        notification_type='manual',
+                        priority=priority,
+                        status='sent',
+                        sent_at=datetime.utcnow()
+                    )
+                    db.session.add(log_entry)
+                else:
+                    # Log d'échec
+                    log_entry = NotificationLog(
+                        user_id=user.id,
+                        title=title,
+                        body=body,
+                        notification_type='manual',
+                        priority=priority,
+                        status='failed',
+                        error_message='Échec envoi WebPush'
+                    )
+                    db.session.add(log_entry)
+                    
+            except Exception as e:
+                logger.error(f"Erreur notification pour {user.email}: {e}")
+                
+                # Log d'erreur
+                log_entry = NotificationLog(
+                    user_id=user.id,
+                    title=title,
+                    body=body,
+                    notification_type='manual',
+                    priority=priority,
+                    status='failed',
+                    error_message=str(e)
+                )
+                db.session.add(log_entry)
         
-        return results
-    
-    def _log_notification(self, user_id: Optional[int], notification_type: str,
-                         title: str, message: str, endpoint: str,
-                         success: bool, error_message: str = None,
-                         response_code: int = None):
-        """Log une notification dans la base de données."""
         try:
-            # Import local pour éviter les imports circulaires
-            from app.models_notifications import NotificationLog
-            
-            log_entry = NotificationLog(
-                user_id=user_id,
-                notification_type=notification_type,
-                title=title,
-                message=message,
-                endpoint=endpoint,
-                success=success,
-                error_message=error_message,
-                response_code=response_code
-            )
-            db.session.add(log_entry)
             db.session.commit()
         except Exception as e:
-            # Ne pas faire planter le système si le logging échoue
-            self.logger.error(f"Erreur logging notification: {e}")
+            db.session.rollback()
+            logger.error(f"Erreur sauvegarde logs: {e}")
+        
+        return success_count > 0
+    
+    def send_broadcast_notification(self, title, body, data=None, target_users=None):
+        """Envoie une notification à plusieurs utilisateurs."""
+        if not target_users:
+            return 0
+        
+        success_count = 0
+        url = data.get('url') if data else None
+        priority = data.get('priority', 'normal') if data else 'normal'
+        
+        for user in target_users:
+            if self.send_notification_to_user(user, title, body, url, priority):
+                success_count += 1
+        
+        logger.info(f"Broadcast envoyé: {success_count}/{len(target_users)} réussis")
+        return success_count
+    
+    def send_test_notification(self, user, title="Test Conference Flow", body="Test de notification"):
+        """Envoie une notification de test à un utilisateur."""
+        return self.send_notification_to_user(
+            user=user,
+            title=title,
+            body=body,
+            url="/",
+            priority="normal"
+        )
+    
+    def send_event_reminder(self, event, reminder_type='15min'):
+        """Envoie un rappel d'événement."""
+        if reminder_type == '15min':
+            title = f"Dans 15 minutes : {event.title}"
+        elif reminder_type == '3min':
+            title = f"Dans 3 minutes : {event.title}"
+        else:
+            title = f"Rappel : {event.title}"
+        
+        body = f"Session en {event.location}" if event.location else "Session à venir"
+        
+        # Envoyer à tous les utilisateurs abonnés aux rappels d'événements
+        target_users = User.query.join(PushSubscription).filter(
+            PushSubscription.enable_event_reminders == True,
+            PushSubscription.is_active == True
+        ).distinct().all()
+        
+        success_count = self.send_broadcast_notification(
+            title=title,
+            body=body,
+            data={
+                'url': '/conference/programme',
+                'priority': 'high' if reminder_type == '3min' else 'normal',
+                'event_id': event.id
+            },
+            target_users=target_users
+        )
+        
+        # Marquer le rappel comme envoyé
+        if reminder_type == '15min':
+            event.reminder_15min_sent = True
+        elif reminder_type == '3min':
+            event.reminder_3min_sent = True
+        
+        db.session.commit()
+        return success_count
 
-# Instance globale du service (sans initialisation immédiate)
+# Instance globale du service
 notification_service = NotificationService()
 
