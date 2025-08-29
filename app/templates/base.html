@@ -296,24 +296,64 @@
             </div>
         </div>
     </div>
-
     <!-- PWA Elements -->
     <div id="network-status" class="network-status"></div>
-    
-    
     <!-- PWA JavaScript -->
-
     <script src="{{ url_for('static', filename='js/pwa.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-
     <script>
     function showSourceInfo() {
         var modal = new bootstrap.Modal(document.getElementById('sourceInfoModal'));
         modal.show();
     }
     </script>
+    {% block extra_js %}
+<script>
+async function initPush() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        console.warn("Push non supporté dans ce navigateur");
+        return;
+    }
 
-    {% block extra_js %}{% endblock %}
+    try {
+        // Enregistrer le service worker
+        const reg = await navigator.serviceWorker.register("/service-worker.js");
+        console.log("Service worker enregistré:", reg);
+
+        // Demander permission
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+            console.warn("Permission refusée pour les notifications");
+            return;
+        }
+
+        // S’abonner avec la clé publique VAPID
+        const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: "<TA_CLÉ_VAPID_PUBLIQUE_EN_BASE64URL>"
+        });
+
+        // Sauvegarder l’abonnement côté backend Flask
+        const resp = await fetch("/api/push-subscription", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                subscription: sub.toJSON(),
+                userAgent: navigator.userAgent
+            })
+        });
+
+        const data = await resp.json();
+        console.log("Abonnement sauvegardé:", data);
+
+    } catch (err) {
+        console.error("Erreur initPush:", err);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", initPush);
+</script>
+    {% endblock %}
 </body>
 </html>
 

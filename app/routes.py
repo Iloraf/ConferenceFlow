@@ -812,15 +812,44 @@ def decline_review_assignment(assignment_id):
 def save_push_subscription():
     """Sauvegarde l'abonnement aux notifications push."""
     try:
-        subscription_data = request.get_json()
+        data = request.get_json()
         
-        # Sauvegarder en base (créer table si besoin)
-        # PushSubscription.create(user_id=current_user.id, data=subscription_data)
+        if not data or 'subscription' not in data:
+            return jsonify({'error': 'Données d\'abonnement manquantes'}), 400
         
+        from .models import PushSubscription
+        
+        # Vérifier si un abonnement existe déjà pour cet utilisateur
+        existing = PushSubscription.query.filter_by(user_id=current_user.id).first()
+        
+        if existing:
+            # Mettre à jour l'abonnement existant
+            subscription_info = data['subscription']
+            existing.endpoint = subscription_info['endpoint']
+            existing.p256dh_key = subscription_info['keys']['p256dh']
+            existing.auth_key = subscription_info['keys']['auth']
+            existing.last_seen = datetime.utcnow()
+            existing.is_active = True
+            existing.user_agent = data.get('userAgent', '')
+        else:
+            # Créer un nouvel abonnement
+            subscription_info = data['subscription']
+            new_subscription = PushSubscription(
+                user_id=current_user.id,
+                endpoint=subscription_info['endpoint'],
+                p256dh_key=subscription_info['keys']['p256dh'],
+                auth_key=subscription_info['keys']['auth'],
+                user_agent=data.get('userAgent', '')
+            )
+            db.session.add(new_subscription)
+        
+        db.session.commit()
         return jsonify({'success': True})
+        
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
-
+        db.session.rollback()
+        current_app.logger.error(f"Erreur sauvegarde abonnement: {e}")
+        return jsonify({'error': str(e)}), 500
     
 @main.route('/manifest.json')
 def manifest():
@@ -928,3 +957,6 @@ def manifest():
         response.headers['Content-Type'] = 'application/manifest+json'
         return response
 
+@main.route('/service-worker.js')
+def service_worker():
+    return current_app.send_static_file('service-worker.js')

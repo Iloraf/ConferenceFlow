@@ -5456,3 +5456,8 @@ def vapid_public_key():
         return jsonify({'error': 'Clé VAPID non configurée'}), 503
     
     return jsonify({'public_key': public_key})
+
+
+@admin.route("/debug-pwa")
+def debug_pwa():
+    return render_template('debug_pwa.html')
