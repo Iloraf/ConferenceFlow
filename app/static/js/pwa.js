@@ -5,7 +5,15 @@ class ConferenceFlowPWA {
     this.registration = null;
     this.vapidPublicKey = null;
     this.notificationPermission = Notification.permission;
-    this.userPreferences = this.loadUserPreferences();
+    
+    // Remplacer localStorage par variables en mémoire
+    this.userPreferences = {
+      eventReminders: true,
+      sessionReminders: true,
+      adminBroadcasts: true
+    };
+    this.cachedEvents = [];
+    this.lastEventSync = null;
     
     this.init();
   }
@@ -58,10 +66,12 @@ class ConferenceFlowPWA {
       const response = await fetch('/api/vapid-public-key');
       if (response.ok) {
         const data = await response.json();
-        this.vapidPublicKey = data.publicKey;
+        // Correction : utiliser 'public_key' au lieu de 'publicKey'
+        this.vapidPublicKey = data.public_key || data.publicKey;
         console.log('✅ Clé VAPID publique chargée');
+        console.log('🔑 Clé VAPID:', this.vapidPublicKey ? 'OK' : 'MANQUANTE');
       } else {
-        console.warn('⚠️ Impossible de charger la clé VAPID publique');
+        console.warn('⚠️ Impossible de charger la clé VAPID publique:', response.status);
       }
     } catch (error) {
       console.error('❌ Erreur chargement clé VAPID:', error);
@@ -69,14 +79,20 @@ class ConferenceFlowPWA {
   }
   
   setupInstallPrompt() {
+    console.log('🔧 Configuration du prompt d\'installation...');
+    
     window.addEventListener('beforeinstallprompt', (event) => {
+      console.log('🎯 beforeinstallprompt événement déclenché !');
       event.preventDefault();
       this.installPrompt = event;
       this.showInstallButton();
+      
+      // Debug : vérifier que l'événement est bien capturé
+      console.log('📱 Prompt d\'installation sauvegardé:', !!this.installPrompt);
     });
     
     window.addEventListener('appinstalled', () => {
-      console.log('✅ App installée');
+      console.log('✅ App installée avec succès');
       this.hideInstallButton();
       this.showNotification('Conference Flow installé avec succès!');
       
@@ -85,18 +101,37 @@ class ConferenceFlowPWA {
         this.requestNotificationPermission();
       }, 2000);
     });
+    
+    // Debug : vérifier l'état au chargement
+    console.log('🔍 État initial - installPrompt:', !!this.installPrompt);
+    console.log('🔍 beforeinstallprompt supporté:', 'onbeforeinstallprompt' in window);
   }
   
   async installApp() {
+    console.log('🚀 Tentative d\'installation...');
+    console.log('🔍 installPrompt disponible:', !!this.installPrompt);
+    
     if (!this.installPrompt) {
+      console.warn('❌ Pas de prompt d\'installation disponible');
+      alert('Installation PWA non disponible pour le moment. Essayez d\'ajouter le site aux favoris ou à l\'écran d\'accueil.');
       return;
     }
     
-    const result = await this.installPrompt.prompt();
-    console.log('📱 Résultat installation:', result.outcome);
-    
-    this.installPrompt = null;
-    this.hideInstallButton();
+    try {
+      const result = await this.installPrompt.prompt();
+      console.log('📱 Résultat installation:', result.outcome);
+      
+      if (result.outcome === 'accepted') {
+        console.log('✅ Installation acceptée par l\'utilisateur');
+      } else {
+        console.log('❌ Installation refusée par l\'utilisateur');
+      }
+      
+      this.installPrompt = null;
+      this.hideInstallButton();
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'installation:', error);
+    }
   }
   
   setupNetworkStatus() {
@@ -121,6 +156,7 @@ class ConferenceFlowPWA {
 
     // Vérifier le statut des permissions
     this.notificationPermission = Notification.permission;
+    console.log('🔔 Statut notifications:', this.notificationPermission);
     
     if (this.notificationPermission === 'granted') {
       console.log('✅ Notifications déjà autorisées');
@@ -135,10 +171,12 @@ class ConferenceFlowPWA {
 
   async requestNotificationPermission() {
     if (!('Notification' in window)) {
+      console.warn('⚠️ Notifications non supportées');
       return false;
     }
 
     try {
+      console.log('🔔 Demande de permission pour les notifications...');
       const permission = await Notification.requestPermission();
       this.notificationPermission = permission;
       
@@ -162,6 +200,8 @@ class ConferenceFlowPWA {
   async ensurePushSubscription() {
     if (!this.registration || !this.vapidPublicKey) {
       console.warn('⚠️ Service Worker ou clé VAPID non disponible');
+      console.log('🔍 Registration:', !!this.registration);
+      console.log('🔍 VAPID Key:', !!this.vapidPublicKey);
       return;
     }
 
@@ -171,6 +211,7 @@ class ConferenceFlowPWA {
       
       if (!subscription) {
         // Créer un nouvel abonnement
+        console.log('📱 Création d\'un nouvel abonnement push...');
         subscription = await this.registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: this.urlB64ToUint8Array(this.vapidPublicKey)
@@ -191,11 +232,11 @@ class ConferenceFlowPWA {
 
   async savePushSubscription(subscription) {
     try {
+      // Simplifier la requête - pas de CSRF pour le moment
       const response = await fetch('/api/push-subscription', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': this.getCSRFToken()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           subscription: subscription.toJSON(),
@@ -207,7 +248,8 @@ class ConferenceFlowPWA {
       if (response.ok) {
         console.log('✅ Abonnement push sauvegardé');
       } else {
-        throw new Error(`Erreur serveur: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Erreur serveur: ${response.status} - ${errorText}`);
       }
       
     } catch (error) {
@@ -226,31 +268,25 @@ class ConferenceFlowPWA {
       const response = await fetch('/api/program-events');
       if (response.ok) {
         const events = await response.json();
-        this.storeEventsLocally(events);
+        this.storeEventsInMemory(events);
         console.log(`✅ ${events.length} événements du programme synchronisés`);
+      } else {
+        console.warn('⚠️ Erreur synchronisation événements:', response.status);
       }
     } catch (error) {
       console.error('❌ Erreur synchronisation événements:', error);
     }
   }
 
-  storeEventsLocally(events) {
-    try {
-      localStorage.setItem('conferenceflow_events', JSON.stringify(events));
-      localStorage.setItem('conferenceflow_events_sync', Date.now().toString());
-    } catch (error) {
-      console.error('❌ Erreur stockage événements:', error);
-    }
+  storeEventsInMemory(events) {
+    // Remplacer localStorage par stockage en mémoire
+    this.cachedEvents = events;
+    this.lastEventSync = Date.now();
+    console.log('💾 Événements stockés en mémoire:', events.length);
   }
 
   getStoredEvents() {
-    try {
-      const eventsData = localStorage.getItem('conferenceflow_events');
-      return eventsData ? JSON.parse(eventsData) : [];
-    } catch (error) {
-      console.error('❌ Erreur lecture événements stockés:', error);
-      return [];
-    }
+    return this.cachedEvents || [];
   }
 
   setupUI() {
@@ -265,54 +301,65 @@ class ConferenceFlowPWA {
   }
 
   createUIElements() {
-    // Bouton d'installation (si pas déjà présent)
-    if (!document.getElementById('install-btn')) {
-      const installBtn = document.createElement('button');
+    // Bouton d'installation (toujours créé dynamiquement pour être sûr)
+    let installBtn = document.getElementById('install-btn');
+    if (!installBtn) {
+      installBtn = document.createElement('button');
       installBtn.id = 'install-btn';
       installBtn.className = 'btn btn-primary pwa-install-btn';
-      installBtn.style.display = 'none';
+      installBtn.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1050;
+        display: none;
+        border-radius: 25px;
+        padding: 12px 20px;
+        box-shadow: 0 4px 12px rgba(0,123,255,0.4);
+        font-size: 14px;
+        font-weight: 500;
+      `;
       installBtn.innerHTML = '<i class="fas fa-download"></i> Installer l\'app';
       document.body.appendChild(installBtn);
+      console.log('🔧 Bouton d\'installation créé dynamiquement');
     }
 
     // Bouton de mise à jour
-    if (!document.getElementById('update-btn')) {
-      const updateBtn = document.createElement('button');
+    let updateBtn = document.getElementById('update-btn');
+    if (!updateBtn) {
+      updateBtn = document.createElement('button');
       updateBtn.id = 'update-btn';
       updateBtn.className = 'btn btn-warning pwa-update-btn';
-      updateBtn.style.display = 'none';
+      updateBtn.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1050;
+        display: none;
+        border-radius: 25px;
+        padding: 12px 20px;
+        box-shadow: 0 4px 12px rgba(255,193,7,0.4);
+      `;
       updateBtn.innerHTML = '<i class="fas fa-sync"></i> Mettre à jour';
       document.body.appendChild(updateBtn);
     }
 
     // Status réseau
-    if (!document.getElementById('network-status')) {
-      const networkStatus = document.createElement('div');
+    let networkStatus = document.getElementById('network-status');
+    if (!networkStatus) {
+      networkStatus = document.createElement('div');
       networkStatus.id = 'network-status';
-      networkStatus.className = 'network-status';
-      networkStatus.style.display = 'none';
-      document.body.appendChild(networkStatus);
-    }
-
-    // Prompt pour les notifications
-    if (!document.getElementById('notification-prompt')) {
-      const notificationPrompt = document.createElement('div');
-      notificationPrompt.id = 'notification-prompt';
-      notificationPrompt.className = 'notification-prompt';
-      notificationPrompt.style.display = 'none';
-      notificationPrompt.innerHTML = `
-        <div class="card">
-          <div class="card-body">
-            <h6><i class="fas fa-bell"></i> Activer les notifications</h6>
-            <p class="small">Recevez des rappels avant les sessions qui vous intéressent.</p>
-            <div class="d-flex gap-2">
-              <button id="enable-notifications" class="btn btn-primary btn-sm">Activer</button>
-              <button id="dismiss-notifications" class="btn btn-outline-secondary btn-sm">Plus tard</button>
-            </div>
-          </div>
-        </div>
+      networkStatus.className = 'alert network-status';
+      networkStatus.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        right: 20px;
+        z-index: 1060;
+        display: none;
+        margin: 0;
       `;
-      document.body.appendChild(notificationPrompt);
+      document.body.appendChild(networkStatus);
     }
   }
 
@@ -320,25 +367,18 @@ class ConferenceFlowPWA {
     // Bouton installation
     const installBtn = document.getElementById('install-btn');
     if (installBtn) {
-      installBtn.addEventListener('click', () => this.installApp());
+      // Supprimer les anciens listeners pour éviter les doublons
+      const newInstallBtn = installBtn.cloneNode(true);
+      installBtn.parentNode.replaceChild(newInstallBtn, installBtn);
+      newInstallBtn.addEventListener('click', () => this.installApp());
     }
 
     // Bouton mise à jour
     const updateBtn = document.getElementById('update-btn');
     if (updateBtn) {
-      updateBtn.addEventListener('click', () => window.location.reload());
-    }
-
-    // Boutons notifications
-    const enableBtn = document.getElementById('enable-notifications');
-    const dismissBtn = document.getElementById('dismiss-notifications');
-    
-    if (enableBtn) {
-      enableBtn.addEventListener('click', () => this.requestNotificationPermission());
-    }
-    
-    if (dismissBtn) {
-      dismissBtn.addEventListener('click', () => this.hideNotificationPrompt());
+      const newUpdateBtn = updateBtn.cloneNode(true);
+      updateBtn.parentNode.replaceChild(newUpdateBtn, updateBtn);
+      newUpdateBtn.addEventListener('click', () => window.location.reload());
     }
   }
 
@@ -347,6 +387,9 @@ class ConferenceFlowPWA {
     const installBtn = document.getElementById('install-btn');
     if (installBtn) {
       installBtn.style.display = 'block';
+      console.log('👁️ Bouton d\'installation affiché');
+    } else {
+      console.warn('⚠️ Bouton d\'installation introuvable');
     }
   }
   
@@ -354,25 +397,23 @@ class ConferenceFlowPWA {
     const installBtn = document.getElementById('install-btn');
     if (installBtn) {
       installBtn.style.display = 'none';
+      console.log('👁️ Bouton d\'installation masqué');
     }
   }
 
   showNotificationPrompt() {
     if (this.notificationPermission !== 'default') return;
     
-    const prompt = document.getElementById('notification-prompt');
-    if (prompt) {
-      prompt.style.display = 'block';
-      setTimeout(() => prompt.classList.add('show'), 100);
+    console.log('🔔 Affichage du prompt de notification...');
+    // Pour simplifier, utiliser une simple alerte pour le moment
+    if (confirm('Voulez-vous activer les notifications pour recevoir des rappels avant les sessions ?')) {
+      this.requestNotificationPermission();
     }
   }
 
   hideNotificationPrompt() {
-    const prompt = document.getElementById('notification-prompt');
-    if (prompt) {
-      prompt.classList.remove('show');
-      setTimeout(() => prompt.style.display = 'none', 300);
-    }
+    // Implémentation simplifiée
+    console.log('🔔 Prompt de notification masqué');
   }
   
   showNetworkStatus(message, type) {
@@ -389,7 +430,6 @@ class ConferenceFlowPWA {
   }
 
   showNotificationStatus(message, type) {
-    // Réutilise le système de statut réseau pour les notifications
     this.showNetworkStatus(message, type);
   }
 
@@ -397,14 +437,14 @@ class ConferenceFlowPWA {
     const updateBtn = document.getElementById('update-btn');
     if (updateBtn) {
       updateBtn.style.display = 'block';
+      console.log('🔄 Mise à jour disponible');
     }
   }
 
   updateUI() {
-    // Mettre à jour l'état des boutons selon les permissions
-    const installBtn = document.getElementById('install-btn');
-    if (installBtn) {
-      installBtn.style.display = this.installPrompt ? 'block' : 'none';
+    // Forcer l'affichage du bouton si le prompt est disponible
+    if (this.installPrompt) {
+      this.showInstallButton();
     }
   }
 
@@ -414,18 +454,15 @@ class ConferenceFlowPWA {
     
     switch (message.type) {
       case 'notification-clicked':
-        // Gérer les clics sur notifications
         this.handleNotificationClick(message.data);
         break;
       case 'background-sync':
-        // Gérer la synchronisation en arrière-plan
         this.handleBackgroundSync();
         break;
     }
   }
 
   handleNotificationClick(data) {
-    // Naviguer vers la page appropriée selon le type de notification
     if (data.url) {
       window.location.href = data.url;
     } else if (data.type === 'event_reminder') {
@@ -438,38 +475,6 @@ class ConferenceFlowPWA {
     this.syncProgramEvents();
   }
 
-  loadUserPreferences() {
-    try {
-      const prefs = localStorage.getItem('conferenceflow_notification_prefs');
-      return prefs ? JSON.parse(prefs) : {
-        eventReminders: true,
-        sessionReminders: true,
-        adminBroadcasts: true
-      };
-    } catch (error) {
-      return {
-        eventReminders: true,
-        sessionReminders: true,
-        adminBroadcasts: true
-      };
-    }
-  }
-
-  saveUserPreferences(preferences) {
-    try {
-      this.userPreferences = { ...this.userPreferences, ...preferences };
-      localStorage.setItem('conferenceflow_notification_prefs', JSON.stringify(this.userPreferences));
-    } catch (error) {
-      console.error('❌ Erreur sauvegarde préférences:', error);
-    }
-  }
-
-  getCSRFToken() {
-    // Récupérer le token CSRF depuis les métadonnées ou cookies
-    const metaTag = document.querySelector('meta[name="csrf-token"]');
-    return metaTag ? metaTag.getAttribute('content') : '';
-  }
-  
   urlB64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -501,7 +506,7 @@ class ConferenceFlowPWA {
 
   // Méthodes publiques pour l'interaction avec l'interface
   async updateNotificationPreferences(preferences) {
-    this.saveUserPreferences(preferences);
+    this.userPreferences = { ...this.userPreferences, ...preferences };
     
     // Mettre à jour l'abonnement sur le serveur
     if (this.registration) {
@@ -524,8 +529,30 @@ class ConferenceFlowPWA {
 
 // Initialiser la PWA au chargement
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('🚀 Chargement de Conference Flow PWA...');
   window.conferenceFlowPWA = new ConferenceFlowPWA();
 });
+
+// Fonctions de debug globales
+window.debugPWA = {
+  checkInstallPrompt: () => {
+    console.log('🔍 Install prompt disponible:', !!window.conferenceFlowPWA?.installPrompt);
+    console.log('🔍 Service Worker enregistré:', !!window.conferenceFlowPWA?.registration);
+    console.log('🔍 Clé VAPID chargée:', !!window.conferenceFlowPWA?.vapidPublicKey);
+  },
+  forceInstall: () => {
+    if (window.conferenceFlowPWA?.installPrompt) {
+      window.conferenceFlowPWA.installApp();
+    } else {
+      console.log('❌ Pas de prompt d\'installation disponible');
+    }
+  },
+  testNotification: () => {
+    if (window.conferenceFlowPWA) {
+      window.conferenceFlowPWA.showNotification('Test de notification !');
+    }
+  }
+};
 
 // Exposer certaines méthodes globalement pour l'interface admin
 window.ConferenceFlowNotifications = {
@@ -533,4 +560,3 @@ window.ConferenceFlowNotifications = {
   getStatus: () => window.conferenceFlowPWA?.getNotificationStatus(),
   updatePreferences: (prefs) => window.conferenceFlowPWA?.updateNotificationPreferences(prefs)
 };
-
