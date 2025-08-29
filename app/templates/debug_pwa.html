@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Debug PWA{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Test PWA</h1>
+    <p id="status">Chargement...</p>
+    <button onclick="testSubscription()">Test abonnement</button>
+</div>
+
+<script>
+setTimeout(() => {
+    const result = window.conferenceFlowPWA ? 'Script PWA chargé' : 'Script PWA manquant';
+    document.getElementById('status').innerHTML = '<h2>' + result + '</h2>';
+    
+    if (window.conferenceFlowPWA) {
+        document.getElementById('status').innerHTML += '<p>Notifications: ' + Notification.permission + '</p>';
+    }
+}, 2000);
+
+function testSubscription() {
+    if (window.conferenceFlowPWA) {
+        window.conferenceFlowPWA.setupNotifications();
+        document.getElementById('status').innerHTML += '<p>Abonnement tenté</p>';
+    }
+}
+</script>
+{% endblock %}

@@ -813,6 +813,8 @@ def save_push_subscription():
     """Sauvegarde l'abonnement aux notifications push."""
     try:
         data = request.get_json()
+        current_app.logger.info(f"Données reçues pour abonnement: {data}") 
+
         
         if not data or 'subscription' not in data:
             return jsonify({'error': 'Données d\'abonnement manquantes'}), 400
@@ -957,6 +959,6 @@ def manifest():
         response.headers['Content-Type'] = 'application/manifest+json'
         return response
 
-@main.route('/service-worker.js')
+@main.route('/sw.js')
 def service_worker():
-    return current_app.send_static_file('service-worker.js')
+    return current_app.send_static_file('sw.js')
