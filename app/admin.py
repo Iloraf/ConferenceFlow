@@ -693,12 +693,6 @@ def auto_assign_reviews():
     all_communications = Communication.query.all()
     communications_pending = [comm for comm in all_communications if comm.nb_reviewers_assigned < 2]
 
-    ########################################################
-    # communications_pending = Communication.query.filter( #
-    #     Communication.nb_reviewers_assigned < 2          #
-    # ).all()                                              #
-    ########################################################
-    
     # Statistiques
     stats = {
         'total_communications': Communication.query.count(),
@@ -3017,70 +3011,6 @@ def communications_dashboard():
                          stats=stats,
                          stats_cards=stats_cards,
                          thematiques=thematiques)
-##########################################################################
-# @admin.route('/communications-dashboard')                              #
-# @login_required                                                        #
-# def communications_dashboard():                                        #
-#     """Tableau de bord synthétique de toutes les communications."""    #
-#     if not current_user.is_admin:                                      #
-#         abort(403)                                                     #
-#                                                                        #
-#     # Utiliser le système de statistiques unifié                       #
-#     from app.statistics import StatisticsManager                       #
-#                                                                        #
-#     # Récupérer tous les articles et WIPs                              #
-#     articles = Communication.query.filter_by(type='article').order_by( #
-#         Communication.created_at.desc()                                #
-#     ).all()                                                            #
-#                                                                        #
-#     wips = Communication.query.filter_by(type='wip').order_by(         #
-#         Communication.created_at.desc()                                #
-#     ).all()                                                            #
-#                                                                        #
-#     # Statistiques harmonisées                                         #
-#     stats = StatisticsManager.get_communications_dashboard_stats()     #
-#                                                                        #
-#     # Préparer les données pour les cartes de statistiques             #
-#     stats_cards = [                                                    #
-#         StatisticsManager.get_stat_card_data(                          #
-#             'articles',                                                #
-#             stats['communications']['articles']['total'],              #
-#             'articles',                                                #
-#             'primary'                                                  #
-#         ),                                                             #
-#         StatisticsManager.get_stat_card_data(                          #
-#             'wips',                                                    #
-#             stats['communications']['wips']['total'],                  #
-#             'wips',                                                    #
-#             'purple'                                                   #
-#         ),                                                             #
-#         StatisticsManager.get_stat_card_data(                          #
-#             'en_review',                                               #
-#             stats['reviews']['en_cours'],                              #
-#             'reviews',                                                 #
-#             'orange'                                                   #
-#         ),                                                             #
-#         StatisticsManager.get_stat_card_data(                          #
-#             'acceptés',                                                #
-#             stats['communications']['articles']['acceptés'],           #
-#             'acceptes',                                                #
-#             'success'                                                  #
-#         ),                                                             #
-#     ]                                                                  #
-#                                                                        #
-#     # Charger les thématiques pour les filtres                         #
-#     from app.config_loader import ThematiqueLoader                     #
-#     thematiques = ThematiqueLoader.load_themes()                       #
-#                                                                        #
-#     return render_template('admin/communications_dashboard.html',      #
-#                          articles=articles,                            #
-#                          wips=wips,                                    #
-#                          stats=stats,                                  #
-#                          stats_cards=stats_cards,                      #
-#                          thematiques=thematiques)                      #
-#                                                                        #
-# # Vers la ligne 2850-2890 dans admin.py, remplacez cette section :     #
-##########################################################################
 
 @admin.route('/send-bulk-email', methods=['POST'])
 @login_required
@@ -3432,10 +3362,6 @@ def stats_communications():
                          stats_thematiques=stats_thematiques,
                          monthly_stats=monthly_stats,
                          review_stats=review_stats)
-
-
-
-# À remplacer dans app/admin.py - fonction manage_content
 
 @admin.route("/content")
 @login_required
@@ -4427,6 +4353,7 @@ def test_email_configuration():
             'success': False,
             'message': f'Erreur: {str(e)}'
         }
+
 def run_hal_collection_test(test_email, dry_run):
     """Test de l'email de demande de collection HAL."""
     try:
@@ -4446,7 +4373,6 @@ def run_hal_collection_test(test_email, dry_run):
             'message': f'Erreur: {str(e)}'
         }   
 
-
 @admin.route("/send-test-email")
 @login_required
 def send_test_email():
@@ -4457,35 +4383,6 @@ def send_test_email():
     
     # Rediriger vers la page de test des emails
     return redirect(url_for('admin.test_emails'))
-
-
-
-##################################################################################################
-# def run_submission_confirmation_test(file_type, user, communication, dry_run):                 #
-#     """Test email de confirmation de soumission."""                                            #
-#     try:                                                                                       #
-#         # Créer un faux SubmissionFile                                                         #
-#         fake_submission_file = type('MockSubmissionFile', (), {                                #
-#             'filename': f'test_{file_type}.pdf',                                               #
-#             'version': 1                                                                       #
-#         })()                                                                                   #
-#                                                                                                #
-#         if not dry_run:                                                                        #
-#             from app.emails import send_submission_confirmation_email                          #
-#             send_submission_confirmation_email(communication, file_type, fake_submission_file) #
-#                                                                                                #
-#         return {                                                                               #
-#             'test': f'Email confirmation {file_type}',                                         #
-#             'success': True,                                                                   #
-#             'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'                  #
-#         }                                                                                      #
-#     except Exception as e:                                                                     #
-#         return {                                                                               #
-#             'test': f'Email confirmation {file_type}',                                         #
-#             'success': False,                                                                  #
-#             'message': f'Erreur: {str(e)}'                                                     #
-#         }                                                                                      #
-##################################################################################################
 
 def run_reviewer_welcome_test(user, dry_run):
     """Test email de bienvenue reviewer."""
@@ -5214,3 +5111,255 @@ def hal_enrich_affiliations():
     
     return results
 
+@admin.route("/notifications")
+@login_required
+def notifications():
+    """Interface d'administration des notifications push."""
+    if not current_user.is_admin:
+        flash("Accès réservé aux administrateurs.", "danger")
+        return redirect(url_for("main.index"))
+    
+    return render_template('admin/notifications.html')
+
+@admin.route("/api/notification-stats")
+@login_required
+def notification_stats():
+    """Retourne les statistiques des notifications."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Accès refusé'}), 403
+    
+    try:
+        # Importer le service de notifications
+        from .services.notification_service import notification_service
+        
+        # Statistiques des abonnements
+        stats = {
+            'service_available': notification_service.is_available(),
+            'total_subscribers': 0,
+            'active_subscribers': 0,
+            'authors_count': User.query.join(Communication).distinct().count(),
+            'reviewers_count': User.query.filter_by(is_reviewer=True).count(),
+            'admins_count': User.query.filter_by(is_admin=True).count()
+        }
+        
+        # Essayer de récupérer les stats réelles des abonnements
+        try:
+            # Si on a des modèles PushSubscription
+            from .models import PushSubscription
+            stats['total_subscribers'] = PushSubscription.query.count()
+            stats['active_subscribers'] = PushSubscription.query.filter(
+                PushSubscription.last_seen > datetime.utcnow() - timedelta(days=7)
+            ).count()
+        except (ImportError, AttributeError):
+            # Les modèles n'existent pas encore
+            pass
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur stats notifications: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@admin.route("/api/send-notification", methods=['POST'])
+@login_required
+def send_notification():
+    """Envoie une notification push."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Accès refusé'}), 403
+    
+    try:
+        data = request.get_json()
+        
+        # Validation des données
+        required_fields = ['target_audience', 'title', 'message']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Le champ {field} est requis'}), 400
+        
+        # Importer le service
+        from .services.notification_service import notification_service
+        
+        if not notification_service.is_available():
+            return jsonify({'error': 'Service de notification non disponible'}), 503
+        
+        # Déterminer les destinataires
+        target_users = []
+        audience = data['target_audience']
+        
+        if audience == 'test':
+            # Notification de test : uniquement l'admin actuel
+            target_users = [current_user]
+        
+        elif audience == 'all':
+            # Tous les utilisateurs avec abonnement actif
+            try:
+                from .models import PushSubscription
+                subscriptions = PushSubscription.query.all()
+                target_users = [sub.user for sub in subscriptions if sub.user]
+            except (ImportError, AttributeError):
+                # Fallback : tous les utilisateurs
+                target_users = User.query.all()
+        
+        elif audience == 'authors':
+            # Utilisateurs ayant soumis au moins une communication
+            target_users = User.query.join(Communication).distinct().all()
+        
+        elif audience == 'reviewers':
+            # Reviewers uniquement
+            target_users = User.query.filter_by(is_reviewer=True).all()
+        
+        elif audience == 'admins':
+            # Administrateurs
+            target_users = User.query.filter_by(is_admin=True).all()
+        
+        elif audience == 'custom':
+            # Sélection personnalisée (à implémenter selon les checkboxes)
+            target_users = []
+            if data.get('include_authors'):
+                target_users.extend(User.query.join(Communication).distinct().all())
+            if data.get('include_reviewers'):
+                target_users.extend(User.query.filter_by(is_reviewer=True).all())
+            if data.get('include_admins'):
+                target_users.extend(User.query.filter_by(is_admin=True).all())
+            
+            # Supprimer les doublons
+            target_users = list(set(target_users))
+        
+        if not target_users:
+            return jsonify({'error': 'Aucun destinataire trouvé'}), 400
+        
+        # Préparer la notification
+        notification_data = {
+            'title': data['title'],
+            'body': data['message'],
+            'icon': '/static/icons/icon-192x192.png',
+            'badge': '/static/icons/badge-72x72.png',
+            'url': data.get('url', '/'),
+            'priority': data.get('priority', 'normal')
+        }
+        
+        # Traitement de la programmation (si demandée)
+        if data.get('scheduled'):
+            # Pour l'instant, envoyer immédiatement
+            # TODO: Implémenter la programmation avec Celery ou un scheduler
+            current_app.logger.info("Programmation demandée mais pas encore implémentée")
+        
+        # Envoyer les notifications
+        success_count = 0
+        error_count = 0
+        
+        for user in target_users:
+            try:
+                # Utiliser le service de notification
+                result = notification_service.send_broadcast_notification(
+                    title=notification_data['title'],
+                    body=notification_data['body'],
+                    data={
+                        'url': notification_data['url'],
+                        'priority': notification_data['priority']
+                    },
+                    target_users=[user]
+                )
+                if result:
+                    success_count += 1
+                else:
+                    error_count += 1
+                    
+            except Exception as e:
+                current_app.logger.error(f"Erreur envoi notification à {user.email}: {e}")
+                error_count += 1
+        
+        # Enregistrer dans l'historique
+        try:
+            from .models import AdminNotification
+            admin_notification = AdminNotification(
+                sender_id=current_user.id,
+                title=data['title'],
+                message=data['message'],
+                target_audience=audience,
+                recipients_count=success_count,
+                url=data.get('url'),
+                priority=data.get('priority', 'normal')
+            )
+            db.session.add(admin_notification)
+            db.session.commit()
+        except (ImportError, AttributeError):
+            # Modèle pas encore créé
+            pass
+        
+        return jsonify({
+            'success': True,
+            'recipients_count': success_count,
+            'errors_count': error_count,
+            'message': f'Notification envoyée à {success_count} destinataires'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi notification admin: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@admin.route("/api/notification-history")
+@login_required 
+def notification_history():
+    """Retourne l'historique des notifications envoyées."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Accès refusé'}), 403
+    
+    try:
+        from .models import AdminNotification
+        
+        # Récupérer les 50 dernières notifications
+        notifications = AdminNotification.query.order_by(
+            AdminNotification.created_at.desc()
+        ).limit(50).all()
+        
+        history = []
+        for notif in notifications:
+            history.append({
+                'id': notif.id,
+                'title': notif.title,
+                'message': notif.message[:100] + '...' if len(notif.message) > 100 else notif.message,
+                'target_audience': notif.target_audience,
+                'recipients_count': notif.recipients_count,
+                'created_at': notif.created_at.isoformat(),
+                'sender': notif.sender.email if notif.sender else 'Système',
+                'priority': notif.priority
+            })
+        
+        return jsonify(history)
+        
+    except (ImportError, AttributeError):
+        # Modèle pas encore créé
+        return jsonify([])
+    except Exception as e:
+        current_app.logger.error(f"Erreur historique notifications: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@admin.route("/api/test-notification")
+@login_required
+def test_notification():
+    """Test rapide d'envoi de notification à l'admin connecté."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Accès refusé'}), 403
+    
+    try:
+        from .services.notification_service import notification_service
+        
+        if not notification_service.is_available():
+            return jsonify({'error': 'Service non disponible'}), 503
+        
+        # Envoyer notification de test
+        result = notification_service.send_test_notification(
+            user=current_user,
+            title="Test Conference Flow",
+            body="Notification de test envoyée avec succès !"
+        )
+        
+        if result:
+            return jsonify({'success': True, 'message': 'Notification de test envoyée'})
+        else:
+            return jsonify({'error': 'Échec de l\'envoi'}, 500)
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur test notification: {e}")
+        return jsonify({'error': str(e)}), 500
