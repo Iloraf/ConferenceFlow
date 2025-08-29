@@ -441,12 +441,22 @@ async function loadNotificationStats() {
             document.getElementById('total-subscribers').textContent = stats.total_subscribers || 0;
             document.getElementById('active-subscribers').textContent = stats.active_subscribers || 0;
             document.getElementById('subscribers-count').textContent = `${stats.total_subscribers || 0} abonnés`;
+        } else {
+            throw new Error(`Erreur HTTP: ${response.status}`);
         }
     } catch (error) {
-        console.error('Erreur chargement stats:', error);
+        console.warn('Service notifications pas encore configuré:', error.message);
         
-        document.getElementById('service-status').className = 'badge bg-danger p-2 mb-2';
-        document.getElementById('service-status').textContent = 'Erreur';
+        // Affichage en mode développement
+        document.getElementById('service-status').className = 'badge bg-warning p-2 mb-2';
+        document.getElementById('service-status').textContent = 'En développement';
+        
+        document.getElementById('vapid-status').className = 'badge bg-warning p-2 mb-2';
+        document.getElementById('vapid-status').textContent = 'En configuration';
+        
+        document.getElementById('total-subscribers').textContent = '?';
+        document.getElementById('active-subscribers').textContent = '?';
+        document.getElementById('subscribers-count').textContent = 'Service en développement';
     }
 }
 
@@ -480,21 +490,21 @@ async function sendNotification() {
             updatePreview();
         } else {
             const error = await response.json();
-            alert(`❌ Erreur: ${error.message}`);
+            alert(`❌ Erreur: ${error.message || 'Service en développement'}`);
         }
     } catch (error) {
         console.error('Erreur envoi:', error);
-        alert('❌ Erreur de connexion');
+        alert('⚠️ Service de notification en cours de développement. Fonctionnalité bientôt disponible !');
     }
 }
 
 async function sendTestNotification() {
     const formData = {
         target_audience: 'test',
-        title: document.getElementById('notification-title').value,
-        message: document.getElementById('notification-message').value,
+        title: document.getElementById('notification-title').value || 'Test Conference Flow',
+        message: document.getElementById('notification-message').value || 'Test de notification depuis l\'interface admin',
         url: document.getElementById('notification-url').value,
-        priority: document.querySelector('input[name="priority"]:checked').value
+        priority: document.querySelector('input[name="priority"]:checked')?.value || 'normal'
     };
 
     try {
@@ -510,11 +520,11 @@ async function sendTestNotification() {
             alert('✅ Notification de test envoyée à votre compte');
         } else {
             const error = await response.json();
-            alert(`❌ Erreur: ${error.message}`);
+            alert(`⚠️ Service en développement: ${error.message || 'Bientôt disponible'}`);
         }
     } catch (error) {
         console.error('Erreur test:', error);
-        alert('❌ Erreur de connexion');
+        alert('⚠️ Service de notification en cours de développement. Test bientôt disponible !');
     }
 }
 
