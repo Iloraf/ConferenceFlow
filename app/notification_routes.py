@@ -19,17 +19,25 @@ def get_vapid_public_key():
         if not public_key or public_key in ['VAPID_KEYS_NOT_GENERATED', 'NOTIFICATIONS_DISABLED']:
             return jsonify({
                 'error': 'Notifications push non configurées',
-                'publicKey': None
+                'public_key': None,
+                'publicKey': None  # Compatibilité avec l'ancien code
             }), 503
         
+        # Retourner les deux formats pour compatibilité
         return jsonify({
-            'publicKey': public_key,
-            'subject': current_app.config.get('VAPID_SUBJECT', 'mailto:admin@conference-flow.com')
+            'public_key': public_key,      # Format principal
+            'publicKey': public_key,       # Compatibilité
+            'subject': current_app.config.get('VAPID_SUBJECT', 'mailto:admin@conference-flow.com'),
+            'status': 'ready'
         })
     
     except Exception as e:
         current_app.logger.error(f"Erreur récupération clé VAPID: {e}")
-        return jsonify({'error': 'Erreur serveur'}), 500
+        return jsonify({
+            'error': 'Erreur serveur',
+            'public_key': None,
+            'publicKey': None
+        }), 500
 
 @notifications_api.route('/push-subscription', methods=['POST'])
 @login_required
