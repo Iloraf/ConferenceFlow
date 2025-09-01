@@ -5129,256 +5129,107 @@ def notification_stats():
         return jsonify({'error': 'Accès refusé'}), 403
     
     try:
-        # Importer le service de notifications
-        from .services.notification_service import notification_service
+        # Importer les modèles
+        from app.models_notifications import PushSubscription
+        from app.models import User, Communication
+        from app.services.notification_service import notification_service
         
-        # Statistiques des abonnements
+        # Compter les abonnements
+        total_subscribers = PushSubscription.query.count()
+        active_subscribers = PushSubscription.query.filter_by(is_active=True).count()
+        
+        # Compter les utilisateurs
+        total_users = User.query.filter_by(is_active=True).count()
+        authors_count = User.query.join(Communication).distinct().count()
+        reviewers_count = User.query.filter_by(is_reviewer=True).count()
+        admins_count = User.query.filter_by(is_admin=True).count()
+        
         stats = {
             'service_available': notification_service.is_available(),
-            'total_subscribers': 0,
-            'active_subscribers': 0,
-            'authors_count': User.query.join(Communication).distinct().count(),
-            'reviewers_count': User.query.filter_by(is_reviewer=True).count(),
-            'admins_count': User.query.filter_by(is_admin=True).count()
+            'total_subscribers': total_subscribers,
+            'active_subscribers': active_subscribers,
+            'total_users': total_users,
+            'authors_count': authors_count,
+            'reviewers_count': reviewers_count,
+            'admins_count': admins_count,
+            'config_status': notification_service.get_config_status()
         }
-        
-        # Essayer de récupérer les stats réelles des abonnements
-        try:
-            # Si on a des modèles PushSubscription
-            from .models import PushSubscription
-            stats['total_subscribers'] = PushSubscription.query.count()
-            stats['active_subscribers'] = PushSubscription.query.filter(
-                PushSubscription.last_seen > datetime.utcnow() - timedelta(days=7)
-            ).count()
-        except (ImportError, AttributeError):
-            # Les modèles n'existent pas encore
-            pass
         
         return jsonify(stats)
         
     except Exception as e:
         current_app.logger.error(f"Erreur stats notifications: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'error': str(e),
+            'service_available': False,
+            'total_subscribers': 0,
+            'active_subscribers': 0
+        }), 200 
 
 @admin.route("/api/send-notification", methods=['POST'])
 @login_required
-def send_notification():
-    """Envoie une notification push."""
+def send_admin_notification():
+    """Envoie une notification depuis l'interface admin."""
     if not current_user.is_admin:
         return jsonify({'error': 'Accès refusé'}), 403
     
     try:
         data = request.get_json()
-        current_app.logger.info(f"Données reçues: {data}")
+        current_app.logger.info(f"=== DEBUG ADMIN NOTIFICATION ===")
+        current_app.logger.info(f"Data: {data}")
         
-        # Validation des données
-        required_fields = ['target_audience', 'title', 'message']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'error': f'Le champ {field} est requis'}), 400
+        if not data.get('title') or not data.get('message'):
+            return jsonify({'error': 'Titre et message requis'}), 400
         
-        # Importer le service
-        from .services.notification_service import notification_service
+        from app.models_notifications import PushSubscription
+        from app.services.notification_service import notification_service
         
         if not notification_service.is_available():
-            return jsonify({'error': 'Service de notification non disponible'}), 503
+            return jsonify({'error': 'Service non disponible'}), 503
         
-        # Déterminer les destinataires
-        audience = data['target_audience']
-        target_users = []
+        # Récupérer directement les abonnements actifs
+        subscriptions = PushSubscription.query.filter_by(is_active=True).all()
+        current_app.logger.info(f"Abonnements trouvés: {len(subscriptions)}")
         
-        if audience == 'test':
-            target_users = [current_user]
-        elif audience == 'all':
-            target_users = User.query.all()
-        elif audience == 'authors':
-            target_users = User.query.join(Communication).distinct().all()
-        elif audience == 'reviewers':
-            target_users = User.query.filter_by(is_reviewer=True).all()
-        elif audience == 'admins':
-            target_users = User.query.filter_by(is_admin=True).all()
-        else:
-            return jsonify({'error': 'Type de destinataire invalide'}), 400
+        sent_count = 0
+        failed_count = 0
         
-        if not target_users:
-            return jsonify({'error': 'Aucun destinataire trouvé'}), 400
-        
-        # Préparer la notification
-        notification_data = {
-            'title': data['title'],
-            'body': data['message'],
-            'url': data.get('url', '/'),
-            'priority': data.get('priority', 'normal')
-        }
-        
-        # Envoyer les notifications
-        success_count = 0
-        for user in target_users:
+        # Envoyer directement aux abonnements
+        for subscription in subscriptions:
             try:
-                result = notification_service.send_notification_to_user(
-                    user=user,
-                    title=notification_data['title'],
-                    body=notification_data['body'],
-                    url=notification_data['url'],
-                    priority=notification_data['priority']
+                success = notification_service.send_notification_to_subscription(
+                    subscription_data=subscription.to_dict(),
+                    notification_data={
+                        'title': data['title'],
+                        'body': data['message'],
+                        'url': data.get('url', '/'),
+                        'priority': data.get('priority', 'normal')
+                    }
                 )
-                if result:
-                    success_count += 1
+                
+                if success:
+                    sent_count += 1
+                else:
+                    failed_count += 1
+                    
             except Exception as e:
-                current_app.logger.error(f"Erreur envoi à {user.email}: {e}")
+                current_app.logger.error(f"Erreur subscription {subscription.id}: {e}")
+                failed_count += 1
         
-        # IMPORTANT : Toujours retourner une réponse
+        current_app.logger.info(f"Résultat: {sent_count} envoyés, {failed_count} échecs")
+        
         return jsonify({
             'success': True,
-            'recipients_count': success_count,
-            'message': f'Notification envoyée à {success_count} destinataires'
+            'message': f'Notification envoyée à {sent_count} utilisateur(s)',
+            'sent': sent_count,
+            'failed': failed_count
         })
-        
+    
     except Exception as e:
-        current_app.logger.error(f"Erreur notification: {e}")
-        return jsonify({'error': str(e)}), 500
+        current_app.logger.error(f"Erreur admin notification: {e}")
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
 
     
-##############################################################################################
-# @admin.route("/api/send-notification", methods=['POST'])                                   #
-# @login_required                                                                            #
-# def send_notification():                                                                   #
-#     """Envoie une notification push."""                                                    #
-#     if not current_user.is_admin:                                                          #
-#         return jsonify({'error': 'Accès refusé'}), 403                                     #
-#                                                                                            #
-#     try:                                                                                   #
-#         data = request.get_json()                                                          #
-#         current_app.logger.info(f"Données reçues: {data}")                                 #
-#         # Validation des données                                                           #
-#         required_fields = ['target_audience', 'title', 'message']                          #
-#         for field in required_fields:                                                      #
-#             if not data.get(field):                                                        #
-#                 return jsonify({'error': f'Le champ {field} est requis'}), 400             #
-#                                                                                            #
-#         # Importer le service                                                              #
-#         from .services.notification_service import notification_service                    #
-#                                                                                            #
-#         if not notification_service.is_available():                                        #
-#             return jsonify({'error': 'Service de notification non disponible'}), 503       #
-#                                                                                            #
-#         # Déterminer les destinataires                                                     #
-#         target_users = []                                                                  #
-#         audience = data['target_audience']                                                 #
-#                                                                                            #
-#         if audience == 'test':                                                             #
-#             # Notification de test : uniquement l'admin actuel                             #
-#             target_users = [current_user]                                                  #
-#                                                                                            #
-#         elif audience == 'all':                                                            #
-#             # Tous les utilisateurs avec abonnement actif                                  #
-#             try:                                                                           #
-#                 from .models import PushSubscription                                       #
-#                 subscriptions = PushSubscription.query.all()                               #
-#                 target_users = [sub.user for sub in subscriptions if sub.user]             #
-#             except (ImportError, AttributeError):                                          #
-#                 # Fallback : tous les utilisateurs                                         #
-#                 target_users = User.query.all()                                            #
-#                                                                                            #
-#         elif audience == 'authors':                                                        #
-#             # Utilisateurs ayant soumis au moins une communication                         #
-#             target_users = User.query.join(Communication).distinct().all()                 #
-#                                                                                            #
-#         elif audience == 'reviewers':                                                      #
-#             # Reviewers uniquement                                                         #
-#             target_users = User.query.filter_by(is_reviewer=True).all()                    #
-#                                                                                            #
-#         elif audience == 'admins':                                                         #
-#             # Administrateurs                                                              #
-#             target_users = User.query.filter_by(is_admin=True).all()                       #
-#                                                                                            #
-#         elif audience == 'custom':                                                         #
-#             # Sélection personnalisée (à implémenter selon les checkboxes)                 #
-#             target_users = []                                                              #
-#             if data.get('include_authors'):                                                #
-#                 target_users.extend(User.query.join(Communication).distinct().all())       #
-#             if data.get('include_reviewers'):                                              #
-#                 target_users.extend(User.query.filter_by(is_reviewer=True).all())          #
-#             if data.get('include_admins'):                                                 #
-#                 target_users.extend(User.query.filter_by(is_admin=True).all())             #
-#                                                                                            #
-#             # Supprimer les doublons                                                       #
-#             target_users = list(set(target_users))                                         #
-#                                                                                            #
-#         if not target_users:                                                               #
-#             return jsonify({'error': 'Aucun destinataire trouvé'}), 400                    #
-#                                                                                            #
-#         # Préparer la notification                                                         #
-#         notification_data = {                                                              #
-#             'title': data['title'],                                                        #
-#             'body': data['message'],                                                       #
-#             'icon': '/static/icons/icon-192x192.png',                                      #
-#             'badge': '/static/icons/badge-72x72.png',                                      #
-#             'url': data.get('url', '/'),                                                   #
-#             'priority': data.get('priority', 'normal')                                     #
-#         }                                                                                  #
-#                                                                                            #
-#         # Traitement de la programmation (si demandée)                                     #
-#         if data.get('scheduled'):                                                          #
-#             # Pour l'instant, envoyer immédiatement                                        #
-#             # TODO: Implémenter la programmation avec Celery ou un scheduler               #
-#             current_app.logger.info("Programmation demandée mais pas encore implémentée")  #
-#                                                                                            #
-#         # Envoyer les notifications                                                        #
-#         success_count = 0                                                                  #
-#         error_count = 0                                                                    #
-#                                                                                            #
-#         for user in target_users:                                                          #
-#             try:                                                                           #
-#                 # Utiliser le service de notification                                      #
-#                 result = notification_service.send_broadcast_notification(                 #
-#                     title=notification_data['title'],                                      #
-#                     body=notification_data['body'],                                        #
-#                     data={                                                                 #
-#                         'url': notification_data['url'],                                   #
-#                         'priority': notification_data['priority']                          #
-#                     },                                                                     #
-#                     target_users=[user]                                                    #
-#                 )                                                                          #
-#                 if result:                                                                 #
-#                     success_count += 1                                                     #
-#                 else:                                                                      #
-#                     error_count += 1                                                       #
-#                                                                                            #
-#             except Exception as e:                                                         #
-#                 current_app.logger.error(f"Erreur envoi notification à {user.email}: {e}") #
-#                 error_count += 1                                                           #
-#                                                                                            #
-#         # Enregistrer dans l'historique                                                    #
-#         try:                                                                               #
-#             from .models import AdminNotification                                          #
-#             admin_notification = AdminNotification(                                        #
-#                 sender_id=current_user.id,                                                 #
-#                 title=data['title'],                                                       #
-#                 message=data['message'],                                                   #
-#                 target_audience=audience,                                                  #
-#                 recipients_count=success_count,                                            #
-#                 url=data.get('url'),                                                       #
-#                 priority=data.get('priority', 'normal')                                    #
-#             )                                                                              #
-#             db.session.add(admin_notification)                                             #
-#             db.session.commit()                                                            #
-#         except (ImportError, AttributeError):                                              #
-#             # Modèle pas encore créé                                                       #
-#             pass                                                                           #
-#                                                                                            #
-#         return jsonify({                                                                   #
-#             'success': True,                                                               #
-#             'recipients_count': success_count,                                             #
-#             'errors_count': error_count,                                                   #
-#             'message': f'Notification envoyée à {success_count} destinataires'             #
-#         })                                                                                 #
-#                                                                                            #
-#     except Exception as e:                                                                 #
-#         current_app.logger.error(f"Erreur envoi notification admin: {e}")                  #
-#         return jsonify({'error': str(e)}), 500                                             #
-##############################################################################################
-
 @admin.route("/api/notification-history")
 @login_required 
 def notification_history():

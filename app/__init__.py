@@ -123,6 +123,12 @@ def create_app():
     app.config['VAPID_PUBLIC_KEY'] = os.getenv('VAPID_PUBLIC_KEY') 
     app.config['VAPID_SUBJECT'] = os.getenv('VAPID_SUBJECT', 'mailto:admin@conference-flow.com')
     app.config['NOTIFICATION_SEND_REMINDERS'] = os.getenv('NOTIFICATION_SEND_REMINDERS', 'true').lower() == 'true'
+
+    if app.config['ENV'] == 'production':
+        app.config['SESSION_COOKIE_SECURE'] = True 
+        app.config['SESSION_COOKIE_HTTPONLY'] = True
+        app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+        app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=120)
     
     # Parser les temps de rappel (ex: "15,3" -> [15, 3])
     reminder_times_str = os.getenv('NOTIFICATION_REMINDER_TIMES', '15,3')
@@ -191,10 +197,10 @@ def create_app():
             app.email_config = config_loader.load_email_config()
 
             app.config_loader = config_loader
-            app.logger.info(f"Configuration chargée : {len(app.themes_config)} thématiques")
+            app.logger.info(f"✅ Configuration chargée : {len(app.themes_config)} thématiques")
             
         except Exception as e:
-            app.logger.error(f"Erreur chargement configuration : {e}")
+            app.logger.error(f"❌ Erreur chargement configuration : {e}")
             # Configuration par défaut en cas d'erreur
             app.conference_config = {}
             app.themes_config = []

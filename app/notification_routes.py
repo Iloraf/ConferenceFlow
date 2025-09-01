@@ -39,10 +39,18 @@ def get_vapid_public_key():
             'publicKey': None
         }), 500
 
+
 @notifications_api.route('/push-subscription', methods=['POST'])
-@login_required
 def save_push_subscription():
-    """Sauvegarde ou met à jour l'abonnement aux notifications push d'un utilisateur."""
+    from flask_login import current_user
+    print(f"Utilisateur authentifié: {current_user.is_authenticated if hasattr(current_user, 'is_authenticated') else 'Aucun current_user'}")
+    
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Non authentifié'}), 401
+#@notifications_api.route('/push-subscription', methods=['POST'])
+#@login_required
+#def save_push_subscription():
+#    """Sauvegarde ou met à jour l'abonnement aux notifications push d'un utilisateur."""
     try:
         data = request.get_json()
         

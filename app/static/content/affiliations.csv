@@ -6,7 +6,7 @@ CETHIL;Centre de Thermique de Lyon;"Lyon/Villeurbanne, INSA Lyon; Université de
 LASIE;Laboratoire des Sciences de l'Ingénieur pour l'Environnement;"La Rochelle, La Rochelle Université; CNRS";"LaSIE, La Rochelle";185979;LaSIE;laboratory
 INSTITUTP;Institut Pprime;"Poitiers; Chasseneuil-du-Poitou, CNRS; Université de Poitiers; ISAE-ENSMA";"INSTITUTP, Poitiers; Chasseneuil-du-Poitou";;;laboratory
 LATEP;Laboratoire de Thermique Énergétique et Procédés;"Pau, Université de Pau et des Pays de l'Adour";"LaTEP, Pau";33789;LaTEP;laboratory
-LTNLTEN;Laboratoire de Thermique et Énergie de Nantes;"Nantes, Nantes Université";"LTNLTEN, Nantes";;;laboratory
+LTEN;Laboratoire de Thermique et Énergie de Nantes;"Nantes, Nantes Université";"LTNLTEN, Nantes";;;laboratory
 I2M;Institut de Mécanique et d'Ingénierie de Bordeaux;"Bordeaux/Talence, Université de Bordeaux; Bordeaux INP; Arts et Métiers; CNRS";"I2M, Bordeaux/Talence";1002421;I2M;laboratory
 FEMTOST;Franche-Comté Électronique Mécanique Thermique et Optique Sciences et Technologies;"Besançon; Belfort; Montbéliard, Université Bourgogne Franche-Comté; CNRS; ENSMM; UTBM";"FEMTO-ST, Besançon; Belfort; Montbéliard";866;FEMTO-ST;laboratory
 CERTES;Centre d'Études et de Recherche en Thermique Environnement et Systèmes;"Créteil, Université Paris-Est Créteil; Université Gustave Eiffel";"CERTES, Créteil";;;laboratory
@@ -21,3 +21,4 @@ SIMAP;Science et Ingénierie des Matériaux et Procédés;"Grenoble, Université
 M2P2;Mécanique Modélisation et Procédés Propres;"Marseille, Aix-Marseille Université; CNRS; Centrale Méditerranée";"M2P2, Marseille";199963;M2P2;laboratory
 TREFLEI2M;Transferts Écoulements Fluides Énergétique (équipe au sein d'I2M);"Bordeaux/Talence, Université de Bordeaux; Bordeaux INP; Arts et Métiers; CNRS";"TREFLEI2M, Bordeaux/Talence";;;laboratory
 FAST;Fluides Automatique et Systèmes Thermiques;"Orsay (Plateau de Saclay), CNRS; Université Paris-Saclay";"FAST, Orsay";1051120;FAST;laboratory
+LEMTA;Laboratoire Énergies et Mécanique Théorique et Appliquée;"Vandoeuvre-lès-Nancy, CNRS; Université de Lorraine";;;;laboratory

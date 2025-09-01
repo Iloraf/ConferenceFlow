@@ -284,7 +284,7 @@ def send_submission_confirmation_email(user, communication, submission_type='ré
         # Mapper les types vers les templates
         template_mapping = {
             'résumé': 'resume_submission_confirmed',
-            'article': 'article_submission_confirmed', 
+            'article': 'article_submission_confirmed',
             'wip': 'wip_submission_confirmed',
             'poster': 'poster_submission_confirmed',
             'revision': 'revision_confirmed'

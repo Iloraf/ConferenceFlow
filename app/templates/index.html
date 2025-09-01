@@ -56,7 +56,7 @@
                         <div class="card border-primary mb-3">
                             <div class="card-body">
                                 <h6 class="card-title text-primary"><i class="fas fa-thumbtack"></i> Sessions poster</h6>
-                                <p class="card-text small">Tous les travaux seront présentés sous forme d'affiche lors de sessions dédiées</p>
+                                <p class="card-text small">Tous les travaux seront présentés sous forme de poster lors de sessions dédiées</p>
                             </div>
                         </div>
                     </div>
@@ -84,12 +84,12 @@
         </div>
         <div class="col-12 bg-light p-5">
             <div class="container">
-                <h2 class="text-center mb-4">{{ conference_location.venue }} et la Ville de {{ conference_location.city }}</h2>
+                <h2 class="text-center mb-4">{{ conference_location.venue }} et Ville de {{ conference_location.city }}</h2>
                 <p class="lead text-center">
-		  {{ conference_location.city_description | safe }}
+		  {{ conference_location.place_description | safe }}
                 </p>
                 <p class="text-center">
-		  {{ conference_location.place_description | safe }}
+		  {{ conference_location.city_description | safe }}
                 </p>
             </div>
         </div>
@@ -109,7 +109,7 @@
                     <div class="col-md-4 text-center">
                         <div class="p-3">
                             <h5 class="text-primary"><i class="fas fa-university"></i> Lieu</h5>
-                            <p class="mb-0">{{ conference_location.venue }}<br><small class="text-muted">{{ conference_location.city }}</small></p>
+                            <p class="mb-0">{{ conference_location.venue }}<br><small class="text-muted">{{ conference_location.address }}</small></p>
                         </div>
                     </div>
                     <div class="col-md-4 text-center">

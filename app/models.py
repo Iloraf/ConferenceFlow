@@ -1413,3 +1413,21 @@ class NotificationLog(db.Model):
 
     def __repr__(self):
         return f'<NotificationLog {self.id}: {self.title} -> {self.user.email}>'
+
+
+class Photo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    filename = db.Column(db.String(255))
+    original_name = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    category = db.Column(db.String(50))  # session, pause, networking
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_approved = db.Column(db.Boolean, default=True)
+
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    content = db.Column(db.Text)
+    topic = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

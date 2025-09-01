@@ -63,7 +63,7 @@ class ConferenceFlowPWA {
   }
 
   // === GESTION CLÉS VAPID ===
-  async loadVapidPublicKey() {
+    async loadVapidPublicKey() {
     console.log('🔑 Chargement clé VAPID publique...');
     
     try {
@@ -128,15 +128,41 @@ class ConferenceFlowPWA {
   }
 
   // Validation format clé VAPID
-  isValidVapidKey(key) {
-    if (!key || typeof key !== 'string') {
-      return false;
-    }
-    
-    // Une clé VAPID publique en base64url fait généralement 87 caractères
-    const base64urlPattern = /^[A-Za-z0-9_-]+$/;
-    return key.length >= 80 && key.length <= 90 && base64urlPattern.test(key);
+    isValidVapidKey(key) {
+  if (!key || typeof key !== 'string') {
+    console.error('❌ Clé VAPID invalide: pas une chaîne');
+    return false;
   }
+  
+  // Log pour debug
+  console.log('🔍 Validation clé VAPID:');
+  console.log('  - Longueur:', key.length);
+  console.log('  - Type:', typeof key);
+  console.log('  - Premiers chars:', key.substring(0, 20));
+  console.log('  - Derniers chars:', key.substring(-20));
+  
+  // Validation temporaire plus permissive
+  const base64urlPattern = /^[A-Za-z0-9_-]+$/;
+  const isValidBase64url = base64urlPattern.test(key);
+  
+  console.log('  - Pattern base64url valid:', isValidBase64url);
+  console.log('  - Longueur acceptable (>20):', key.length > 20);
+  
+  if (key.length > 20 && isValidBase64url) {
+    console.log('✅ Clé VAPID acceptée (validation permissive)');
+    return true;
+  }
+  
+  // Si la clé contient des caractères non base64url, on l'accepte quand même temporairement
+  if (key.length > 20) {
+    console.warn('⚠️ Clé VAPID avec format suspect mais acceptée pour test');
+    return true;
+  }
+  
+  console.error('❌ Clé VAPID définitivement invalide');
+  return false;
+}
+
   
   // === GESTION INSTALLATION PWA ===
   setupInstallPrompt() {
@@ -214,7 +240,7 @@ class ConferenceFlowPWA {
     }
     
     // S'assurer qu'on a un service worker actif
-    await navigator.serviceWorker.ready;
+      await navigator.serviceWorker.ready;
     
     if (!this.registration.active) {
       throw new Error('Service worker non actif');
@@ -335,12 +361,15 @@ class ConferenceFlowPWA {
     }
     
     // Attendre que le service worker soit prêt
-    await navigator.serviceWorker.ready;
-    console.log('✅ Service Worker prêt');
-
+    //await navigator.serviceWorker.ready;
+    //console.log('✅ Service Worker prêt');
+      console.log('✅ Utilisation directe de la registration');
     try {
       // Vérifier l'état actuel de l'abonnement
-      let subscription = await this.registration.pushManager.getSubscription();
+console.log('🔍 DEBUG: Avant création/récupération abonnement');
+let subscription = await this.registration.pushManager.getSubscription();
+console.log('🔍 DEBUG: Abonnement récupéré:', !!subscription);
+
       console.log('📱 État abonnement existant:', !!subscription);
       
       if (subscription) {
@@ -382,7 +411,10 @@ class ConferenceFlowPWA {
       }
       
       // Sauvegarder l'abonnement sur le serveur
-      const saveSuccess = await this.savePushSubscription(subscription);
+
+console.log('🔍 DEBUG: Avant savePushSubscription');
+const saveSuccess = await this.savePushSubscription(subscription);
+console.log('🔍 DEBUG: Après savePushSubscription:', saveSuccess);
       
       if (saveSuccess) {
         console.log('✅ Abonnement sauvegardé sur le serveur');

@@ -65,15 +65,20 @@ class NotificationService:
             payload = json.dumps(notification_data)
             
             # Envoyer via pywebpush
+            endpoint_url = subscription_data['endpoint']
+            parsed = endpoint_url.split('/')
+            base_url = f"{parsed[0]}//{parsed[2]}"
+            
             self.webpush(
                 subscription_info=subscription_data,
                 data=payload,
                 vapid_private_key=self.vapid_private_key,
                 vapid_claims={
                     "sub": f"mailto:{self.vapid_email}",
-                    "aud": subscription_data['endpoint']
+                    "aud": base_url
                 }
             )
+
             
             return True
             

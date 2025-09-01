@@ -19,6 +19,7 @@ templates:
     submission_updated: "Mise à jour de votre communication - {CONFERENCE_SHORT_NAME}"
     resume_submission_confirmed: "Résumé reçu - {CONFERENCE_SHORT_NAME}" 
     article_submission_confirmed: "Article reçu - {CONFERENCE_SHORT_NAME}"
+    poster_submission_confirmed: "Poster reçu - {CONFERENCE_SHORT_NAME}"
     wip_submission_confirmed: "WIP/Poster reçu - {CONFERENCE_SHORT_NAME}"
     revision_confirmed: "Révision reçue - {CONFERENCE_SHORT_NAME}"
 
@@ -352,6 +353,22 @@ content:
       
       ✅ Votre WIP est maintenant enregistré et sera présenté lors de la session poster.
     call_to_action: "Voir ma communication"
+
+  poster_submission_confirmed:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Nous confirmons la réception de votre poster."
+    body: |
+      Votre poster intitulé "{COMMUNICATION_TITLE}" a été déposé avec succès dans notre système.
+      
+      Détails de votre soumission :
+      - ID de communication : {COMMUNICATION_ID}
+      - Thématiques : {COMMUNICATION_THEMES}
+      - Date de dépôt : {DEPOSIT_DATE}
+      
+      L'équipe d'organisation va examiner votre poster et vous contactera si des modifications sont nécessaires.
+    closing: "Nous vous remercions pour votre participation à {CONFERENCE_SHORT_NAME}."
+    call_to_action: "Vous pouvez consulter le statut de votre soumission dans votre espace personnel."
+    call_to_action_url: "{BASE_URL}/mes-communications"
 
   revision_confirmed:
     greeting: "Bonjour {AUTHOR_NAME},"

@@ -6,20 +6,11 @@ const API_CACHE = 'api-v1';
 
 // Fichiers à mettre en cache immédiatement
 const STATIC_FILES = [
-  '/',
-  '/static/css/bootstrap.min.css',
-  '/static/css/style.css',
   '/static/css/mobile.css',
-  '/static/js/bootstrap.bundle.min.js',
-  '/static/js/app.js',
   '/static/js/pwa.js',
   '/static/icons/icon-192x192.png',
   '/static/icons/icon-512x512.png',
   '/static/icons/badge-72x72.png',
-  '/static/manifest.json',
-  '/auth/login',
-  '/profile',
-  '/offline.html'
 ];
 
 // Installation du Service Worker

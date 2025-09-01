@@ -21,7 +21,7 @@ conference:
   organizing_lab:
     name: "Laboratoire Énergies & Mécanique Théorique et Appliquée"
     short_name: "LEMTA"
-    description: "Unité mixte de recherche de l'Université de Lorraine et du CNRS"
+    description: "unité mixte de recherche de l'Université de Lorraine et du CNRS"
 
   objectif: "L'objectif du 34ème Congrès de thermique est d'inviter la communauté des thermiciens à éclairer sur les défis posés par la décarbonation de l'industrie à moins d'un quart de siècle de l'objectif de neutralité carbone en 2050. Nous invitons également tous les chercheur.e.s, industriel.le.s et doctorant.e.s à venir échanger sur leurs travaux récents dans le domaine de la thermique et de ses applications. Tous les travaux seront présentés sous forme de poster lors de sessions dédiées et pourront donner lieu à une communication écrite (avec DOI). Des ateliers thématiques seront aussi programmés en alternance avec des conférences plénières."
 
@@ -165,7 +165,7 @@ contacts:
   general:
     title: "Contact général"
     email: "congres-sft2026@univ-lorraine.fr"
-    phone: "+33 3 83 00 00 00"
+    phone: ""
 
   program:
     title: "Programme scientifique"

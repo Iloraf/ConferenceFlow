@@ -65,98 +65,49 @@ def generate_secure_password(length=16):
     return ''.join(password)
 
 def generate_vapid_keys():
-    """Génère les clés VAPID - version compatible avec versions actuelles."""
-    try:
-        import base64
-        # AJOUT DE L'IMPORT MANQUANT :
-        from cryptography.hazmat.primitives import serialization
-        
-        # Méthode 1 : Essayer avec py_vapid moderne
-        try:
-            from py_vapid import Vapid01
-            vapid = Vapid01()
-            vapid.generate_keys()
-            
-            # Obtenir les clés au format DER puis les convertir
-            private_der = vapid.private_key.private_bytes(
-                encoding=serialization.Encoding.DER,
-                format=serialization.PrivateFormat.PKCS8,
-                encryption_algorithm=serialization.NoEncryption()
-            )
-            public_der = vapid.public_key.public_bytes(
-                encoding=serialization.Encoding.DER,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo
-            )
-            
-            private_key_b64 = base64.urlsafe_b64encode(private_der).decode('utf-8').rstrip('=')
-            public_key_b64 = base64.urlsafe_b64encode(public_der).decode('utf-8').rstrip('=')
-            
-            print("✅ Clés VAPID générées avec py_vapid (méthode DER)")
-            return private_key_b64, public_key_b64
-            
-        except Exception as e:
-            print(f"⚠️ Erreur py_vapid : {e}")
-            return generate_vapid_keys_simple()
-            
-    except ImportError:
-        print("⚠️ py_vapid non disponible, tentative méthode simple...")
-        return generate_vapid_keys_simple()
-
-def generate_vapid_keys_simple():
-    """Génère des clés VAPID avec cryptography - méthode simplifiée."""
+    """Génère les clés VAPID au format correct pour les navigateurs."""
     try:
         from cryptography.hazmat.primitives.asymmetric import ec
         from cryptography.hazmat.primitives import serialization
         import base64
         
-        print("🔧 Génération simple des clés VAPID...")
+        print("🔧 Génération clés VAPID...")
         
-        # Générer une paire de clés ECDSA P-256
+        # Générer une clé privée P-256
         private_key = ec.generate_private_key(ec.SECP256R1())
         
-        # Sérialiser en format PEM (plus compatible)
-        private_pem = private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
+        # Clé privée au format PKCS8 DER
+        private_der = private_key.private_bytes(
+            encoding=serialization.Encoding.DER,
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.NoEncryption()
         )
         
-        public_pem = private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
+        # Clé publique au format raw (65 bytes non compressé)
+        public_key_obj = private_key.public_key()
+        public_numbers = public_key_obj.public_numbers()
         
-        # Encoder en base64 URL-safe
-        private_key_b64 = base64.urlsafe_b64encode(private_pem).decode('utf-8').rstrip('=')
-        public_key_b64 = base64.urlsafe_b64encode(public_pem).decode('utf-8').rstrip('=')
+        # Convertir en format raw P-256 (65 bytes: 0x04 + 32 bytes X + 32 bytes Y)
+        x_bytes = public_numbers.x.to_bytes(32, 'big')
+        y_bytes = public_numbers.y.to_bytes(32, 'big')
+        raw_public_key = b'\x04' + x_bytes + y_bytes
         
-        print("✅ Clés VAPID générées avec cryptography (format PEM)")
+        # Encoder en base64url
+        private_key_b64 = base64.urlsafe_b64encode(private_der).decode('utf-8').rstrip('=')
+        public_key_b64 = base64.urlsafe_b64encode(raw_public_key).decode('utf-8').rstrip('=')
+        
+        print(f"✅ Clé publique: {len(public_key_b64)} caractères")
+        print(f"✅ Clé privée: {len(private_key_b64)} caractères")
+        
         return private_key_b64, public_key_b64
         
     except ImportError:
-        print("⚠️ cryptography non installé")
-        return generate_vapid_keys_fake()
+        print("❌ cryptography non installé - pip install cryptography")
+        return None, None
     except Exception as e:
-        print(f"⚠️ Erreur génération simple : {e}")
-        return generate_vapid_keys_fake()
+        print(f"❌ Erreur: {e}")
+        return None, None
 
-def generate_vapid_keys_fake():
-    """Génère des clés VAPID fictives pour le développement."""
-    import secrets
-    import base64
-    
-    print("🔧 Génération de clés VAPID fictives (DÉVELOPPEMENT UNIQUEMENT)")
-    print("⚠️ Ces clés ne fonctionneront pas pour les vraies notifications push")
-    print("   Installez les bonnes versions : pip install 'cryptography>=3.0' 'py-vapid>=1.7'")
-    
-    # Générer des clés factices mais de la bonne longueur
-    fake_private = f"FAKE_VAPID_PRIVATE_KEY_DEV_{secrets.token_hex(16)}"
-    fake_public = f"FAKE_VAPID_PUBLIC_KEY_DEV_{secrets.token_hex(16)}"
-    
-    private_key_b64 = base64.urlsafe_b64encode(fake_private.encode()).decode('utf-8').rstrip('=')
-    public_key_b64 = base64.urlsafe_b64encode(fake_public.encode()).decode('utf-8').rstrip('=')
-    
-    return private_key_b64, public_key_b64
 
 def get_user_input():
     """Demande les paramètres à l'utilisateur."""

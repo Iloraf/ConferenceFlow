@@ -1,65 +1,50 @@
-{% extends 'base.html' %}
-
-{% block title %}Notifications Push - {{ conference.short_name }}{% endblock %}
+{% extends "base.html" %}
+{% block title %}Notifications Push - Administration{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1><i class="fas fa-bell me-2"></i>Notifications Push</h1>
-            <p class="text-muted">Envoi de notifications aux participants de {{ conference.short_name }}</p>
-        </div>
-        <div class="text-end">
-            <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary me-2">
-                <i class="fas fa-arrow-left me-2"></i>Retour Dashboard
-            </a>
-            <span class="badge bg-info" id="subscribers-count">0 abonnés</span>
-        </div>
-    </div>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'info' }} alert-dismissible fade show">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-
-    <!-- Statut du service notifications -->
+<div class="container-fluid py-4">
+    <!-- En-tête -->
     <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-info">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Statut du service</h5>
+        <div class="col">
+            <h2 class="h3 mb-3">
+                <i class="fas fa-bell me-3 text-primary"></i>
+                Notifications Push
+            </h2>
+            <div class="row g-3">
+                <!-- Statistiques -->
+                <div class="col-sm-6 col-lg-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                            <h5 class="mb-0" id="total-subscribers">-</h5>
+                            <small class="text-muted">Total abonnés</small>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <div id="service-status" class="badge bg-secondary p-2 mb-2">Vérification...</div>
-                                <p class="small mb-0">Service Push</p>
-                            </div>
+                <div class="col-sm-6 col-lg-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <i class="fas fa-user-check fa-2x text-success mb-2"></i>
+                            <h5 class="mb-0" id="active-subscribers">-</h5>
+                            <small class="text-muted">Abonnés actifs</small>
                         </div>
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <div id="vapid-status" class="badge bg-secondary p-2 mb-2">Vérification...</div>
-                                <p class="small mb-0">Clés VAPID</p>
-                            </div>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <i class="fas fa-server fa-2x text-info mb-2"></i>
+                            <span class="badge" id="service-status">-</span>
+                            <br><small class="text-muted">Service</small>
                         </div>
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <div id="total-subscribers" class="h4 text-primary mb-1">-</div>
-                                <p class="small mb-0">Abonnés total</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center">
-                                <div id="active-subscribers" class="h4 text-success mb-1">-</div>
-                                <p class="small mb-0">Actifs (7j)</p>
-                            </div>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <i class="fas fa-key fa-2x text-warning mb-2"></i>
+                            <span class="badge" id="vapid-status">-</span>
+                            <br><small class="text-muted">VAPID</small>
                         </div>
                     </div>
                 </div>
@@ -67,76 +52,26 @@
         </div>
     </div>
 
-    <!-- Formulaire d'envoi de notification -->
     <div class="row">
+        <!-- Formulaire principal -->
         <div class="col-lg-8">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-paper-plane me-2"></i>Envoyer une notification</h5>
+                    <h5 class="mb-0">
+                        <i class="fas fa-paper-plane me-2"></i>
+                        Envoyer une notification
+                    </h5>
+                    <small class="text-muted">
+                        Sera envoyée à tous les abonnés actifs (<span id="subscribers-count">-</span>)
+                    </small>
                 </div>
                 <div class="card-body">
                     <form id="notification-form">
-                        <!-- Destinataires -->
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Destinataires</label>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <select class="form-select" id="target-audience" required>
-                                        <option value="">Choisir les destinataires...</option>
-                                        <option value="all">Tous les participants</option>
-                                        <option value="authors">Auteurs uniquement</option>
-                                        <option value="reviewers">Reviewers uniquement</option>
-                                        <option value="admins">Administrateurs</option>
-                                        <option value="custom">Sélection personnalisée</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-users me-2 text-muted"></i>
-                                        <span id="recipient-count" class="text-muted">Sélectionnez un groupe</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Zone de sélection personnalisée (masquée par défaut) -->
-                            <div id="custom-selection" class="mt-3" style="display: none;">
-                                <div class="border rounded p-3 bg-light">
-                                    <h6>Sélection personnalisée</h6>
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="custom-authors">
-                                                <label class="form-check-label" for="custom-authors">
-                                                    Auteurs (<span id="authors-count">0</span>)
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="custom-reviewers">
-                                                <label class="form-check-label" for="custom-reviewers">
-                                                    Reviewers (<span id="reviewers-count">0</span>)
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="custom-admins">
-                                                <label class="form-check-label" for="custom-admins">
-                                                    Admins (<span id="admins-count">0</span>)
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- Titre de la notification -->
                         <div class="mb-3">
                             <label for="notification-title" class="form-label fw-bold">Titre</label>
                             <input type="text" class="form-control" id="notification-title" 
-                                   placeholder="Ex: Information importante - {{ conference.short_name }}" 
+                                   placeholder="Ex: Information importante" 
                                    maxlength="50" required>
                             <div class="form-text">Maximum 50 caractères pour une meilleure lisibilité mobile</div>
                         </div>
@@ -159,65 +94,40 @@
                                 <i class="fas fa-question-circle ms-1" data-bs-toggle="tooltip" 
                                    title="URL vers laquelle rediriger quand l'utilisateur clique sur la notification"></i>
                             </label>
+                            <input type="text" class="form-control" id="notification-url" 
+                                   placeholder="Ex: /profile, /conference/programme ou https://example.com">
+                            <div class="form-text">Laissez vide pour rediriger vers la page d'accueil</div>
+                        </div>
+
+                        <!-- Priorité -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Priorité</label>
                             <div class="row">
-                                <div class="col-md-8">
-                                    <input type="url" class="form-control" id="notification-url" 
-                                           placeholder="https://... ou /chemin/relatif">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="priority" 
+                                               id="priority-normal" value="normal" checked>
+                                        <label class="form-check-label" for="priority-normal">
+                                            <i class="fas fa-info-circle text-info me-1"></i>Normale
+                                        </label>
+                                    </div>
                                 </div>
                                 <div class="col-md-4">
-                                    <select class="form-select" id="quick-urls">
-                                        <option value="">Raccourcis...</option>
-                                        <option value="/">Accueil</option>
-                                        <option value="/conference/programme">Programme</option>
-                                        <option value="/mes-communications">Mes communications</option>
-                                        <option value="/conference/localisation">Localisation</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Type de priorité -->
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Priorité</label>
-                            <div class="btn-group" role="group">
-                                <input type="radio" class="btn-check" name="priority" id="priority-normal" value="normal" checked>
-                                <label class="btn btn-outline-secondary" for="priority-normal">
-                                    <i class="fas fa-info-circle me-2"></i>Normale
-                                </label>
-                                
-                                <input type="radio" class="btn-check" name="priority" id="priority-high" value="high">
-                                <label class="btn btn-outline-warning" for="priority-high">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>Importante
-                                </label>
-                                
-                                <input type="radio" class="btn-check" name="priority" id="priority-urgent" value="urgent">
-                                <label class="btn btn-outline-danger" for="priority-urgent">
-                                    <i class="fas fa-fire me-2"></i>Urgente
-                                </label>
-                            </div>
-                            <div class="form-text">
-                                <i class="fas fa-lightbulb me-1"></i>
-                                <span id="priority-help">Les notifications normales respectent les préférences utilisateur</span>
-                            </div>
-                        </div>
-
-                        <!-- Programmation (optionnelle) -->
-                        <div class="mb-4">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="schedule-notification">
-                                <label class="form-check-label fw-bold" for="schedule-notification">
-                                    Programmer l'envoi
-                                </label>
-                            </div>
-                            <div id="schedule-options" class="mt-2" style="display: none;">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <label for="schedule-date" class="form-label">Date</label>
-                                        <input type="date" class="form-control" id="schedule-date">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="priority" 
+                                               id="priority-high" value="high">
+                                        <label class="form-check-label" for="priority-high">
+                                            <i class="fas fa-exclamation-triangle text-warning me-1"></i>Importante
+                                        </label>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label for="schedule-time" class="form-label">Heure</label>
-                                        <input type="time" class="form-control" id="schedule-time">
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="priority" 
+                                               id="priority-urgent" value="urgent">
+                                        <label class="form-check-label" for="priority-urgent">
+                                            <i class="fas fa-exclamation-circle text-danger me-1"></i>Urgente
+                                        </label>
                                     </div>
                                 </div>
                             </div>
@@ -225,14 +135,11 @@
 
                         <!-- Boutons d'action -->
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <button type="button" class="btn btn-outline-info" id="preview-btn">
-                                <i class="fas fa-eye me-2"></i>Prévisualiser
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" id="test-btn">
+                            <button type="button" class="btn btn-outline-secondary" onclick="sendTestNotification()">
                                 <i class="fas fa-vial me-2"></i>Test (à moi seul)
                             </button>
-                            <button type="submit" class="btn btn-primary" id="send-btn">
-                                <i class="fas fa-paper-plane me-2"></i>Envoyer maintenant
+                            <button type="button" class="btn btn-primary" onclick="sendNotification()">
+                                <i class="fas fa-paper-plane me-2"></i>Envoyer à tous
                             </button>
                         </div>
                     </form>
@@ -277,31 +184,18 @@
                 <div class="card-body">
                     <div class="d-grid gap-2">
                         <button class="btn btn-outline-primary btn-sm template-btn" 
-                                data-title="Information importante"
-                                data-message="Une information importante concernant {{ conference.short_name }} vous attend."
-                                data-url="/">
+                                onclick="useTemplate('Information importante', 'Une information importante vous attend.', '/')">
                             <i class="fas fa-info-circle me-2"></i>Information générale
                         </button>
                         
                         <button class="btn btn-outline-warning btn-sm template-btn"
-                                data-title="Rappel de session"
-                                data-message="Votre session commence dans 15 minutes. Rendez-vous en salle."
-                                data-url="/conference/programme">
+                                onclick="useTemplate('Rappel de session', 'Votre session commence bientôt.', '/conference/programme')">
                             <i class="fas fa-clock me-2"></i>Rappel session
                         </button>
                         
                         <button class="btn btn-outline-success btn-sm template-btn"
-                                data-title="Programme mis à jour"
-                                data-message="Le programme de {{ conference.short_name }} a été actualisé. Consultez les dernières modifications."
-                                data-url="/conference/programme">
+                                onclick="useTemplate('Programme mis à jour', 'Consultez les dernières modifications du programme.', '/conference/programme')">
                             <i class="fas fa-calendar-check me-2"></i>Mise à jour programme
-                        </button>
-                        
-                        <button class="btn btn-outline-info btn-sm template-btn"
-                                data-title="Informations pratiques"
-                                data-message="Retrouvez toutes les informations pratiques pour votre participation."
-                                data-url="/conference/localisation">
-                            <i class="fas fa-map-marker-alt me-2"></i>Infos pratiques
                         </button>
                     </div>
                 </div>
@@ -310,122 +204,38 @@
     </div>
 </div>
 
-<!-- JavaScript pour l'interface -->
+<!-- JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Interface notifications chargée');
-    
-    // Initialiser l'interface
-    initNotificationInterface();
-    
-    // Charger les statistiques avec debug
-    console.log('Chargement des stats...');
     loadNotificationStats();
+    initNotificationInterface();
 });
 
 function initNotificationInterface() {
-    // Gestion du formulaire
-    const form = document.getElementById('notification-form');
     const titleInput = document.getElementById('notification-title');
     const messageInput = document.getElementById('notification-message');
-    const targetSelect = document.getElementById('target-audience');
-    const customSelection = document.getElementById('custom-selection');
-    const scheduleCheckbox = document.getElementById('schedule-notification');
-    const scheduleOptions = document.getElementById('schedule-options');
-    const previewTitle = document.getElementById('preview-title');
-    const previewMessage = document.getElementById('preview-message');
     const messageCounter = document.getElementById('message-counter');
-    const recipientCount = document.getElementById('recipient-count');
 
     // Compteur de caractères
     messageInput.addEventListener('input', function() {
         const length = this.value.length;
         messageCounter.textContent = `${length}/300`;
         messageCounter.className = length > 280 ? 'text-danger' : length > 250 ? 'text-warning' : '';
+        updatePreview();
     });
 
     // Prévisualisation en temps réel
-    function updatePreview() {
-        const title = titleInput.value || 'Conference Flow';
-        const message = messageInput.value || 'Votre message apparaîtra ici...';
-        
-        previewTitle.textContent = title;
-        previewMessage.textContent = message;
-    }
-
     titleInput.addEventListener('input', updatePreview);
     messageInput.addEventListener('input', updatePreview);
-
-    // Gestion des destinataires
-    targetSelect.addEventListener('change', function() {
-        const value = this.value;
-        customSelection.style.display = value === 'custom' ? 'block' : 'none';
-        
-        // Mettre à jour le compteur de destinataires
-        updateRecipientCount(value);
-    });
-
-    // Gestion de la programmation
-    scheduleCheckbox.addEventListener('change', function() {
-        scheduleOptions.style.display = this.checked ? 'block' : 'none';
-        
-        if (this.checked) {
-            // Définir date/heure par défaut (dans 1 heure)
-            const now = new Date();
-            now.setHours(now.getHours() + 1);
-            
-            document.getElementById('schedule-date').value = now.toISOString().split('T')[0];
-            document.getElementById('schedule-time').value = now.toTimeString().slice(0, 5);
-        }
-    });
-
-    // Templates rapides
-    document.querySelectorAll('.template-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const title = this.dataset.title;
-            const message = this.dataset.message;
-            const url = this.dataset.url;
-            
-            titleInput.value = title;
-            messageInput.value = message;
-            document.getElementById('notification-url').value = url;
-            
-            updatePreview();
-        });
-    });
-
-    // URLs rapides
-    document.getElementById('quick-urls').addEventListener('change', function() {
-        if (this.value) {
-            document.getElementById('notification-url').value = this.value;
-            this.value = '';
-        }
-    });
-
-    // Gestion du formulaire
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        sendNotification();
-    });
-
-    // Boutons d'action
-    document.getElementById('preview-btn').addEventListener('click', showPreviewModal);
-    document.getElementById('test-btn').addEventListener('click', sendTestNotification);
 }
 
-function updateRecipientCount(audience) {
-    const recipientSpan = document.getElementById('recipient-count');
+function updatePreview() {
+    const title = document.getElementById('notification-title').value || 'Conference Flow';
+    const message = document.getElementById('notification-message').value || 'Votre message apparaîtra ici...';
     
-    // Simuler les comptes (à remplacer par de vraies données)
-    const counts = {
-        'all': '156 personnes',
-        'authors': '89 auteurs',
-        'reviewers': '34 reviewers',
-        'admins': '3 administrateurs',
-        'custom': 'Calcul en cours...'
-    };
-    
-    recipientSpan.textContent = counts[audience] || 'Sélectionnez un groupe';
+    document.getElementById('preview-title').textContent = title;
+    document.getElementById('preview-message').textContent = message;
 }
 
 async function loadNotificationStats() {
@@ -434,53 +244,45 @@ async function loadNotificationStats() {
         if (response.ok) {
             const stats = await response.json();
             
-            // Mettre à jour l'interface
-            if (stats.service_available) {
-                document.getElementById('service-status').className = 'badge bg-success p-2 mb-2';
-                document.getElementById('service-status').textContent = 'Actif';
-                
-                document.getElementById('vapid-status').className = 'badge bg-success p-2 mb-2';
-                document.getElementById('vapid-status').textContent = 'Configuré';
-            } else {
-                document.getElementById('service-status').className = 'badge bg-danger p-2 mb-2';
-                document.getElementById('service-status').textContent = 'Inactif';
-                
-                document.getElementById('vapid-status').className = 'badge bg-warning p-2 mb-2';
-                document.getElementById('vapid-status').textContent = 'Configuration incomplète';
-            }
-            
+            // Mettre à jour les statistiques
             document.getElementById('total-subscribers').textContent = stats.total_subscribers || 0;
             document.getElementById('active-subscribers').textContent = stats.active_subscribers || 0;
-            document.getElementById('subscribers-count').textContent = `${stats.total_subscribers || 0} abonnés`;
-        } else {
-            throw new Error(`Erreur HTTP: ${response.status}`);
+            document.getElementById('subscribers-count').textContent = `${stats.active_subscribers || 0} abonnés actifs`;
+            
+            // Statut du service
+            if (stats.service_available) {
+                document.getElementById('service-status').className = 'badge bg-success';
+                document.getElementById('service-status').textContent = 'Actif';
+                document.getElementById('vapid-status').className = 'badge bg-success';
+                document.getElementById('vapid-status').textContent = 'OK';
+            } else {
+                document.getElementById('service-status').className = 'badge bg-danger';
+                document.getElementById('service-status').textContent = 'Inactif';
+                document.getElementById('vapid-status').className = 'badge bg-warning';
+                document.getElementById('vapid-status').textContent = 'Erreur';
+            }
         }
     } catch (error) {
-        console.warn('Service notifications pas encore configuré:', error.message);
-        
-        // Affichage en mode développement
-        document.getElementById('service-status').className = 'badge bg-warning p-2 mb-2';
-        document.getElementById('service-status').textContent = 'En développement';
-        
-        document.getElementById('vapid-status').className = 'badge bg-warning p-2 mb-2';
-        document.getElementById('vapid-status').textContent = 'En configuration';
-        
-        document.getElementById('total-subscribers').textContent = '?';
-        document.getElementById('active-subscribers').textContent = '?';
-        document.getElementById('subscribers-count').textContent = 'Service en développement';
+        console.error('Erreur chargement stats:', error);
+        document.getElementById('service-status').className = 'badge bg-warning';
+        document.getElementById('service-status').textContent = 'Erreur';
     }
 }
 
 async function sendNotification() {
+    const title = document.getElementById('notification-title').value;
+    const message = document.getElementById('notification-message').value;
+    
+    if (!title || !message) {
+        alert('❌ Veuillez remplir le titre et le message');
+        return;
+    }
+
     const formData = {
-        target_audience: document.getElementById('target-audience').value,
-        title: document.getElementById('notification-title').value,
-        message: document.getElementById('notification-message').value,
-        url: document.getElementById('notification-url').value,
-        priority: document.querySelector('input[name="priority"]:checked').value,
-        scheduled: document.getElementById('schedule-notification').checked,
-        schedule_date: document.getElementById('schedule-date').value,
-        schedule_time: document.getElementById('schedule-time').value
+        title: title,
+        message: message,
+        url: document.getElementById('notification-url').value || '/',
+        priority: document.querySelector('input[name="priority"]:checked').value
     };
 
     try {
@@ -494,28 +296,36 @@ async function sendNotification() {
 
         if (response.ok) {
             const result = await response.json();
-            alert(`✅ Notification envoyée à ${result.recipients_count} personnes`);
-            
-            // Réinitialiser le formulaire
-            document.getElementById('notification-form').reset();
-            updatePreview();
+            if (result.success) {
+                alert(`✅ ${result.message}`);
+                // Réinitialiser le formulaire
+                document.getElementById('notification-form').reset();
+                updatePreview();
+                // Recharger les stats
+                loadNotificationStats();
+            } else {
+                alert(`❌ ${result.error || 'Erreur inconnue'}`);
+            }
         } else {
             const error = await response.json();
-            alert(`❌ Erreur: ${error.message || 'Service en développement'}`);
+            alert(`❌ Erreur: ${error.error || 'Erreur serveur'}`);
         }
     } catch (error) {
         console.error('Erreur envoi:', error);
-        alert('⚠️ Service de notification en cours de développement. Fonctionnalité bientôt disponible !');
+        alert(`❌ Erreur de connexion: ${error.message}`);
     }
 }
 
 async function sendTestNotification() {
+    const title = document.getElementById('notification-title').value || 'Test Conference Flow';
+    const message = document.getElementById('notification-message').value || 'Test de notification depuis l\'interface admin';
+
     const formData = {
-        target_audience: 'test',
-        title: document.getElementById('notification-title').value || 'Test Conference Flow',
-        message: document.getElementById('notification-message').value || 'Test de notification depuis l\'interface admin',
-        url: document.getElementById('notification-url').value,
-        priority: document.querySelector('input[name="priority"]:checked')?.value || 'normal'
+        title: title,
+        message: message,
+        url: document.getElementById('notification-url').value || '/',
+        priority: 'normal',
+        test: true
     };
 
     try {
@@ -528,20 +338,23 @@ async function sendTestNotification() {
         });
 
         if (response.ok) {
-            alert('✅ Notification de test envoyée à votre compte');
+            const result = await response.json();
+            alert(result.success ? '✅ Notification de test envoyée à votre compte' : `❌ ${result.error}`);
         } else {
             const error = await response.json();
-            alert(`⚠️ Service en développement: ${error.message || 'Bientôt disponible'}`);
+            alert(`❌ Erreur test: ${error.error}`);
         }
     } catch (error) {
-        console.error('Erreur test:', error);
-        alert('⚠️ Service de notification en cours de développement. Test bientôt disponible !');
+        alert(`❌ Erreur: ${error.message}`);
     }
 }
 
-function showPreviewModal() {
-    // Implémenter la modal de prévisualisation si nécessaire
-    alert('Prévisualisation visible dans la sidebar droite');
+function useTemplate(title, message, url) {
+    document.getElementById('notification-title').value = title;
+    document.getElementById('notification-message').value = message;
+    document.getElementById('notification-url').value = url;
+    updatePreview();
 }
 </script>
 {% endblock %}
+
