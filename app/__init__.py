@@ -289,21 +289,22 @@ def create_app():
 
 
     # ==================== NOTIFICATIONS AUTOMATIQUES ====================
-    if not app.config.get('TESTING', False):  # Ne pas démarrer en mode test
+    if not app.config.get('TESTING', False):
         try:
             from app.services.auto_notification_service import auto_notification_service
             
-            # Démarrer le service automatiquement
-            auto_notification_service.start_notification_scheduler()
-            app.logger.info("🔔 Service de notifications automatiques démarré")
+            # Démarrer le service dans le contexte de l'app
+            with app.app_context():
+                auto_notification_service.start_notification_scheduler()
+                app.logger.info("🔔 Service de notifications automatiques démarré")
             
-            # Ajouter le service à l'app pour y accéder depuis les routes
+            # Ajouter le service à l'app
             app.auto_notification_service = auto_notification_service
             
         except ImportError as e:
-            app.logger.warning(f"⚠️ Service de notifications automatiques non disponible: {e}")
+            app.logger.warning(f"⚠️ Service notifications non disponible: {e}")
         except Exception as e:
-            app.logger.error(f"❌ Erreur démarrage service notifications automatiques: {e}")
+            app.logger.error(f"❌ Erreur service notifications: {e}")
 
 
     return app
