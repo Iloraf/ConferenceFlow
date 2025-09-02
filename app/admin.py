@@ -5308,7 +5308,167 @@ def vapid_public_key():
     
     return jsonify({'public_key': public_key})
 
+@admin.route('/notifications/auto-events')
+@login_required
+def auto_notifications_events():
+    """Interface de gestion des notifications automatiques d'événements."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    from app.services.auto_notification_service import auto_notification_service
+    from app.models_notifications import NotificationEvent
+    
+    # Récupérer les prochains événements
+    upcoming_events = auto_notification_service.get_upcoming_events(20)
+    
+    # Événements passés avec notifications envoyées
+    past_events = NotificationEvent.query.filter(
+        NotificationEvent.start_time < datetime.utcnow()
+    ).order_by(NotificationEvent.start_time.desc()).limit(10).all()
+    
+    # Statistiques
+    stats = {
+        'total_events': NotificationEvent.query.count(),
+        'upcoming_events': NotificationEvent.query.filter(
+            NotificationEvent.start_time > datetime.utcnow()
+        ).count(),
+        'notifications_15min_sent': NotificationEvent.query.filter(
+            NotificationEvent.notification_15min_sent == True
+        ).count(),
+        'notifications_3min_sent': NotificationEvent.query.filter(
+            NotificationEvent.notification_3min_sent == True
+        ).count(),
+    }
+    
+    return render_template('admin/auto_notifications_events.html',
+                         upcoming_events=upcoming_events,
+                         past_events=past_events,
+                         stats=stats,
+                         service_status=auto_notification_service.is_running)
 
-@admin.route("/debug-pwa")
-def debug_pwa():
-    return render_template('debug_pwa.html')
+@admin.route('/notifications/sync-program', methods=['POST'])
+@login_required
+def sync_program_events():
+    """Synchronise manuellement les événements depuis le programme."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Accès refusé'}), 403
+    
+    try:
+        from app.services.auto_notification_service import auto_notification_service
+        auto_notification_service.sync_events_from_program()
+        
+        flash("Programme synchronisé avec succès !", "success")
+        return jsonify({'success': True, 'message': 'Programme synchronisé'})
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur sync programme: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@admin.route('/notifications/toggle-service', methods=['POST'])
+@login_required  
+def toggle_notification_service():
+    """Démarre ou arrête le service de notifications automatiques."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Accès refusé'}), 403
+    
+    try:
+        from app.services.auto_notification_service import auto_notification_service
+        
+        action = request.json.get('action')
+        
+        if action == 'start':
+            auto_notification_service.start_notification_scheduler()
+            message = "Service de notifications automatiques démarré"
+        elif action == 'stop':
+            auto_notification_service.stop_notification_scheduler()
+            message = "Service de notifications automatiques arrêté"
+        else:
+            return jsonify({'error': 'Action invalide'}), 400
+        
+        return jsonify({
+            'success': True, 
+            'message': message,
+            'is_running': auto_notification_service.is_running
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur toggle service: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@admin.route('/notifications/create-event', methods=['POST'])
+@login_required
+def create_manual_event():
+    """Crée un événement manuel pour les notifications."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Accès refusé'}), 403
+    
+    try:
+        from app.services.auto_notification_service import auto_notification_service
+        
+        data = request.json
+        title = data.get('title')
+        start_time_str = data.get('start_time')
+        location = data.get('location', '')
+        description = data.get('description', '')
+        
+        if not title or not start_time_str:
+            return jsonify({'error': 'Titre et heure de début requis'}), 400
+        
+        # Parser la date/heure
+        start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+        
+        event = auto_notification_service.create_manual_event(
+            title=title,
+            start_time=start_time,
+            location=location,
+            description=description
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Événement créé avec succès',
+            'event_id': event.event_id
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur création événement: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@admin.route('/notifications/test-event-notification/<event_id>', methods=['POST'])
+@login_required
+def test_event_notification(event_id):
+    """Teste l'envoi d'une notification pour un événement."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Accès refusé'}), 403
+    
+    try:
+        from app.services.auto_notification_service import auto_notification_service
+        from app.models_notifications import NotificationEvent
+        
+        event = NotificationEvent.query.filter_by(event_id=event_id).first()
+        if not event:
+            return jsonify({'error': 'Événement introuvable'}), 404
+        
+        # Envoyer une notification de test uniquement à l'admin
+        from app.services.notification_service import notification_service
+        
+        success = notification_service.send_notification_to_user(
+            user=current_user,
+            title=f"TEST: {event.title}",
+            body=f"Test de notification pour cet événement - {event.location}",
+            url='/admin/notifications/auto-events',
+            priority='normal'
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Notification de test envoyée'
+            })
+        else:
+            return jsonify({'error': 'Échec envoi notification'}), 500
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur test notification: {e}")
+        return jsonify({'error': str(e)}), 500

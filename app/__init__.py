@@ -286,6 +286,24 @@ def create_app():
     app.register_blueprint(books, url_prefix="/admin/books")
     app.register_blueprint(public_comm, url_prefix="/public")
     app.register_blueprint(export_bp)
+
+
+    # ==================== NOTIFICATIONS AUTOMATIQUES ====================
+    if not app.config.get('TESTING', False):  # Ne pas démarrer en mode test
+        try:
+            from app.services.auto_notification_service import auto_notification_service
+            
+            # Synchroniser les événements au démarrage
+            with app.app_context():
+                auto_notification_service.sync_events_from_program()
+            
+            # Démarrer le service automatiquement
+            auto_notification_service.start_notification_scheduler()
+            app.logger.info("🔔 Service de notifications automatiques initialisé")
+            
+        except Exception as e:
+            app.logger.error(f"Erreur initialisation notifications auto: {e}")
+
     return app
 
 

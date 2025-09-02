@@ -1,0 +1,485 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications Automatiques - Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+.service-status {
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+}
+
+.service-running {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.service-stopped {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.event-card {
+    border-left: 4px solid #007bff;
+    transition: all 0.3s;
+}
+
+.event-card:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.event-upcoming {
+    border-left-color: #28a745;
+}
+
+.event-past {
+    border-left-color: #6c757d;
+    opacity: 0.8;
+}
+
+.notification-status {
+    font-size: 0.8em;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.sent { background: #d4edda; color: #155724; }
+.pending { background: #fff3cd; color: #856404; }
+.missed { background: #f8d7da; color: #721c24; }
+
+.stats-card {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    margin-bottom: 1rem;
+}
+
+.create-event-form {
+    background: #f8f9fa;
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-bell me-2"></i>Notifications Automatiques</h1>
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statut du service -->
+    <div class="service-status {% if service_status %}service-running{% else %}service-stopped{% endif %}">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h5 class="mb-1">
+                    {% if service_status %}
+                        <i class="fas fa-play-circle me-2"></i>Service actif
+                    {% else %}
+                        <i class="fas fa-stop-circle me-2"></i>Service arrêté
+                    {% endif %}
+                </h5>
+                <p class="mb-0">
+                    {% if service_status %}
+                        Le service surveille automatiquement les événements et envoie des notifications.
+                    {% else %}
+                        Le service est arrêté. Les notifications automatiques ne seront pas envoyées.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                {% if service_status %}
+                    <button class="btn btn-danger" onclick="toggleService('stop')">
+                        <i class="fas fa-stop me-2"></i>Arrêter le service
+                    </button>
+                {% else %}
+                    <button class="btn btn-success" onclick="toggleService('start')">
+                        <i class="fas fa-play me-2"></i>Démarrer le service
+                    </button>
+                {% endif %}
+                
+                <button class="btn btn-info ms-2" onclick="syncProgram()">
+                    <i class="fas fa-sync me-2"></i>Synchroniser
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <h3 class="mb-0">{{ stats.total_events }}</h3>
+                <small>Événements total</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <h3 class="mb-0">{{ stats.upcoming_events }}</h3>
+                <small>À venir</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <h3 class="mb-0">{{ stats.notifications_15min_sent }}</h3>
+                <small>Notifications 15min</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <h3 class="mb-0">{{ stats.notifications_3min_sent }}</h3>
+                <small>Notifications 3min</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Prochains événements -->
+        <div class="col-lg-8">
+            <h4 class="mb-3"><i class="fas fa-calendar-alt me-2"></i>Prochains événements</h4>
+            
+            {% if upcoming_events %}
+                {% for event in upcoming_events %}
+                <div class="card event-card event-upcoming mb-3">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h6 class="card-title mb-1">{{ event.title }}</h6>
+                                <p class="text-muted mb-1">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ event.start_time.strftime('%d/%m/%Y à %H:%M') }}
+                                </p>
+                                {% if event.location %}
+                                <p class="text-muted mb-1">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    {{ event.location }}
+                                </p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-1">
+                                    {% if event.notification_15min_sent %}
+                                    <span class="notification-status sent">15min ✓</span>
+                                    {% else %}
+                                    <span class="notification-status pending">15min ⏳</span>
+                                    {% endif %}
+                                    
+                                    {% if event.notification_3min_sent %}
+                                    <span class="notification-status sent ms-1">3min ✓</span>
+                                    {% else %}
+                                    <span class="notification-status pending ms-1">3min ⏳</span>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">{{ event.event_type|title }}</small>
+                            </div>
+                            <div class="col-md-2 text-end">
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        onclick="testNotification('{{ event.event_id }}')">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Aucun événement à venir. Synchronisez le programme pour charger les événements.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Panneau de contrôle -->
+        <div class="col-lg-4">
+            <!-- Créer un événement manuel -->
+            <div class="create-event-form">
+                <h5 class="mb-3"><i class="fas fa-plus me-2"></i>Créer un événement</h5>
+                <form id="createEventForm">
+                    <div class="mb-3">
+                        <label class="form-label">Titre</label>
+                        <input type="text" class="form-control" id="event-title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date et heure</label>
+                        <input type="datetime-local" class="form-control" id="event-datetime" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Lieu (optionnel)</label>
+                        <input type="text" class="form-control" id="event-location">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description (optionnelle)</label>
+                        <textarea class="form-control" id="event-description" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-plus me-2"></i>Créer l'événement
+                    </button>
+                </form>
+            </div>
+
+            <!-- Événements passés récents -->
+            <h5 class="mb-3"><i class="fas fa-history me-2"></i>Événements récents</h5>
+            {% if past_events %}
+                {% for event in past_events %}
+                <div class="card event-card event-past mb-2">
+                    <div class="card-body py-2">
+                        <h6 class="mb-1 small">{{ event.title }}</h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                {{ event.start_time.strftime('%d/%m à %H:%M') }}
+                            </small>
+                            <div>
+                                {% if event.notification_15min_sent %}
+                                <i class="fas fa-check text-success" title="Notification 15min envoyée"></i>
+                                {% endif %}
+                                {% if event.notification_3min_sent %}
+                                <i class="fas fa-check text-success ms-1" title="Notification 3min envoyée"></i>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-secondary">
+                    <small>Aucun événement passé</small>
+                </div>
+            {% endif %}
+
+            <!-- Configuration -->
+            <div class="mt-4 p-3 bg-light rounded">
+                <h6><i class="fas fa-cog me-2"></i>Configuration</h6>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="auto-sync" checked>
+                    <label class="form-check-label small" for="auto-sync">
+                        Synchronisation automatique (10 min)
+                    </label>
+                </div>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="notifications-enabled" 
+                           {% if service_status %}checked{% endif %}>
+                    <label class="form-check-label small" for="notifications-enabled">
+                        Notifications automatiques activées
+                    </label>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Les notifications sont envoyées 15 minutes et 3 minutes avant chaque événement.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmModalTitle">Confirmation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="confirmModalBody">
+                <!-- Contenu dynamique -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="confirmModalAction">Confirmer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Interface notifications automatiques chargée');
+});
+
+function toggleService(action) {
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    
+    document.getElementById('confirmModalTitle').textContent = 
+        action === 'start' ? 'Démarrer le service' : 'Arrêter le service';
+    
+    document.getElementById('confirmModalBody').innerHTML = 
+        action === 'start' 
+            ? 'Le service va démarrer la surveillance automatique des événements et l\'envoi de notifications.'
+            : 'Le service va s\'arrêter. Les notifications automatiques ne seront plus envoyées.';
+    
+    document.getElementById('confirmModalAction').onclick = function() {
+        fetch('/admin/notifications/toggle-service', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ action: action })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(data.error || 'Erreur inconnue', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            showAlert('Erreur de communication avec le serveur', 'danger');
+        });
+        
+        confirmModal.hide();
+    };
+    
+    confirmModal.show();
+}
+
+function syncProgram() {
+    showAlert('Synchronisation en cours...', 'info');
+    
+    fetch('/admin/notifications/sync-program', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.error || 'Erreur de synchronisation', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showAlert('Erreur de communication avec le serveur', 'danger');
+    });
+}
+
+function testNotification(eventId) {
+    fetch(`/admin/notifications/test-event-notification/${eventId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Notification de test envoyée !', 'success');
+        } else {
+            showAlert(data.error || 'Erreur envoi notification', 'warning');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showAlert('Erreur de communication', 'danger');
+    });
+}
+
+document.getElementById('createEventForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const title = document.getElementById('event-title').value;
+    const datetime = document.getElementById('event-datetime').value;
+    const location = document.getElementById('event-location').value;
+    const description = document.getElementById('event-description').value;
+    
+    if (!title || !datetime) {
+        showAlert('Titre et date/heure sont requis', 'warning');
+        return;
+    }
+    
+    // Convertir en ISO format
+    const startTime = new Date(datetime).toISOString();
+    
+    fetch('/admin/notifications/create-event', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            title: title,
+            start_time: startTime,
+            location: location,
+            description: description
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Événement créé avec succès !', 'success');
+            document.getElementById('createEventForm').reset();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.error || 'Erreur création événement', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showAlert('Erreur de communication', 'danger');
+    });
+});
+
+function showAlert(message, type) {
+    // Créer et afficher une alerte Bootstrap
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.style.minWidth = '300px';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Supprimer automatiquement après 5 secondes
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    }, 5000);
+}
+
+// Configuration des switches
+document.getElementById('notifications-enabled').addEventListener('change', function() {
+    const action = this.checked ? 'start' : 'stop';
+    toggleService(action);
+});
+
+// Mise à jour automatique du statut (toutes les 30 secondes)
+setInterval(() => {
+    fetch('/admin/notifications/auto-events')
+        .then(response => {
+            if (!response.ok) return;
+            // Recharger la page si le statut a changé
+            // (implémentation simple - on pourrait être plus sophistiqué)
+        })
+        .catch(() => {
+            // Ignorer les erreurs de réseau
+        });
+}, 30000);
+</script>
+{% endblock %}
