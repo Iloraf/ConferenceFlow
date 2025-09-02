@@ -24,7 +24,7 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from markupsafe import Markup
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from .conference_routes import conference
 from .models import db
 
@@ -293,16 +293,18 @@ def create_app():
         try:
             from app.services.auto_notification_service import auto_notification_service
             
-            # Synchroniser les événements au démarrage
-            with app.app_context():
-                auto_notification_service.sync_events_from_program()
-            
             # Démarrer le service automatiquement
             auto_notification_service.start_notification_scheduler()
-            app.logger.info("🔔 Service de notifications automatiques initialisé")
+            app.logger.info("🔔 Service de notifications automatiques démarré")
             
+            # Ajouter le service à l'app pour y accéder depuis les routes
+            app.auto_notification_service = auto_notification_service
+            
+        except ImportError as e:
+            app.logger.warning(f"⚠️ Service de notifications automatiques non disponible: {e}")
         except Exception as e:
-            app.logger.error(f"Erreur initialisation notifications auto: {e}")
+            app.logger.error(f"❌ Erreur démarrage service notifications automatiques: {e}")
+
 
     return app
 
