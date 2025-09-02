@@ -1,0 +1,435 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Messages - {{ conference.short_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.message-card {
+    transition: all 0.3s;
+    border-left: 4px solid transparent;
+}
+
+.message-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    border-left-color: #007bff;
+}
+
+.message-actions {
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.message-card:hover .message-actions {
+    opacity: 1;
+}
+
+.stats-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #f8f9fa;
+    border-radius: 15px;
+    border: 2px dashed #dee2e6;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+    border: none;
+    border-radius: 0;
+    border-bottom: 3px solid transparent;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    background: none;
+    border-bottom-color: #007bff;
+}
+
+.tab-content {
+    margin-top: 1.5rem;
+}
+
+.category-badge {
+    font-size: 0.8em;
+    padding: 4px 12px;
+    border-radius: 15px;
+}
+
+.status-active { border-left-color: #28a745; }
+.status-archived { border-left-color: #6c757d; }
+.status-moderated { border-left-color: #dc3545; }
+
+.message-stats {
+    font-size: 0.85em;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Navigation breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.echanges') }}">Échanges</a></li>
+            <li class="breadcrumb-item active">Mes messages</li>
+        </ol>
+    </nav>
+
+    <!-- En-tête -->
+    <div class="row">
+        <div class="col-12">
+            <div class="text-center mb-4">
+                <h1 class="display-5">
+                    <i class="fas fa-user-edit text-primary me-2"></i>
+                    Mes Messages
+                </h1>
+                <p class="lead text-muted">Gérez vos messages et participations aux échanges</p>
+            </div>
+        </div>
+    </div>
+
+    {% if main_messages or replies %}
+    <!-- Statistiques -->
+    <div class="stats-card">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <div class="mb-2">
+                    <i class="fas fa-comments fa-2x"></i>
+                </div>
+                <h3 class="mb-0">{{ main_messages|length }}</h3>
+                <small>Message{{ 's' if main_messages|length > 1 else '' }} créé{{ 's' if main_messages|length > 1 else '' }}</small>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-2">
+                    <i class="fas fa-reply fa-2x"></i>
+                </div>
+                <h3 class="mb-0">{{ replies|length }}</h3>
+                <small>Réponse{{ 's' if replies|length > 1 else '' }} postée{{ 's' if replies|length > 1 else '' }}</small>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-2">
+                    <i class="fas fa-eye fa-2x"></i>
+                </div>
+                <h3 class="mb-0">{{ main_messages|sum(attribute='view_count') }}</h3>
+                <small>Vue{{ 's' if main_messages|sum(attribute='view_count') > 1 else '' }} au total</small>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-2">
+                    <i class="fas fa-plus-circle fa-2x"></i>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('main.nouveau_message') }}" class="btn btn-light">
+                        <i class="fas fa-plus me-2"></i>Nouveau
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Onglets -->
+    <ul class="nav nav-tabs" id="messagesTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="main-messages-tab" data-bs-toggle="tab" 
+                    data-bs-target="#main-messages" type="button" role="tab">
+                <i class="fas fa-comments me-2"></i>Mes messages ({{ main_messages|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="replies-tab" data-bs-toggle="tab" 
+                    data-bs-target="#replies" type="button" role="tab">
+                <i class="fas fa-reply me-2"></i>Mes réponses ({{ replies|length }})
+            </button>
+        </li>
+    </ul>
+
+    <!-- Contenu des onglets -->
+    <div class="tab-content" id="messagesTabContent">
+        <!-- Messages principaux -->
+        <div class="tab-pane fade show active" id="main-messages" role="tabpanel">
+            {% if main_messages %}
+                {% for message in main_messages %}
+                <div class="card message-card mb-3 status-{{ message.status.value }}">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="d-flex align-items-start mb-2">
+                                    {% if message.is_pinned %}
+                                    <i class="fas fa-thumbtack text-warning me-2 mt-1" title="Message épinglé"></i>
+                                    {% endif %}
+                                    <div class="flex-grow-1">
+                                        <h6 class="card-title mb-1">
+                                            <a href="{{ url_for('main.voir_message', message_id=message.id) }}" 
+                                               class="text-decoration-none">
+                                                {{ message.title }}
+                                            </a>
+                                        </h6>
+                                        <div class="mb-2">
+                                            <span class="badge bg-secondary category-badge">
+                                                {% if message.category.value == 'general' %}Général
+                                                {% elif message.category.value == 'technique' %}Technique
+                                                {% elif message.category.value == 'logistique' %}Logistique
+                                                {% elif message.category.value == 'networking' %}Networking
+                                                {% elif message.category.value == 'questions' %}Questions/Aide
+                                                {% elif message.category.value == 'annonces' %}Annonces
+                                                {% else %}{{ message.category.value|title }}{% endif %}
+                                            </span>
+                                            
+                                            {% if message.topic %}
+                                            <span class="badge bg-light text-dark ms-2">
+                                                <i class="fas fa-tag me-1"></i>{{ message.topic }}
+                                            </span>
+                                            {% endif %}
+                                            
+                                            {% if message.status.value == 'archived' %}
+                                            <span class="badge bg-warning text-dark ms-2">Archivé</span>
+                                            {% elif message.status.value == 'moderated' %}
+                                            <span class="badge bg-danger ms-2">Modéré</span>
+                                            {% endif %}
+                                            
+                                            {% if not message.is_public %}
+                                            <span class="badge bg-secondary ms-2">
+                                                <i class="fas fa-eye-slash me-1"></i>Privé
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <p class="text-muted mb-2">
+                                    {{ message.content[:150] }}{% if message.content|length > 150 %}...{% endif %}
+                                </p>
+                                
+                                <div class="message-stats">
+                                    <i class="fas fa-clock me-1"></i>{{ message.created_at.strftime('%d/%m/%Y à %H:%M') }}
+                                    {% if message.updated_at != message.created_at %}
+                                    <span class="ms-3">
+                                        <i class="fas fa-edit me-1"></i>Modifié le {{ message.updated_at.strftime('%d/%m/%Y') }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 text-end">
+                                <div class="message-stats mb-3">
+                                    <div class="mb-1">
+                                        <i class="fas fa-eye me-1"></i>{{ message.view_count }} vue{{ 's' if message.view_count > 1 else '' }}
+                                    </div>
+                                    <div class="mb-1">
+                                        <i class="fas fa-reply me-1"></i>{{ message.replies_count }} réponse{{ 's' if message.replies_count > 1 else '' }}
+                                    </div>
+                                    {% if message.reactions %}
+                                    <div>
+                                        <i class="fas fa-heart me-1"></i>{{ message.reactions|length }} réaction{{ 's' if message.reactions|length > 1 else '' }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="message-actions">
+                                    <div class="btn-group-vertical">
+                                        <a href="{{ url_for('main.voir_message', message_id=message.id) }}" 
+                                           class="btn btn-sm btn-outline-primary" title="Voir le message">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.modifier_message', message_id=message.id) }}" 
+                                           class="btn btn-sm btn-outline-warning" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                onclick="confirmDelete({{ message.id }}, '{{ message.title|e }}')" 
+                                                title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-comment-slash fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">Aucun message créé</h4>
+                <p class="text-muted mb-4">Vous n'avez pas encore créé de message dans les échanges</p>
+                <a href="{{ url_for('main.nouveau_message') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Créer mon premier message
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Réponses -->
+        <div class="tab-pane fade" id="replies" role="tabpanel">
+            {% if replies %}
+                {% for reply in replies %}
+                <div class="card message-card mb-3 status-{{ reply.status.value }}">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-reply me-1"></i>
+                                        Réponse à : 
+                                        <a href="{{ url_for('main.voir_message', message_id=reply.parent.id) }}" 
+                                           class="text-decoration-none">
+                                            {{ reply.parent.title }}
+                                        </a>
+                                    </small>
+                                </div>
+                                
+                                <h6 class="card-title mb-2">{{ reply.title }}</h6>
+                                
+                                <p class="text-muted mb-2">
+                                    {{ reply.content[:150] }}{% if reply.content|length > 150 %}...{% endif %}
+                                </p>
+                                
+                                <div class="message-stats">
+                                    <i class="fas fa-clock me-1"></i>{{ reply.created_at.strftime('%d/%m/%Y à %H:%M') }}
+                                    {% if reply.updated_at != reply.created_at %}
+                                    <span class="ms-3">
+                                        <i class="fas fa-edit me-1"></i>Modifié le {{ reply.updated_at.strftime('%d/%m/%Y') }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 text-end">
+                                <div class="message-stats mb-3">
+                                    <div class="mb-1">
+                                        <span class="badge bg-info">Réponse</span>
+                                    </div>
+                                    {% if reply.status.value == 'archived' %}
+                                    <div class="mb-1">
+                                        <span class="badge bg-warning text-dark">Archivé</span>
+                                    </div>
+                                    {% elif reply.status.value == 'moderated' %}
+                                    <div class="mb-1">
+                                        <span class="badge bg-danger">Modéré</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="message-actions">
+                                    <div class="btn-group-vertical">
+                                        <a href="{{ url_for('main.voir_message', message_id=reply.parent.id) }}#reply-{{ reply.id }}" 
+                                           class="btn btn-sm btn-outline-primary" title="Voir la conversation">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.modifier_message', message_id=reply.id) }}" 
+                                           class="btn btn-sm btn-outline-warning" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                onclick="confirmDelete({{ reply.id }}, 'cette réponse')" 
+                                                title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-reply fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">Aucune réponse postée</h4>
+                <p class="text-muted mb-4">Vous n'avez pas encore répondu à des messages</p>
+                <a href="{{ url_for('main.echanges') }}" class="btn btn-primary">
+                    <i class="fas fa-comments me-2"></i>Parcourir les échanges
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% else %}
+    <!-- État complètement vide -->
+    <div class="empty-state">
+        <div class="mb-4">
+            <i class="fas fa-comments fa-4x text-muted mb-3"></i>
+            <h3 class="text-muted">Aucune activité</h3>
+            <p class="lead">Vous n'avez pas encore participé aux échanges</p>
+        </div>
+        
+        <div>
+            <a href="{{ url_for('main.nouveau_message') }}" class="btn btn-primary btn-lg me-3">
+                <i class="fas fa-plus me-2"></i>Créer un message
+            </a>
+            <a href="{{ url_for('main.echanges') }}" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-comments me-2"></i>Parcourir les échanges
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-trash-alt text-danger me-2"></i>Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer définitivement ce message ?</p>
+                <div class="alert alert-warning">
+                    <strong id="message-title"></strong>
+                </div>
+                <p class="small text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Si le message a des réponses, il sera archivé au lieu d'être supprimé.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(messageId, messageTitle) {
+    document.getElementById('message-title').textContent = messageTitle;
+    document.getElementById('deleteForm').action = '/echanges/message/' + messageId + '/supprimer';
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+
+// Animation d'entrée pour les cartes
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.message-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

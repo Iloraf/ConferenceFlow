@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+
+{% block title %}Ajouter une Photo - {{ conference.short_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.upload-area {
+    border: 3px dashed #dee2e6;
+    border-radius: 15px;
+    padding: 3rem 2rem;
+    text-align: center;
+    background: #f8f9fa;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.upload-area:hover {
+    border-color: #007bff;
+    background: #e3f2fd;
+}
+
+.upload-area.dragover {
+    border-color: #28a745;
+    background: #e8f5e9;
+    transform: scale(1.02);
+}
+
+.upload-icon {
+    font-size: 4rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.file-info {
+    display: none;
+    background: #e8f5e9;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.preview-image {
+    max-width: 300px;
+    max-height: 200px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.form-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.category-option {
+    padding: 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.category-option:hover {
+    border-color: #007bff;
+    background: #f8f9fa;
+}
+
+.category-option input[type="radio"]:checked + label {
+    color: #007bff;
+    font-weight: bold;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Navigation breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.galerie') }}">Galerie</a></li>
+            <li class="breadcrumb-item active">Ajouter une photo</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- En-tête -->
+            <div class="text-center mb-4">
+                <h1 class="display-5">
+                    <i class="fas fa-camera text-primary me-2"></i>
+                    Ajouter une Photo
+                </h1>
+                <p class="lead text-muted">Partagez vos meilleurs moments de la conférence</p>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" id="photoForm">
+                {{ form.hidden_tag() }}
+                
+                <!-- Section 1: Upload de la photo -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-upload me-2"></i>Sélectionner votre photo
+                    </h3>
+                    
+                    <div class="upload-area" onclick="document.getElementById('photo_file').click()">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <h4 class="mb-3">Cliquez ou glissez votre photo ici</h4>
+                        <p class="text-muted mb-0">
+                            Formats acceptés : JPG, JPEG, PNG, GIF<br>
+                            Taille maximale : 10 MB
+                        </p>
+                        {{ form.photo_file(class="d-none", id="photo_file", accept="image/*") }}
+                    </div>
+                    
+                    {% if form.photo_file.errors %}
+                        <div class="alert alert-danger mt-3">
+                            {% for error in form.photo_file.errors %}
+                                <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Prévisualisation -->
+                    <div id="file-info" class="file-info">
+                        <div class="row align-items-center">
+                            <div class="col-md-4 text-center">
+                                <img id="preview" src="" alt="Prévisualisation" class="preview-image">
+                            </div>
+                            <div class="col-md-8">
+                                <h5 class="text-success">
+                                    <i class="fas fa-check-circle me-2"></i>Photo prête !
+                                </h5>
+                                <p class="mb-1"><strong>Nom :</strong> <span id="file-name"></span></p>
+                                <p class="mb-1"><strong>Taille :</strong> <span id="file-size"></span></p>
+                                <p class="mb-0"><strong>Type :</strong> <span id="file-type"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Informations de la photo -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-info-circle me-2"></i>Informations de la photo
+                    </h3>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control", rows="3", placeholder="Décrivez cette photo en quelques mots...") }}
+                            {% if form.description.errors %}
+                                <div class="text-danger mt-2">
+                                    {% for error in form.description.errors %}
+                                        <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">{{ form.description.description }}</div>
+                        </div>
+                        
+                        <div class="col-md-12">
+                            {{ form.category.label(class="form-label") }}
+                            <div class="row">
+                                {% for value, label in form.category.choices %}
+                                <div class="col-md-6 col-lg-4 mb-2">
+                                    <div class="category-option">
+                                        <input type="radio" name="category" value="{{ value }}" id="cat-{{ value }}" class="form-check-input me-2">
+                                        <label for="cat-{{ value }}" class="form-check-label w-100">
+                                            <i class="fas fa-tag me-2"></i>{{ label }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% if form.category.errors %}
+                                <div class="text-danger mt-2">
+                                    {% for error in form.category.errors %}
+                                        <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Actions -->
+                <div class="form-section">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <a href="{{ url_for('main.galerie') }}" class="btn btn-secondary btn-lg w-100">
+                                <i class="fas fa-arrow-left me-2"></i>Retour à la galerie
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.submit(class="btn btn-primary btn-lg w-100", id="submitBtn", disabled="disabled") }}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('photo_file');
+    const uploadArea = document.querySelector('.upload-area');
+    const fileInfo = document.getElementById('file-info');
+    const preview = document.getElementById('preview');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    // Gestion du drag & drop
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelect();
+        }
+    });
+    
+    // Gestion de la sélection de fichier
+    fileInput.addEventListener('change', handleFileSelect);
+    
+    function handleFileSelect() {
+        const file = fileInput.files[0];
+        if (file) {
+            // Validation du type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Format de fichier non autorisé. Utilisez JPG, JPEG, PNG ou GIF.');
+                return;
+            }
+            
+            // Validation de la taille (10 MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('Fichier trop volumineux. Maximum 10 MB autorisé.');
+                return;
+            }
+            
+            // Afficher les informations du fichier
+            document.getElementById('file-name').textContent = file.name;
+            document.getElementById('file-size').textContent = formatFileSize(file.size);
+            document.getElementById('file-type').textContent = file.type;
+            
+            // Créer la prévisualisation
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                fileInfo.style.display = 'block';
+                submitBtn.disabled = false;
+            };
+            reader.readAsDataURL(file);
+            
+            // Masquer l'upload area
+            uploadArea.style.display = 'none';
+        }
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // Permettre de changer de fichier
+    fileInfo.addEventListener('click', function() {
+        fileInput.click();
+    });
+});
+</script>
+{% endblock %}

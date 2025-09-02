@@ -1,0 +1,440 @@
+{% extends 'base.html' %}
+
+{% block title %}Nouveau Message - {{ conference.short_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.category-option {
+    padding: 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.category-option:hover {
+    border-color: #007bff;
+    background: #f8f9fa;
+}
+
+.category-option input[type="radio"]:checked + label {
+    color: #007bff;
+    font-weight: bold;
+}
+
+.category-option.selected {
+    border-color: #007bff;
+    background: #e3f2fd;
+}
+
+.category-icon {
+    font-size: 1.2em;
+    margin-right: 0.5rem;
+}
+
+.preview-section {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.5rem;
+    border: 1px solid #dee2e6;
+}
+
+.char-counter {
+    font-size: 0.85em;
+    color: #6c757d;
+    float: right;
+}
+
+.char-counter.warning {
+    color: #ffc107;
+}
+
+.char-counter.danger {
+    color: #dc3545;
+}
+
+.guidelines {
+    background: #e8f5e9;
+    border-left: 4px solid #28a745;
+    padding: 1rem;
+    border-radius: 5px;
+    margin-bottom: 1.5rem;
+}
+
+.category-description {
+    font-size: 0.85em;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Navigation breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.echanges') }}">Échanges</a></li>
+            <li class="breadcrumb-item active">Nouveau message</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- En-tête -->
+            <div class="text-center mb-4">
+                <h1 class="display-5">
+                    <i class="fas fa-plus-circle text-primary me-2"></i>
+                    Nouveau Message
+                </h1>
+                <p class="lead text-muted">Partagez une question, information ou discussion avec les participants</p>
+            </div>
+
+            <!-- Conseils d'utilisation -->
+            <div class="guidelines">
+                <h6><i class="fas fa-lightbulb me-2"></i>Conseils pour un bon message</h6>
+                <ul class="mb-0">
+                    <li>Choisissez un <strong>titre clair</strong> qui résume votre message</li>
+                    <li>Sélectionnez la <strong>catégorie appropriée</strong> pour faciliter les recherches</li>
+                    <li>Vérifiez qu'un sujet similaire n'existe pas déjà</li>
+                    <li>Soyez <strong>respectueux et constructif</strong> dans vos propos</li>
+                </ul>
+            </div>
+
+            <form method="POST" id="messageForm">
+                {{ form.hidden_tag() }}
+                
+                <!-- Section 1: Informations principales -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-info-circle me-2"></i>Informations principales
+                    </h3>
+                    
+                    <div class="mb-4">
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control form-control-lg", placeholder="Ex: Question sur les transferts thermiques", maxlength="200") }}
+                        {% if form.title.errors %}
+                            <div class="text-danger mt-2">
+                                {% for error in form.title.errors %}
+                                    <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">{{ form.title.description }}</div>
+                        <div class="char-counter" id="title-counter">0/200 caractères</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        {{ form.topic.label(class="form-label") }}
+                        {{ form.topic(class="form-control", placeholder="Ex: Simulation numérique, Matériaux...", maxlength="100") }}
+                        {% if form.topic.errors %}
+                            <div class="text-danger mt-2">
+                                {% for error in form.topic.errors %}
+                                    <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">{{ form.topic.description }}</div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Catégorie -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-folder me-2"></i>Catégorie
+                    </h3>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="category-option" data-category="general">
+                                <input type="radio" name="category" value="general" id="cat-general" class="form-check-input me-2">
+                                <label for="cat-general" class="form-check-label w-100">
+                                    <i class="fas fa-comments category-icon text-secondary"></i><strong>Général</strong>
+                                    <div class="category-description">Discussions ouvertes et sujets divers</div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="category-option" data-category="technique">
+                                <input type="radio" name="category" value="technique" id="cat-technique" class="form-check-input me-2">
+                                <label for="cat-technique" class="form-check-label w-100">
+                                    <i class="fas fa-cogs category-icon text-primary"></i><strong>Technique</strong>
+                                    <div class="category-description">Questions scientifiques et techniques</div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="category-option" data-category="logistique">
+                                <input type="radio" name="category" value="logistique" id="cat-logistique" class="form-check-input me-2">
+                                <label for="cat-logistique" class="form-check-label w-100">
+                                    <i class="fas fa-clipboard-list category-icon text-success"></i><strong>Logistique</strong>
+                                    <div class="category-description">Transport, hébergement, organisation</div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="category-option" data-category="networking">
+                                <input type="radio" name="category" value="networking" id="cat-networking" class="form-check-input me-2">
+                                <label for="cat-networking" class="form-check-label w-100">
+                                    <i class="fas fa-handshake category-icon text-warning"></i><strong>Networking</strong>
+                                    <div class="category-description">Rencontres et collaborations</div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="category-option" data-category="questions">
+                                <input type="radio" name="category" value="questions" id="cat-questions" class="form-check-input me-2">
+                                <label for="cat-questions" class="form-check-label w-100">
+                                    <i class="fas fa-question-circle category-icon text-danger"></i><strong>Questions/Aide</strong>
+                                    <div class="category-description">Demandes d'aide et réponses</div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="category-option" data-category="annonces">
+                                <input type="radio" name="category" value="annonces" id="cat-annonces" class="form-check-input me-2">
+                                <label for="cat-annonces" class="form-check-label w-100">
+                                    <i class="fas fa-bullhorn category-icon text-info"></i><strong>Annonces</strong>
+                                    <div class="category-description">Informations et actualités</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if form.category.errors %}
+                        <div class="text-danger mt-2">
+                            {% for error in form.category.errors %}
+                                <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Section 3: Contenu -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-edit me-2"></i>Contenu du message
+                    </h3>
+                    
+                    <div class="mb-4">
+                        {{ form.content.label(class="form-label") }}
+                        {{ form.content(class="form-control", rows="8", placeholder="Détaillez votre message ici...", maxlength="5000") }}
+                        {% if form.content.errors %}
+                            <div class="text-danger mt-2">
+                                {% for error in form.content.errors %}
+                                    <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">{{ form.content.description }}</div>
+                        <div class="char-counter" id="content-counter">0/5000 caractères</div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Prévisualisation -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-eye me-2"></i>Prévisualisation
+                    </h3>
+                    
+                    <div class="preview-section" id="message-preview">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge bg-secondary" id="preview-category">Catégorie</span>
+                                    <small class="text-muted">{{ current_user.first_name }} {{ current_user.last_name[:1] }}.</small>
+                                </div>
+                                <h5 class="card-title" id="preview-title">Titre du message</h5>
+                                <div id="preview-topic" class="mb-2" style="display: none;">
+                                    <small class="text-muted">
+                                        <i class="fas fa-tag me-1"></i><span id="preview-topic-text"></span>
+                                    </small>
+                                </div>
+                                <p class="card-text" id="preview-content">Contenu du message...</p>
+                                <div class="message-meta">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>À l'instant
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 5: Actions -->
+                <div class="form-section">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <a href="{{ url_for('main.echanges') }}" class="btn btn-secondary btn-lg w-100">
+                                <i class="fas fa-arrow-left me-2"></i>Retour aux échanges
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.submit(class="btn btn-primary btn-lg w-100", id="submitBtn") }}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const titleInput = document.getElementById('title');
+    const contentInput = document.getElementById('content');
+    const topicInput = document.getElementById('topic');
+    const categoryInputs = document.querySelectorAll('input[name="category"]');
+    
+    // Compteurs de caractères
+    const titleCounter = document.getElementById('title-counter');
+    const contentCounter = document.getElementById('content-counter');
+    
+    // Éléments de prévisualisation
+    const previewTitle = document.getElementById('preview-title');
+    const previewContent = document.getElementById('preview-content');
+    const previewCategory = document.getElementById('preview-category');
+    const previewTopic = document.getElementById('preview-topic');
+    const previewTopicText = document.getElementById('preview-topic-text');
+    
+    // Gestion des catégories
+    const categoryOptions = document.querySelectorAll('.category-option');
+    
+    categoryOptions.forEach(option => {
+        const radio = option.querySelector('input[type="radio"]');
+        
+        option.addEventListener('click', function() {
+            // Décocher tous les autres
+            categoryOptions.forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            
+            // Cocher celui-ci
+            radio.checked = true;
+            option.classList.add('selected');
+            
+            // Mettre à jour la prévisualisation
+            updatePreview();
+        });
+    });
+    
+    // Mise à jour des compteurs
+    function updateCharCounter(input, counter, maxLength) {
+        const currentLength = input.value.length;
+        counter.textContent = currentLength + '/' + maxLength + ' caractères';
+        
+        if (currentLength > maxLength * 0.9) {
+            counter.classList.add('warning');
+            counter.classList.remove('danger');
+        }
+        if (currentLength > maxLength * 0.95) {
+            counter.classList.add('danger');
+            counter.classList.remove('warning');
+        }
+        if (currentLength <= maxLength * 0.9) {
+            counter.classList.remove('warning', 'danger');
+        }
+    }
+    
+    // Mise à jour de la prévisualisation
+    function updatePreview() {
+        // Titre
+        const title = titleInput.value || 'Titre du message';
+        previewTitle.textContent = title;
+        
+        // Contenu
+        const content = contentInput.value || 'Contenu du message...';
+        previewContent.textContent = content.length > 200 ? content.substring(0, 200) + '...' : content;
+        
+        // Sujet/topic
+        const topic = topicInput.value;
+        if (topic.trim()) {
+            previewTopic.style.display = 'block';
+            previewTopicText.textContent = topic;
+        } else {
+            previewTopic.style.display = 'none';
+        }
+        
+        // Catégorie
+        const selectedCategory = document.querySelector('input[name="category"]:checked');
+        if (selectedCategory) {
+            const categoryLabels = {
+                'general': { text: 'Général', class: 'bg-secondary' },
+                'technique': { text: 'Technique', class: 'bg-primary' },
+                'logistique': { text: 'Logistique', class: 'bg-success' },
+                'networking': { text: 'Networking', class: 'bg-warning text-dark' },
+                'questions': { text: 'Questions/Aide', class: 'bg-danger' },
+                'annonces': { text: 'Annonces', class: 'bg-info text-dark' }
+            };
+            
+            const categoryInfo = categoryLabels[selectedCategory.value] || { text: 'Catégorie', class: 'bg-secondary' };
+            previewCategory.textContent = categoryInfo.text;
+            previewCategory.className = 'badge ' + categoryInfo.class;
+        }
+    }
+    
+    // Événements
+    titleInput.addEventListener('input', function() {
+        updateCharCounter(this, titleCounter, 200);
+        updatePreview();
+    });
+    
+    contentInput.addEventListener('input', function() {
+        updateCharCounter(this, contentCounter, 5000);
+        updatePreview();
+    });
+    
+    topicInput.addEventListener('input', function() {
+        updatePreview();
+    });
+    
+    categoryInputs.forEach(input => {
+        input.addEventListener('change', updatePreview);
+    });
+    
+    // Initialisation
+    updateCharCounter(titleInput, titleCounter, 200);
+    updateCharCounter(contentInput, contentCounter, 5000);
+    updatePreview();
+    
+    // Validation du formulaire
+    document.getElementById('messageForm').addEventListener('submit', function(e) {
+        const selectedCategory = document.querySelector('input[name="category"]:checked');
+        if (!selectedCategory) {
+            e.preventDefault();
+            alert('Veuillez sélectionner une catégorie pour votre message.');
+            return false;
+        }
+        
+        if (!titleInput.value.trim() || !contentInput.value.trim()) {
+            e.preventDefault();
+            alert('Veuillez remplir le titre et le contenu du message.');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

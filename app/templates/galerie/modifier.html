@@ -1,0 +1,331 @@
+{% extends 'base.html' %}
+
+{% block title %}Modifier {{ photo.original_name }} - {{ conference.short_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.photo-preview {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.form-section {
+    background: white;
+    padding: 2rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.category-option {
+    padding: 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.category-option:hover {
+    border-color: #007bff;
+    background: #f8f9fa;
+}
+
+.category-option input[type="radio"]:checked + label {
+    color: #007bff;
+    font-weight: bold;
+}
+
+.current-info {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+}
+
+.info-badge {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+.delete-section {
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Navigation breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.galerie') }}">Galerie</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.mes_photos') }}">Mes photos</a></li>
+            <li class="breadcrumb-item active">Modifier {{ photo.original_name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- En-tête -->
+            <div class="text-center mb-4">
+                <h1 class="display-5">
+                    <i class="fas fa-edit text-primary me-2"></i>
+                    Modifier la Photo
+                </h1>
+                <p class="lead text-muted">Mettez à jour les informations de votre photo</p>
+            </div>
+
+            <!-- Informations actuelles -->
+            <div class="current-info">
+                <div class="row align-items-center">
+                    <div class="col-md-4 text-center">
+                        <img src="{{ photo.web_path }}" alt="{{ photo.original_name }}" class="photo-preview">
+                    </div>
+                    <div class="col-md-8">
+                        <h3 class="mb-3">{{ photo.original_name }}</h3>
+                        
+                        <div class="mb-3">
+                            <div class="info-badge">
+                                <i class="fas fa-expand-arrows-alt me-1"></i>
+                                {{ photo.width }}×{{ photo.height }}
+                            </div>
+                            <div class="info-badge">
+                                <i class="fas fa-file me-1"></i>
+                                {{ photo.file_size_human }}
+                            </div>
+                            <div class="info-badge">
+                                <i class="fas fa-calendar me-1"></i>
+                                {{ photo.created_at.strftime('%d/%m/%Y') }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-2">
+                            {% if photo.is_approved %}
+                                <span class="badge bg-success bg-opacity-75">
+                                    <i class="fas fa-check me-1"></i>Approuvée
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning bg-opacity-75 text-dark">
+                                    <i class="fas fa-clock me-1"></i>En attente
+                                </span>
+                            {% endif %}
+                            
+                            {% if photo.is_public %}
+                                <span class="badge bg-info bg-opacity-75 ms-2">
+                                    <i class="fas fa-eye me-1"></i>Publique
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary bg-opacity-75 ms-2">
+                                    <i class="fas fa-eye-slash me-1"></i>Privée
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                
+                <!-- Section 1: Description -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-comment me-2"></i>Description
+                    </h3>
+                    
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control", rows="4", placeholder="Décrivez cette photo en quelques mots...") }}
+                        {% if form.description.errors %}
+                            <div class="text-danger mt-2">
+                                {% for error in form.description.errors %}
+                                    <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">{{ form.description.description }}</div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Catégorie -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-folder me-2"></i>Catégorie
+                    </h3>
+                    
+                    <div class="row">
+                        {% for value, label in form.category.choices %}
+                        <div class="col-md-6 col-lg-4 mb-2">
+                            <div class="category-option">
+                                <input type="radio" name="category" value="{{ value }}" id="cat-{{ value }}" 
+                                       class="form-check-input me-2"
+                                       {% if form.category.data == value or (not form.category.data and photo.category.value == value) %}checked{% endif %}>
+                                <label for="cat-{{ value }}" class="form-check-label w-100">
+                                    <i class="fas fa-tag me-2"></i>{{ label }}
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if form.category.errors %}
+                        <div class="text-danger mt-2">
+                            {% for error in form.category.errors %}
+                                <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Section 3: Visibilité -->
+                <div class="form-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-eye me-2"></i>Visibilité
+                    </h3>
+                    
+                    <div class="form-check form-switch">
+                        {{ form.is_public(class="form-check-input", role="switch") }}
+                        <label class="form-check-label" for="{{ form.is_public.id }}">
+                            <strong>{{ form.is_public.label.text }}</strong>
+                        </label>
+                    </div>
+                    <div class="form-text mt-2">
+                        {{ form.is_public.description }}
+                    </div>
+                    
+                    {% if form.is_public.errors %}
+                        <div class="text-danger mt-2">
+                            {% for error in form.is_public.errors %}
+                                <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Section 4: Actions -->
+                <div class="form-section">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('main.mes_photos') }}" class="btn btn-secondary btn-lg w-100">
+                                <i class="fas fa-arrow-left me-2"></i>Retour à mes photos
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.submit(class="btn btn-primary btn-lg w-100") }}
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <a href="{{ url_for('main.voir_photo', photo_id=photo.id) }}" 
+                           class="btn btn-outline-info">
+                            <i class="fas fa-eye me-2"></i>Voir la photo
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Zone de suppression -->
+                <div class="delete-section">
+                    <h5 class="text-danger mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Zone de danger
+                    </h5>
+                    <p class="text-muted mb-3">
+                        Une fois supprimée, cette photo ne pourra pas être récupérée.
+                    </p>
+                    <button type="button" class="btn btn-danger" 
+                            onclick="confirmDelete({{ photo.id }}, '{{ photo.original_name }}')">
+                        <i class="fas fa-trash me-2"></i>Supprimer cette photo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-trash-alt text-danger me-2"></i>Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer définitivement cette photo ?</p>
+                <div class="alert alert-warning">
+                    <strong id="photo-name"></strong>
+                </div>
+                <p class="small text-muted">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(photoId, photoName) {
+    document.getElementById('photo-name').textContent = photoName;
+    document.getElementById('deleteForm').action = '/galerie/supprimer/' + photoId;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+
+// Animation des options de catégorie
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryOptions = document.querySelectorAll('.category-option');
+    
+    categoryOptions.forEach(option => {
+        const radio = option.querySelector('input[type="radio"]');
+        
+        option.addEventListener('click', function() {
+            // Décocher tous les autres
+            categoryOptions.forEach(opt => {
+                opt.style.borderColor = '#e9ecef';
+                opt.style.background = 'white';
+            });
+            
+            // Cocher celui-ci
+            radio.checked = true;
+            option.style.borderColor = '#007bff';
+            option.style.background = '#f8f9fa';
+        });
+        
+        // État initial
+        if (radio.checked) {
+            option.style.borderColor = '#007bff';
+            option.style.background = '#f8f9fa';
+        }
+    });
+});
+</script>
+{% endblock %}

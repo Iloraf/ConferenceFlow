@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ category_display }} - Galerie {{ conference.short_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.category-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 3rem 0;
+    margin-bottom: 3rem;
+    border-radius: 15px;
+}
+
+.photo-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.photo-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+}
+
+.photo-thumbnail {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.photo-card:hover .photo-thumbnail {
+    transform: scale(1.05);
+}
+
+.photo-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    color: white;
+    padding: 2rem 1rem 1rem;
+    transform: translateY(100%);
+    transition: transform 0.3s;
+}
+
+.photo-card:hover .photo-info {
+    transform: translateY(0);
+}
+
+.load-more-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    color: white;
+    font-weight: bold;
+    transition: all 0.3s;
+}
+
+.load-more-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+    color: white;
+}
+
+.masonry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-gap: 2rem;
+    grid-auto-rows: max-content;
+}
+
+.empty-category {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #f8f9fa;
+    border-radius: 15px;
+    border: 2px dashed #dee2e6;
+}
+
+.filter-controls {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.sort-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.sort-btn {
+    padding: 8px 16px;
+    border: 2px solid #e9ecef;
+    background: white;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.sort-btn.active,
+.sort-btn:hover {
+    border-color: #007bff;
+    background: #007bff;
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Navigation breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.galerie') }}">Galerie</a></li>
+            <li class="breadcrumb-item active">{{ category_display }}</li>
+        </ol>
+    </nav>
+
+    <!-- En-tête de catégorie -->
+    <div class="category-header text-center">
+        <div class="container">
+            <h1 class="display-4 mb-3">
+                <i class="fas fa-folder-open me-3"></i>
+                {{ category_display }}
+            </h1>
+            <p class="lead mb-4">
+                {% if photos %}
+                    {{ photos|length }} photo{{ 's' if photos|length > 1 else '' }} dans cette catégorie
+                {% else %}
+                    Aucune photo dans cette catégorie
+                {% endif %}
+            </p>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('main.galerie') }}" class="btn btn-outline-light me-3">
+                    <i class="fas fa-arrow-left me-2"></i>Retour à la galerie
+                </a>
+                
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('main.ajouter_photo') }}" class="btn btn-light">
+                    <i class="fas fa-plus me-2"></i>Ajouter une photo
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if photos %}
+        <!-- Contrôles de tri et filtrage -->
+        <div class="filter-controls">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6 class="mb-2">
+                        <i class="fas fa-sort me-2"></i>Trier par :
+                    </h6>
+                    <div class="sort-options">
+                        <button class="sort-btn active" onclick="sortPhotos('recent')">
+                            <i class="fas fa-clock me-1"></i>Plus récentes
+                        </button>
+                        <button class="sort-btn" onclick="sortPhotos('oldest')">
+                            <i class="fas fa-history me-1"></i>Plus anciennes
+                        </button>
+                        <button class="sort-btn" onclick="sortPhotos('author')">
+                            <i class="fas fa-user me-1"></i>Par auteur
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary" onclick="changeView('grid')" id="grid-view">
+                            <i class="fas fa-th"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary active" onclick="changeView('masonry')" id="masonry-view">
+                            <i class="fas fa-th-large"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grille de photos -->
+        <div id="photos-container" class="masonry-grid">
+            {% for photo in photos %}
+            <div class="photo-item" 
+                 data-date="{{ photo.created_at.timestamp() }}"
+                 data-author="{{ photo.user.full_name|lower }}"
+                 onclick="window.location.href='{{ url_for('main.voir_photo', photo_id=photo.id) }}'">
+                <div class="card photo-card border-0 shadow-sm h-100">
+                    <div class="position-relative">
+                        <img src="{{ photo.web_path }}" 
+                             alt="{{ photo.description or 'Photo' }}" 
+                             class="photo-thumbnail">
+                        
+                        <!-- Overlay avec informations -->
+                        <div class="photo-info">
+                            {% if photo.description %}
+                            <p class="mb-2 small">{{ photo.description[:100] }}{% if photo.description|length > 100 %}...{% endif %}</p>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between align-items-end">
+                                <div>
+                                    <small>
+                                        <i class="fas fa-user me-1"></i>
+                                        {{ photo.user.first_name }} {{ photo.user.last_name[:1] }}.
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <small class="d-block">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        {{ photo.created_at.strftime('%d/%m/%Y') }}
+                                    </small>
+                                    <small>
+                                        <i class="fas fa-expand-arrows-alt me-1"></i>
+                                        {{ photo.width }}×{{ photo.height }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Message de fin de grille -->
+        <div class="text-center mt-5 pt-5 border-top">
+            <p class="text-muted">
+                <i class="fas fa-check-circle me-2"></i>
+                Vous avez vu toutes les photos de cette catégorie !
+            </p>
+            
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.ajouter_photo') }}" class="btn load-more-btn">
+                <i class="fas fa-plus me-2"></i>Ajouter une photo à cette catégorie
+            </a>
+            {% endif %}
+        </div>
+
+    {% else %}
+        <!-- État vide -->
+        <div class="empty-category">
+            <div class="mb-4">
+                <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+                <h3 class="text-muted">Aucune photo dans "{{ category_display }}"</h3>
+                <p class="lead">Soyez le premier à partager une photo dans cette catégorie !</p>
+            </div>
+            
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.ajouter_photo') }}" class="btn load-more-btn btn-lg">
+                <i class="fas fa-camera me-2"></i>Ajouter la première photo
+            </a>
+            {% else %}
+            <p class="text-muted">
+                <a href="{{ url_for('auth.login') }}">Connectez-vous</a> pour ajouter des photos
+            </p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animation d'entrée pour les photos
+    const photos = document.querySelectorAll('.photo-item');
+    photos.forEach((photo, index) => {
+        photo.style.opacity = '0';
+        photo.style.transform = 'translateY(30px)';
+        
+        setTimeout(() => {
+            photo.style.transition = 'all 0.6s ease';
+            photo.style.opacity = '1';
+            photo.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+
+function sortPhotos(sortBy) {
+    const container = document.getElementById('photos-container');
+    const items = Array.from(document.querySelectorAll('.photo-item'));
+    
+    // Mettre à jour l'état actif des boutons
+    document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    let sortedItems;
+    
+    switch(sortBy) {
+        case 'recent':
+            sortedItems = items.sort((a, b) => {
+                return parseFloat(b.dataset.date) - parseFloat(a.dataset.date);
+            });
+            break;
+        case 'oldest':
+            sortedItems = items.sort((a, b) => {
+                return parseFloat(a.dataset.date) - parseFloat(b.dataset.date);
+            });
+            break;
+        case 'author':
+            sortedItems = items.sort((a, b) => {
+                return a.dataset.author.localeCompare(b.dataset.author);
+            });
+            break;
+    }
+    
+    // Réorganiser les éléments
+    container.innerHTML = '';
+    sortedItems.forEach((item, index) => {
+        item.style.opacity = '0';
+        item.style.transform = 'scale(0.8)';
+        container.appendChild(item);
+        
+        setTimeout(() => {
+            item.style.transition = 'all 0.4s ease';
+            item.style.opacity = '1';
+            item.style.transform = 'scale(1)';
+        }, index * 50);
+    });
+}
+
+function changeView(viewType) {
+    const container = document.getElementById('photos-container');
+    const gridBtn = document.getElementById('grid-view');
+    const masonryBtn = document.getElementById('masonry-view');
+    
+    if (viewType === 'grid') {
+        container.className = 'row';
+        container.querySelectorAll('.photo-item').forEach(item => {
+            item.className = 'photo-item col-lg-4 col-md-6 mb-4';
+        });
+        gridBtn.classList.add('active');
+        masonryBtn.classList.remove('active');
+    } else {
+        container.className = 'masonry-grid';
+        container.querySelectorAll('.photo-item').forEach(item => {
+            item.className = 'photo-item';
+        });
+        masonryBtn.classList.add('active');
+        gridBtn.classList.remove('active');
+    }
+}
+</script>
+{% endblock %}

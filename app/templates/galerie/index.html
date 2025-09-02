@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block title %}Galerie Photos - {{ conference.short_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.photo-card {
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+.photo-card:hover {
+    transform: scale(1.05);
+}
+
+.photo-thumbnail {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.category-section {
+    margin-bottom: 3rem;
+}
+
+.category-title {
+    color: #2c3e50;
+    border-bottom: 3px solid #3498db;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.recent-photos {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 3rem;
+    border-radius: 15px;
+}
+
+.add-photo-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    color: white;
+    font-weight: bold;
+    transition: all 0.3s;
+}
+
+.add-photo-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+    color: white;
+}
+
+.photo-count {
+    background: rgba(52, 152, 219, 0.1);
+    color: #2980b9;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.empty-category {
+    text-align: center;
+    padding: 3rem;
+    color: #7f8c8d;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 2px dashed #dee2e6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- En-tête de la galerie -->
+    <div class="row">
+        <div class="col-12">
+            <div class="text-center mb-4">
+                <h1 class="display-4">
+                    <i class="fas fa-images text-primary me-3"></i>
+                    Galerie Photos
+                </h1>
+                <p class="lead text-muted">
+                    Découvrez les moments forts de {{ conference.name }} en images
+                </p>
+                
+                {% if current_user.is_authenticated %}
+                <div class="mt-3">
+                    <a href="{{ url_for('main.ajouter_photo') }}" class="btn add-photo-btn me-3">
+                        <i class="fas fa-plus me-2"></i>Ajouter une photo
+                    </a>
+                    <a href="{{ url_for('main.mes_photos') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-user me-2"></i>Mes photos
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Section photos récentes -->
+    {% if recent_photos %}
+    <div class="recent-photos rounded shadow-sm mb-5">
+        <div class="container">
+            <div class="text-center mb-4">
+                <h2 class="h3 mb-3">
+                    <i class="fas fa-star me-2"></i>À la une
+                </h2>
+                <p class="mb-0">Les dernières photos partagées par les participants</p>
+            </div>
+            
+            <div class="row">
+                {% for photo in recent_photos[:8] %}
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <div class="photo-card" onclick="window.location.href='{{ url_for('main.voir_photo', photo_id=photo.id) }}'">
+                        <img src="{{ photo.web_path }}" alt="{{ photo.description or 'Photo' }}" 
+                             class="photo-thumbnail shadow-sm">
+                        <div class="text-center mt-2">
+                            <small class="text-light">
+                                <i class="fas fa-user me-1"></i>{{ photo.user.first_name }}
+                                <span class="ms-2">
+                                    <i class="fas fa-clock me-1"></i>{{ photo.created_at.strftime('%d/%m') }}
+                                </span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Photos par catégories -->
+    {% if photos_by_category %}
+        {% for category, photos in photos_by_category.items() %}
+        <div class="category-section">
+            <div class="row align-items-center mb-3">
+                <div class="col">
+                    <h2 class="category-title h3">
+                        <i class="fas fa-folder-open me-2"></i>
+                        {{ category.value.replace('_', ' ').title() }}
+                    </h2>
+                </div>
+                <div class="col-auto">
+                    <span class="photo-count">
+                        {{ photos|length }} photo{{ 's' if photos|length > 1 else '' }}
+                    </span>
+                    <a href="{{ url_for('main.galerie_categorie', category_name=category.value) }}" 
+                       class="btn btn-sm btn-outline-primary ms-2">
+                        <i class="fas fa-eye me-1"></i>Voir tout
+                    </a>
+                </div>
+            </div>
+            
+            <div class="row">
+                {% for photo in photos[:8] %}
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <div class="card photo-card border-0 shadow-sm h-100"
+                         onclick="window.location.href='{{ url_for('main.voir_photo', photo_id=photo.id) }}'">
+                        <img src="{{ photo.web_path }}" 
+                             alt="{{ photo.description or 'Photo' }}" 
+                             class="card-img-top photo-thumbnail">
+                        <div class="card-body p-2">
+                            {% if photo.description %}
+                            <p class="card-text small text-muted mb-1">{{ photo.description[:50] }}{% if photo.description|length > 50 %}...{% endif %}</p>
+                            {% endif %}
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-user me-1"></i>{{ photo.user.first_name }}
+                                </small>
+                                <small class="text-muted">{{ photo.created_at.strftime('%d/%m/%Y') }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if photos|length > 8 %}
+            <div class="text-center">
+                <a href="{{ url_for('main.galerie_categorie', category_name=category.value) }}" 
+                   class="btn btn-outline-primary">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Voir les {{ photos|length - 8 }} autres photos
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+    <!-- Galerie vide -->
+    <div class="empty-category">
+        <div class="mb-4">
+            <i class="fas fa-images fa-4x text-muted mb-3"></i>
+            <h3 class="text-muted">Aucune photo pour le moment</h3>
+            <p class="lead">Soyez le premier à partager vos souvenirs de la conférence !</p>
+        </div>
+        
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('main.ajouter_photo') }}" class="btn add-photo-btn btn-lg">
+            <i class="fas fa-camera me-2"></i>Ajouter la première photo
+        </a>
+        {% else %}
+        <p class="text-muted">
+            <a href="{{ url_for('auth.login') }}">Connectez-vous</a> pour ajouter des photos
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Animation au scroll pour les cartes photos
+document.addEventListener('DOMContentLoaded', function() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.animation = 'fadeInUp 0.6s ease-out forwards';
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.photo-card').forEach(card => {
+        observer.observe(card);
+    });
+});
+</script>
+{% endblock %}

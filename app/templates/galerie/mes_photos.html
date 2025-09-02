@@ -1,0 +1,293 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Photos - {{ conference.short_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.photo-card {
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+}
+
+.photo-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.photo-thumbnail {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+}
+
+.photo-actions {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.photo-card:hover .photo-actions {
+    opacity: 1;
+}
+
+.status-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.status-approved {
+    background: rgba(40, 167, 69, 0.9);
+    color: white;
+}
+
+.status-pending {
+    background: rgba(255, 193, 7, 0.9);
+    color: #212529;
+}
+
+.status-rejected {
+    background: rgba(220, 53, 69, 0.9);
+    color: white;
+}
+
+.stats-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #f8f9fa;
+    border-radius: 15px;
+    border: 2px dashed #dee2e6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Navigation breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.galerie') }}">Galerie</a></li>
+            <li class="breadcrumb-item active">Mes photos</li>
+        </ol>
+    </nav>
+
+    <!-- En-tête -->
+    <div class="row">
+        <div class="col-12">
+            <div class="text-center mb-4">
+                <h1 class="display-5">
+                    <i class="fas fa-user-images text-primary me-2"></i>
+                    Mes Photos
+                </h1>
+                <p class="lead text-muted">Gérez vos photos partagées dans la galerie</p>
+            </div>
+        </div>
+    </div>
+
+    {% if photos %}
+    <!-- Statistiques -->
+    <div class="stats-card">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <div class="mb-2">
+                    <i class="fas fa-images fa-2x"></i>
+                </div>
+                <h3 class="mb-0">{{ photos|length }}</h3>
+                <small>Photo{{ 's' if photos|length > 1 else '' }} au total</small>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-2">
+                    <i class="fas fa-check-circle fa-2x"></i>
+                </div>
+                <h3 class="mb-0">{{ photos|selectattr('is_approved', 'equalto', true)|list|length }}</h3>
+                <small>Approuvée{{ 's' if photos|selectattr('is_approved', 'equalto', true)|list|length > 1 else '' }}</small>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-2">
+                    <i class="fas fa-eye fa-2x"></i>
+                </div>
+                <h3 class="mb-0">{{ photos|selectattr('is_public', 'equalto', true)|list|length }}</h3>
+                <small>Publique{{ 's' if photos|selectattr('is_public', 'equalto', true)|list|length > 1 else '' }}</small>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-2">
+                    <i class="fas fa-plus-circle fa-2x"></i>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('main.ajouter_photo') }}" class="btn btn-light">
+                        <i class="fas fa-camera me-2"></i>Ajouter
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des photos -->
+    <div class="row">
+        {% for photo in photos %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card photo-card border-0 shadow-sm h-100">
+                <div class="position-relative">
+                    <img src="{{ photo.web_path }}" alt="{{ photo.description or 'Photo' }}" 
+                         class="photo-thumbnail card-img-top">
+                    
+                    <!-- Badge de statut -->
+                    {% if photo.is_approved %}
+                        <span class="status-badge status-approved">
+                            <i class="fas fa-check me-1"></i>Approuvée
+                        </span>
+                    {% else %}
+                        <span class="status-badge status-pending">
+                            <i class="fas fa-clock me-1"></i>En attente
+                        </span>
+                    {% endif %}
+                    
+                    <!-- Actions -->
+                    <div class="photo-actions">
+                        <div class="btn-group-vertical">
+                            <a href="{{ url_for('main.voir_photo', photo_id=photo.id) }}" 
+                               class="btn btn-sm btn-primary" title="Voir la photo">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{{ url_for('main.modifier_photo', photo_id=photo.id) }}" 
+                               class="btn btn-sm btn-warning" title="Modifier">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-danger" 
+                                    onclick="confirmDelete({{ photo.id }}, '{{ photo.original_name }}')" 
+                                    title="Supprimer">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge bg-secondary">
+                            {{ photo.category.value.replace('_', ' ').title() }}
+                        </span>
+                        <small class="text-muted">{{ photo.created_at.strftime('%d/%m/%Y') }}</small>
+                    </div>
+                    
+                    {% if photo.description %}
+                    <p class="card-text small">{{ photo.description[:100] }}{% if photo.description|length > 100 %}...{% endif %}</p>
+                    {% else %}
+                    <p class="card-text small text-muted fst-italic">Aucune description</p>
+                    {% endif %}
+                    
+                    <div class="row text-center small text-muted">
+                        <div class="col-6">
+                            <i class="fas fa-expand-arrows-alt me-1"></i>{{ photo.width }}×{{ photo.height }}
+                        </div>
+                        <div class="col-6">
+                            <i class="fas fa-file me-1"></i>{{ photo.file_size_human }}
+                        </div>
+                    </div>
+                    
+                    <!-- Indicateurs de visibilité -->
+                    <div class="mt-2">
+                        {% if not photo.is_public %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="fas fa-eye-slash me-1"></i>Privée
+                        </span>
+                        {% endif %}
+                        
+                        {% if photo.moderation_notes %}
+                        <span class="badge bg-info" title="{{ photo.moderation_notes }}">
+                            <i class="fas fa-comment me-1"></i>Note admin
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% else %}
+    <!-- État vide -->
+    <div class="empty-state">
+        <div class="mb-4">
+            <i class="fas fa-camera fa-4x text-muted mb-3"></i>
+            <h3 class="text-muted">Aucune photo ajoutée</h3>
+            <p class="lead">Commencez par partager vos premiers souvenirs de la conférence !</p>
+        </div>
+        
+        <a href="{{ url_for('main.ajouter_photo') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus me-2"></i>Ajouter ma première photo
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-trash-alt text-danger me-2"></i>Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer définitivement cette photo ?</p>
+                <div class="alert alert-warning">
+                    <strong id="photo-name"></strong>
+                </div>
+                <p class="small text-muted">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(photoId, photoName) {
+    document.getElementById('photo-name').textContent = photoName;
+    document.getElementById('deleteForm').action = '/galerie/supprimer/' + photoId;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+
+// Animation d'entrée pour les cartes
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.photo-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

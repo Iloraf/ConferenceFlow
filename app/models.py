@@ -981,8 +981,283 @@ class Registration(db.Model):
 
 
 
+# ==================== GALERIE PHOTOS ====================
+
+class PhotoCategory(Enum):
+    """Catégories pour organiser les photos de la galerie."""
+    PAUSE = 'pause'
+    NETWORKING = 'networking'
+    SESSION = 'session'
+    POSTER = 'poster'
+    GENERALE = 'generale'
+    ORGANISATION = 'organisation'
+
+class Photo(db.Model):
+    """Modèle pour la galerie photos des participants."""
+    __tablename__ = 'photos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Fichier et métadonnées
+    filename = db.Column(db.String(255), nullable=False)  # nom du fichier sur le serveur
+    original_name = db.Column(db.String(255), nullable=False)  # nom original du fichier
+    description = db.Column(db.Text, nullable=True)
+    
+    # Catégorisation
+    category = db.Column(db.Enum(PhotoCategory), nullable=False, default=PhotoCategory.GENERALE)
+    
+    # Propriétés du fichier
+    file_size = db.Column(db.Integer, nullable=True)  # taille en bytes
+    mime_type = db.Column(db.String(50), nullable=True)  # type MIME (image/jpeg, etc.)
+    width = db.Column(db.Integer, nullable=True)  # largeur en pixels
+    height = db.Column(db.Integer, nullable=True)  # hauteur en pixels
+    
+    # Modération et visibilité
+    is_approved = db.Column(db.Boolean, default=True)  # approuvée par défaut
+    is_public = db.Column(db.Boolean, default=True)  # visible par tous
+    moderation_notes = db.Column(db.Text, nullable=True)  # notes de modération
+    
+    # Relations
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref='photos')
+    
+    # Dates
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Photo {self.id}: {self.original_name}>'
+    
+    @property
+    def file_path(self):
+        """Chemin complet vers le fichier photo."""
+        from flask import current_app
+        import os
+        return os.path.join(current_app.config.get('UPLOAD_FOLDER', 'app/static/uploads'), 'photos', self.filename)
+    
+    @property
+    def web_path(self):
+        """Chemin web pour afficher la photo."""
+        return f'/static/uploads/photos/{self.filename}'
+    
+    @property
+    def file_size_human(self):
+        """Taille du fichier en format lisible."""
+        if not self.file_size:
+            return "Inconnue"
+        
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if self.file_size < 1024.0:
+                return f"{self.file_size:.1f} {unit}"
+            self.file_size /= 1024.0
+        return f"{self.file_size:.1f} TB"
+    
+    @classmethod
+    def get_by_category(cls, category):
+        """Récupère les photos approuvées d'une catégorie."""
+        return cls.query.filter_by(
+            category=category,
+            is_approved=True,
+            is_public=True
+        ).order_by(cls.created_at.desc()).all()
+    
+    @classmethod
+    def get_recent(cls, limit=12):
+        """Récupère les photos récentes approuvées."""
+        return cls.query.filter_by(
+            is_approved=True,
+            is_public=True
+        ).order_by(cls.created_at.desc()).limit(limit).all()
+    
+    def can_be_edited_by(self, user):
+        """Vérifie si un utilisateur peut modifier cette photo."""
+        if not user:
+            return False
+        return user.is_admin or user.id == self.user_id
 
 
+ # ==================== ZONE D'ÉCHANGES/MESSAGES ====================
+
+class MessageCategory(Enum):
+    """Catégories pour organiser les messages d'échange."""
+    GENERAL = 'general'
+    TECHNIQUE = 'technique'
+    LOGISTIQUE = 'logistique'
+    NETWORKING = 'networking'
+    QUESTIONS = 'questions'
+    ANNONCES = 'annonces'
+
+class MessageStatus(Enum):
+    """Statut d'un message."""
+    ACTIVE = 'active'
+    ARCHIVED = 'archived'
+    MODERATED = 'moderated'
+
+class Message(db.Model):
+    """Modèle pour les messages d'échange entre participants."""
+    __tablename__ = 'messages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Contenu du message
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    
+    # Catégorisation
+    category = db.Column(db.Enum(MessageCategory), nullable=False, default=MessageCategory.GENERAL)
+    topic = db.Column(db.String(100), nullable=True)  # Sujet/thème libre
+    
+    # Statut et modération
+    status = db.Column(db.Enum(MessageStatus), nullable=False, default=MessageStatus.ACTIVE)
+    is_pinned = db.Column(db.Boolean, default=False)  # Épinglé par les admins
+    is_public = db.Column(db.Boolean, default=True)   # Visible par tous
+    
+    # Modération
+    moderation_notes = db.Column(db.Text, nullable=True)
+    moderated_at = db.Column(db.DateTime, nullable=True)
+    moderated_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # Métadonnées
+    view_count = db.Column(db.Integer, default=0)  # Nombre de vues
+    
+    # Relations
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', foreign_keys=[user_id], backref='messages')
+    moderated_by = db.relationship('User', foreign_keys=[moderated_by_id])
+    
+    # Réponse à un autre message (optionnel)
+    parent_id = db.Column(db.Integer, db.ForeignKey('messages.id'), nullable=True)
+    parent = db.relationship('Message', remote_side=[id], backref='replies')
+    
+    # Dates
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Message {self.id}: {self.title}>'
+    
+    @property
+    def is_reply(self):
+        """Vérifie si ce message est une réponse."""
+        return self.parent_id is not None
+    
+    @property
+    def replies_count(self):
+        """Nombre de réponses à ce message."""
+        return Message.query.filter_by(parent_id=self.id, status=MessageStatus.ACTIVE).count()
+    
+    @property
+    def last_activity(self):
+        """Dernière activité sur ce message (création ou dernière réponse)."""
+        if self.replies_count > 0:
+            last_reply = Message.query.filter_by(parent_id=self.id, status=MessageStatus.ACTIVE)\
+                                    .order_by(Message.created_at.desc()).first()
+            return last_reply.created_at if last_reply else self.created_at
+        return self.created_at
+    
+    def can_be_edited_by(self, user):
+        """Vérifie si un utilisateur peut modifier ce message."""
+        if not user:
+            return False
+        return user.is_admin or user.id == self.user_id
+    
+    def can_be_deleted_by(self, user):
+        """Vérifie si un utilisateur peut supprimer ce message."""
+        if not user:
+            return False
+        return user.is_admin or user.id == self.user_id
+    
+    def increment_view_count(self):
+        """Incrémente le nombre de vues."""
+        self.view_count += 1
+        db.session.commit()
+    
+    @classmethod
+    def get_by_category(cls, category, limit=None, include_replies=False):
+        """Récupère les messages d'une catégorie."""
+        query = cls.query.filter_by(
+            category=category,
+            status=MessageStatus.ACTIVE,
+            is_public=True
+        )
+        
+        if not include_replies:
+            query = query.filter(cls.parent_id.is_(None))
+        
+        query = query.order_by(cls.is_pinned.desc(), cls.created_at.desc())
+        
+        if limit:
+            query = query.limit(limit)
+            
+        return query.all()
+    
+    @classmethod
+    def get_recent(cls, limit=10, exclude_replies=True):
+        """Récupère les messages récents."""
+        query = cls.query.filter_by(status=MessageStatus.ACTIVE, is_public=True)
+        
+        if exclude_replies:
+            query = query.filter(cls.parent_id.is_(None))
+            
+        return query.order_by(cls.created_at.desc()).limit(limit).all()
+    
+    @classmethod
+    def get_popular(cls, limit=10, days=30):
+        """Récupère les messages populaires (plus vus)."""
+        from datetime import timedelta
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        
+        return cls.query.filter(
+            cls.status == MessageStatus.ACTIVE,
+            cls.is_public == True,
+            cls.parent_id.is_(None),
+            cls.created_at >= cutoff_date
+        ).order_by(cls.view_count.desc()).limit(limit).all()
+    
+    @classmethod
+    def search(cls, query_text, category=None):
+        """Recherche dans les messages."""
+        query = cls.query.filter(
+            cls.status == MessageStatus.ACTIVE,
+            cls.is_public == True,
+            db.or_(
+                cls.title.contains(query_text),
+                cls.content.contains(query_text),
+                cls.topic.contains(query_text)
+            )
+        )
+        
+        if category:
+            query = query.filter_by(category=category)
+            
+        return query.order_by(cls.created_at.desc()).all()
+
+
+class MessageReaction(db.Model):
+    """Modèle pour les réactions aux messages (like, utile, etc.)."""
+    __tablename__ = 'message_reactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Relations
+    message_id = db.Column(db.Integer, db.ForeignKey('messages.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Type de réaction
+    reaction_type = db.Column(db.String(20), nullable=False, default='like')  # like, useful, thanks
+    
+    # Date
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relations
+    message = db.relationship('Message', backref='reactions')
+    user = db.relationship('User', backref='message_reactions')
+    
+    # Index unique pour éviter les doublons
+    __table_args__ = (db.UniqueConstraint('message_id', 'user_id', 'reaction_type'),)
+    
+    def __repr__(self):
+        return f'<MessageReaction {self.user_id} -> {self.message_id} ({self.reaction_type})>'   
 
     
 # ==================== DONNÉES PAR DÉFAUT ====================
@@ -1415,19 +1690,3 @@ class NotificationLog(db.Model):
         return f'<NotificationLog {self.id}: {self.title} -> {self.user.email}>'
 
 
-class Photo(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    filename = db.Column(db.String(255))
-    original_name = db.Column(db.String(255))
-    description = db.Column(db.Text)
-    category = db.Column(db.String(50))  # session, pause, networking
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_approved = db.Column(db.Boolean, default=True)
-
-class Message(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    content = db.Column(db.Text)
-    topic = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)

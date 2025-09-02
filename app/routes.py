@@ -24,7 +24,7 @@ import os
 import re
 import uuid
 from .forms import UserSpecialitesForm, CreateAffiliationForm
-from .models import db, Communication, SubmissionFile, User, Affiliation, ThematiqueHelper, CommunicationStatus, ReviewAssignment, Review, ReviewRecommendation
+from .models import db, Communication, SubmissionFile, User, Affiliation, ThematiqueHelper, CommunicationStatus, ReviewAssignment, Review, ReviewRecommendation, Photo, PhotoCategory, Message, MessageCategory, MessageStatus, MessageReaction
 
 main = Blueprint("main", __name__)
 
@@ -962,3 +962,662 @@ def manifest():
 @main.route('/sw.js')
 def service_worker():
     return current_app.send_static_file('sw.js')
+
+
+
+# ==================== ROUTES GALERIE PHOTOS ====================
+
+@main.route("/galerie")
+def galerie():
+    """Affiche la galerie photos publique."""
+    from .models import Photo, PhotoCategory
+    
+    # Récupérer les photos par catégorie
+    photos_by_category = {}
+    for category in PhotoCategory:
+        photos = Photo.get_by_category(category)
+        if photos:
+            photos_by_category[category] = photos
+    
+    # Photos récentes pour la section "À la une"
+    recent_photos = Photo.get_recent(limit=8)
+    
+    return render_template("galerie/index.html", 
+                         photos_by_category=photos_by_category,
+                         recent_photos=recent_photos,
+                         categories=PhotoCategory)
+
+@main.route("/galerie/ajouter", methods=["GET", "POST"])
+@login_required
+def ajouter_photo():
+    """Permet aux participants d'ajouter des photos."""
+    from .forms import PhotoUploadForm
+    from .models import Photo, PhotoCategory
+    
+    form = PhotoUploadForm()
+    
+    if form.validate_on_submit():
+        try:
+            photo_file = form.photo_file.data
+            
+            # Validation de la taille du fichier (10 MB max)
+            if photo_file.content_length and photo_file.content_length > 10 * 1024 * 1024:
+                flash("La photo est trop voluminuse (maximum 10 MB).", "danger")
+                return render_template("galerie/ajouter.html", form=form)
+            
+            # Sauvegarder le fichier
+            photo = save_photo_file(
+                file=photo_file,
+                user_id=current_user.id,
+                description=form.description.data,
+                category=form.category.data
+            )
+            
+            flash("Photo ajoutée avec succès à la galerie !", "success")
+            return redirect(url_for("main.galerie"))
+            
+        except ValueError as e:
+            flash(str(e), "danger")
+        except Exception as e:
+            current_app.logger.error(f"Erreur upload photo: {e}")
+            flash("Erreur lors de l'upload de la photo.", "danger")
+    
+    return render_template("galerie/ajouter.html", form=form)
+
+@main.route("/galerie/mes-photos")
+@login_required
+def mes_photos():
+    """Affiche les photos de l'utilisateur connecté."""
+    from .models import Photo
+    
+    photos = Photo.query.filter_by(user_id=current_user.id)\
+                       .order_by(Photo.created_at.desc()).all()
+    
+    return render_template("galerie/mes_photos.html", photos=photos)
+
+@main.route("/galerie/photo/<int:photo_id>")
+def voir_photo(photo_id):
+    """Affiche une photo en détail."""
+    from .models import Photo
+    
+    photo = Photo.query.get_or_404(photo_id)
+    
+    # Vérifier si la photo est visible
+    if not photo.is_public or not photo.is_approved:
+        if not current_user.is_authenticated or (
+            current_user.id != photo.user_id and not current_user.is_admin
+        ):
+            flash("Cette photo n'est pas accessible.", "danger")
+            return redirect(url_for("main.galerie"))
+    
+    return render_template("galerie/detail.html", photo=photo)
+
+@main.route("/galerie/modifier/<int:photo_id>", methods=["GET", "POST"])
+@login_required
+def modifier_photo(photo_id):
+    """Permet à l'utilisateur de modifier sa photo."""
+    from .forms import PhotoEditForm
+    from .models import Photo
+    
+    photo = Photo.query.get_or_404(photo_id)
+    
+    # Vérifier les permissions
+    if not photo.can_be_edited_by(current_user):
+        flash("Vous ne pouvez pas modifier cette photo.", "danger")
+        return redirect(url_for("main.mes_photos"))
+    
+    form = PhotoEditForm(obj=photo)
+    
+    if form.validate_on_submit():
+        photo.description = form.description.data
+        photo.category = form.category.data
+        photo.is_public = form.is_public.data
+        photo.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash("Photo mise à jour avec succès !", "success")
+        return redirect(url_for("main.mes_photos"))
+    
+    return render_template("galerie/modifier.html", form=form, photo=photo)
+
+@main.route("/galerie/supprimer/<int:photo_id>", methods=["POST"])
+@login_required
+def supprimer_photo(photo_id):
+    """Permet à l'utilisateur de supprimer sa photo."""
+    from .models import Photo
+    
+    photo = Photo.query.get_or_404(photo_id)
+    
+    # Vérifier les permissions
+    if not photo.can_be_edited_by(current_user):
+        flash("Vous ne pouvez pas supprimer cette photo.", "danger")
+        return redirect(url_for("main.mes_photos"))
+    
+    try:
+        # Supprimer le fichier physique
+        if os.path.exists(photo.file_path):
+            os.remove(photo.file_path)
+        
+        # Supprimer la miniature si elle existe
+        thumbnail_path = photo.file_path.replace('/photos/', '/photos/thumbnails/')
+        if os.path.exists(thumbnail_path):
+            os.remove(thumbnail_path)
+        
+        # Supprimer de la base de données
+        db.session.delete(photo)
+        db.session.commit()
+        
+        flash("Photo supprimée avec succès.", "success")
+    except Exception as e:
+        current_app.logger.error(f"Erreur suppression photo {photo_id}: {e}")
+        flash("Erreur lors de la suppression de la photo.", "danger")
+    
+    return redirect(url_for("main.mes_photos"))
+
+@main.route("/galerie/categorie/<category_name>")
+def galerie_categorie(category_name):
+    """Affiche les photos d'une catégorie spécifique."""
+    from .models import Photo, PhotoCategory
+    
+    # Vérifier que la catégorie existe
+    try:
+        category = PhotoCategory(category_name)
+    except ValueError:
+        flash("Catégorie introuvable.", "danger")
+        return redirect(url_for("main.galerie"))
+    
+    photos = Photo.get_by_category(category)
+    category_display = category_name.replace('_', ' ').title()
+    
+    return render_template("galerie/categorie.html", 
+                         photos=photos,
+                         category=category,
+                         category_display=category_display)
+
+
+# ==================== FONCTIONS UTILITAIRES PHOTOS ====================
+
+# Dans app/routes.py, remplacez complètement la fonction save_photo_file par celle-ci :
+
+def save_photo_file(file, user_id, description=None, category='generale'):
+    """Sauvegarde une photo uploadée avec traitement et validation."""
+    from .models import Photo, PhotoCategory
+    from PIL import Image
+    import secrets
+    
+    if not file or not file.filename:
+        raise ValueError("Aucun fichier sélectionné")
+    
+    # Validation du type de fichier
+    allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
+    file_extension = file.filename.rsplit('.', 1)[1].lower()
+    
+    if file_extension not in allowed_extensions:
+        raise ValueError(f"Format non autorisé. Utilisez: {', '.join(allowed_extensions)}")
+    
+    # Générer un nom de fichier unique
+    random_hex = secrets.token_hex(8)
+    filename = f"photo_{user_id}_{random_hex}.{file_extension}"
+    
+    # Chemin de sauvegarde - CORRIGÉ
+    photos_dir = os.path.join('app', 'static', 'uploads', 'photos')
+    os.makedirs(photos_dir, exist_ok=True)
+    file_path = os.path.join(photos_dir, filename)
+    
+    print(f"DEBUG: Sauvegarde dans {file_path}")  # Pour debug
+    
+    try:
+        # Sauvegarder temporairement pour traitement
+        file.save(file_path)
+        print(f"DEBUG: Fichier sauvé, taille: {os.path.getsize(file_path)} bytes")
+        
+        # Traitement de l'image avec Pillow
+        with Image.open(file_path) as img:
+            # Obtenir les dimensions originales
+            original_width, original_height = img.size
+            print(f"DEBUG: Dimensions originales: {original_width}x{original_height}")
+            
+            # Redimensionner si trop grande (max 1920x1920)
+            max_size = 1920
+            if original_width > max_size or original_height > max_size:
+                img.thumbnail((max_size, max_size), Image.LANCZOS)
+                img.save(file_path, optimize=True, quality=90)
+                print(f"DEBUG: Image redimensionnée")
+            
+            # Créer une miniature
+            thumbnail_dir = os.path.join(photos_dir, 'thumbnails')
+            os.makedirs(thumbnail_dir, exist_ok=True)
+            thumbnail_path = os.path.join(thumbnail_dir, filename)
+            
+            thumbnail = img.copy()
+            thumbnail.thumbnail((300, 300), Image.LANCZOS)
+            thumbnail.save(thumbnail_path, optimize=True, quality=85)
+            print(f"DEBUG: Miniature créée: {thumbnail_path}")
+            
+            # Obtenir les nouvelles dimensions
+            final_width, final_height = img.size
+        
+        # Obtenir la taille du fichier final
+        file_size = os.path.getsize(file_path)
+        print(f"DEBUG: Taille finale: {file_size} bytes")
+        
+        # Créer l'enregistrement en base
+        photo = Photo(
+            filename=filename,
+            original_name=file.filename,
+            description=description,
+            category=PhotoCategory(category),
+            file_size=file_size,
+            mime_type=f"image/{file_extension}",
+            width=final_width,
+            height=final_height,
+            user_id=user_id,
+            is_approved=True,  # Approuvé par défaut
+            is_public=True
+        )
+        
+        db.session.add(photo)
+        db.session.commit()
+        
+        print(f"DEBUG: Photo enregistrée en base avec ID: {photo.id}")
+        return photo
+        
+    except Exception as e:
+        print(f"DEBUG: Erreur - {str(e)}")
+        # Nettoyer en cas d'erreur
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise ValueError(f"Erreur traitement image: {str(e)}")
+
+
+# ==================== ROUTES ZONE D'ÉCHANGES/MESSAGES ====================
+
+@main.route("/echanges")
+def echanges():
+    """Page principale de la zone d'échanges."""
+    from .models import Message, MessageCategory, MessageReaction
+    from .forms import MessageSearchForm
+    
+    # Récupérer les messages par catégorie
+    messages_by_category = {}
+    total_messages = 0
+    
+    for category in MessageCategory:
+        messages = Message.get_by_category(category, limit=5)
+        if messages:
+            messages_by_category[category] = messages
+            total_messages += len(messages)
+    
+    # Messages récents pour la section "À la une"
+    recent_messages = Message.get_recent(limit=6)
+    
+    # Messages populaires
+    popular_messages = Message.get_popular(limit=4, days=7)
+    
+    # Statistiques
+    stats = {
+        'total_messages': Message.query.filter_by(status='active').count(),
+        'total_categories': len([cat for cat, msgs in messages_by_category.items() if msgs]),
+        'total_replies': Message.query.filter(Message.parent_id.isnot(None), 
+                                            Message.status == 'active').count(),
+        'active_users': db.session.query(Message.user_id).filter_by(status='active').distinct().count()
+    }
+    
+    # Formulaire de recherche
+    search_form = MessageSearchForm()
+    
+    return render_template("echanges/index.html",
+                         messages_by_category=messages_by_category,
+                         recent_messages=recent_messages,
+                         popular_messages=popular_messages,
+                         stats=stats,
+                         search_form=search_form,
+                         categories=MessageCategory)
+
+@main.route("/echanges/nouveau", methods=["GET", "POST"])
+@login_required
+def nouveau_message():
+    """Créer un nouveau message."""
+    from .forms import MessageForm
+    from .models import Message, MessageCategory, MessageStatus
+    
+    form = MessageForm()
+    
+    if form.validate_on_submit():
+        try:
+            message = Message(
+                title=form.title.data,
+                content=form.content.data,
+                category=MessageCategory(form.category.data),
+                topic=form.topic.data if form.topic.data else None,
+                user_id=current_user.id,
+                status=MessageStatus.ACTIVE,
+                is_public=True
+            )
+            
+            db.session.add(message)
+            db.session.commit()
+            
+            flash("Votre message a été publié avec succès !", "success")
+            return redirect(url_for("main.voir_message", message_id=message.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Erreur création message: {e}")
+            flash("Erreur lors de la publication du message.", "danger")
+    
+    return render_template("echanges/nouveau.html", form=form)
+
+@main.route("/echanges/message/<int:message_id>")
+def voir_message(message_id):
+    """Voir un message et ses réponses."""
+    from .models import Message, MessageReaction, MessageStatus
+    from .forms import MessageReplyForm
+    
+    message = Message.query.get_or_404(message_id)
+    
+    # DEBUG: Afficher les infos du message
+    #####################################################
+    # print(f"🔍 DEBUG - Message {message_id}:")        #
+    # print(f"   Titre: {message.title}")               #
+    # print(f"   Statut: {message.status}")             #
+    # print(f"   Statut value: {message.status.value}") #
+    # print(f"   Public: {message.is_public}")          #
+    #####################################################
+    
+    # Vérifier si le message est visible
+    if not message.is_public or message.status.value != 'active':
+        if not current_user.is_authenticated or (
+            current_user.id != message.user_id and not current_user.is_admin
+        ):
+            flash("Ce message n'est pas accessible.", "danger")
+            return redirect(url_for("main.echanges"))
+    
+    # Incrémenter le compteur de vues
+    try:
+        message.view_count += 1
+        db.session.commit()
+    except:
+        db.session.rollback()
+    
+    # CORRIGÉ: Récupérer les réponses avec syntaxe correcte
+    print(f"🔍 DEBUG - Recherche réponses pour message {message_id}:")
+    
+    # Toutes les réponses (pour debug)
+    all_replies = Message.query.filter_by(parent_id=message.id).all()
+    print(f"   Toutes les réponses: {len(all_replies)}")
+    
+    # Filtrer manuellement pour éviter les erreurs SQLAlchemy
+    replies = []
+    for reply in all_replies:
+        print(f"      → Reply {reply.id}: statut={reply.status.value}, public={reply.is_public}")
+        if reply.status.value == 'active' and reply.is_public:
+            replies.append(reply)
+    
+    print(f"   Réponses actives et publiques: {len(replies)}")
+    
+    # Trier par date de création
+    replies.sort(key=lambda x: x.created_at)
+    
+    # Formulaire de réponse
+    reply_form = MessageReplyForm()
+    
+    # Réactions du message
+    reactions_summary = {}
+    if message.reactions:
+        from collections import Counter
+        reaction_counts = Counter([r.reaction_type for r in message.reactions])
+        reactions_summary = dict(reaction_counts)
+    
+    # Vérifier si l'utilisateur a déjà réagi
+    user_reactions = []
+    if current_user.is_authenticated:
+        user_reactions = [r.reaction_type for r in message.reactions if r.user_id == current_user.id]
+    
+    print(f"🔍 DEBUG - Envoi au template: {len(replies)} réponses")
+    
+    return render_template("echanges/detail.html",
+                         message=message,
+                         replies=replies,
+                         reply_form=reply_form,
+                         reactions_summary=reactions_summary,
+                         user_reactions=user_reactions)
+
+@main.route("/echanges/message/<int:message_id>/repondre", methods=["POST"])
+@login_required
+def repondre_message(message_id):
+    """Répondre à un message."""
+    from .forms import MessageReplyForm
+    from .models import Message, MessageStatus
+    
+    parent_message = Message.query.get_or_404(message_id)
+    form = MessageReplyForm()
+    
+    if form.validate_on_submit():
+        try:
+            reply = Message(
+                title=f"Re: {parent_message.title}",
+                content=form.content.data,
+                category=parent_message.category,
+                topic=parent_message.topic,
+                user_id=current_user.id,
+                parent_id=parent_message.id,
+                status=MessageStatus.ACTIVE,
+                is_public=True
+            )
+            
+            db.session.add(reply)
+            db.session.commit()
+            
+            flash("Votre réponse a été ajoutée !", "success")
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Erreur ajout réponse: {e}")
+            flash("Erreur lors de l'ajout de la réponse.", "danger")
+    
+    return redirect(url_for("main.voir_message", message_id=message_id))
+
+@main.route("/echanges/mes-messages")
+@login_required
+def mes_messages():
+    """Messages de l'utilisateur connecté."""
+    from .models import Message
+    
+    # Messages créés par l'utilisateur
+    messages = Message.query.filter_by(user_id=current_user.id)\
+                          .order_by(Message.created_at.desc()).all()
+    
+    # Séparer messages principaux et réponses
+    main_messages = [m for m in messages if not m.is_reply]
+    replies = [m for m in messages if m.is_reply]
+    
+    return render_template("echanges/mes_messages.html", 
+                         main_messages=main_messages,
+                         replies=replies)
+
+@main.route("/echanges/message/<int:message_id>/modifier", methods=["GET", "POST"])
+@login_required
+def modifier_message(message_id):
+    """Modifier un message."""
+    from .forms import MessageEditForm
+    from .models import Message
+    
+    message = Message.query.get_or_404(message_id)
+    
+    # Vérifier les permissions
+    if not message.can_be_edited_by(current_user):
+        flash("Vous ne pouvez pas modifier ce message.", "danger")
+        return redirect(url_for("main.mes_messages"))
+    
+    form = MessageEditForm(obj=message)
+    
+    if form.validate_on_submit():
+        try:
+            message.title = form.title.data
+            message.content = form.content.data
+            message.category = form.category.data
+            message.topic = form.topic.data if form.topic.data else None
+            message.is_public = form.is_public.data
+            message.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            flash("Message mis à jour avec succès !", "success")
+            return redirect(url_for("main.voir_message", message_id=message.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Erreur modification message: {e}")
+            flash("Erreur lors de la modification.", "danger")
+    
+    return render_template("echanges/modifier.html", form=form, message=message)
+
+@main.route("/echanges/message/<int:message_id>/supprimer", methods=["POST"])
+@login_required
+def supprimer_message(message_id):
+    """Supprimer un message."""
+    from .models import Message
+    
+    message = Message.query.get_or_404(message_id)
+    
+    # Vérifier les permissions
+    if not message.can_be_deleted_by(current_user):
+        flash("Vous ne pouvez pas supprimer ce message.", "danger")
+        return redirect(url_for("main.mes_messages"))
+    
+    try:
+        # Si c'est un message principal avec des réponses, on l'archive plutôt que de le supprimer
+        if message.replies_count > 0 and not message.is_reply:
+            from .models import MessageStatus
+            message.status = MessageStatus.ARCHIVED
+            message.title = "[Message supprimé]"
+            message.content = "Ce message a été supprimé par son auteur."
+            db.session.commit()
+            flash("Message archivé (conservé car il a des réponses).", "info")
+        else:
+            # Supprimer complètement si pas de réponses
+            db.session.delete(message)
+            db.session.commit()
+            flash("Message supprimé avec succès.", "success")
+            
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur suppression message {message_id}: {e}")
+        flash("Erreur lors de la suppression.", "danger")
+    
+    return redirect(url_for("main.mes_messages"))
+
+@main.route("/echanges/categorie/<category_name>")
+def echanges_categorie(category_name):
+    """Messages d'une catégorie spécifique."""
+    from .models import Message, MessageCategory
+    
+    # Vérifier que la catégorie existe
+    try:
+        category = MessageCategory(category_name)
+    except ValueError:
+        flash("Catégorie introuvable.", "danger")
+        return redirect(url_for("main.echanges"))
+    
+    # Récupérer les messages de la catégorie
+    messages = Message.get_by_category(category)
+    
+    # Labels français
+    category_labels = {
+        'general': 'Général',
+        'technique': 'Technique', 
+        'logistique': 'Logistique',
+        'networking': 'Networking',
+        'questions': 'Questions/Aide',
+        'annonces': 'Annonces'
+    }
+    category_display = category_labels.get(category_name, category_name.title())
+    
+    return render_template("echanges/categorie.html",
+                         messages=messages,
+                         category=category,
+                         category_display=category_display)
+
+@main.route("/echanges/rechercher", methods=["GET", "POST"])
+def rechercher_messages():
+    """Recherche dans les messages."""
+    from .forms import MessageSearchForm
+    from .models import Message, MessageCategory
+    
+    form = MessageSearchForm()
+    results = []
+    
+    if form.validate_on_submit():
+        query_text = form.query.data
+        category = form.category.data if form.category.data else None
+        
+        try:
+            if category:
+                category = MessageCategory(category)
+            results = Message.search(query_text, category)
+        except Exception as e:
+            current_app.logger.error(f"Erreur recherche messages: {e}")
+            flash("Erreur lors de la recherche.", "danger")
+    
+    return render_template("echanges/recherche.html", 
+                         form=form, 
+                         results=results)
+
+@main.route("/echanges/message/<int:message_id>/reaction", methods=["POST"])
+@login_required
+def toggle_reaction(message_id):
+    """Ajouter/retirer une réaction à un message."""
+    from .models import Message, MessageReaction
+    
+    message = Message.query.get_or_404(message_id)
+    reaction_type = request.form.get('reaction_type', 'like')
+    
+    # Vérifier si l'utilisateur a déjà cette réaction
+    existing_reaction = MessageReaction.query.filter_by(
+        message_id=message_id,
+        user_id=current_user.id,
+        reaction_type=reaction_type
+    ).first()
+    
+    try:
+        if existing_reaction:
+            # Retirer la réaction
+            db.session.delete(existing_reaction)
+            action = 'removed'
+        else:
+            # Ajouter la réaction
+            reaction = MessageReaction(
+                message_id=message_id,
+                user_id=current_user.id,
+                reaction_type=reaction_type
+            )
+            db.session.add(reaction)
+            action = 'added'
+        
+        db.session.commit()
+        
+        # Retourner JSON pour AJAX
+        if request.is_json:
+            # Compter les réactions actuelles
+            reaction_counts = {}
+            for r in message.reactions:
+                reaction_counts[r.reaction_type] = reaction_counts.get(r.reaction_type, 0) + 1
+                
+            return jsonify({
+                'success': True,
+                'action': action,
+                'reaction_type': reaction_type,
+                'counts': reaction_counts
+            })
+        else:
+            flash(f"Réaction {'ajoutée' if action == 'added' else 'supprimée'} !", "success")
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur réaction: {e}")
+        if request.is_json:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        else:
+            flash("Erreur lors de l'ajout de la réaction.", "danger")
+    
+    return redirect(url_for("main.voir_message", message_id=message_id))

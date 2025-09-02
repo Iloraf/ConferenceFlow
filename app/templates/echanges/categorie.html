@@ -1,0 +1,398 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ category_display }} - Échanges {{ conference.short_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.category-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 3rem 0;
+    margin-bottom: 3rem;
+    border-radius: 15px;
+}
+
+.message-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border-left: 4px solid transparent;
+    margin-bottom: 1.5rem;
+}
+
+.message-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    border-left-color: #007bff;
+}
+
+.message-meta {
+    font-size: 0.85em;
+    color: #6c757d;
+}
+
+.pinned-message {
+    border-left-color: #ffc107 !important;
+    background: rgba(255, 193, 7, 0.05);
+}
+
+.empty-category {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #f8f9fa;
+    border-radius: 15px;
+    border: 2px dashed #dee2e6;
+}
+
+.filter-controls {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.sort-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.sort-btn {
+    padding: 8px 16px;
+    border: 2px solid #e9ecef;
+    background: white;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9em;
+}
+
+.sort-btn.active,
+.sort-btn:hover {
+    border-color: #007bff;
+    background: #007bff;
+    color: white;
+}
+
+.category-icon {
+    font-size: 1.2em;
+    margin-right: 0.5rem;
+}
+
+.category-stats {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Navigation breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.echanges') }}">Échanges</a></li>
+            <li class="breadcrumb-item active">{{ category_display }}</li>
+        </ol>
+    </nav>
+
+    <!-- En-tête de catégorie -->
+    <div class="category-header text-center">
+        <div class="container">
+            <h1 class="display-4 mb-3">
+                {% if category.value == 'general' %}<i class="fas fa-comments category-icon"></i>
+                {% elif category.value == 'technique' %}<i class="fas fa-cogs category-icon"></i>
+                {% elif category.value == 'logistique' %}<i class="fas fa-clipboard-list category-icon"></i>
+                {% elif category.value == 'networking' %}<i class="fas fa-handshake category-icon"></i>
+                {% elif category.value == 'questions' %}<i class="fas fa-question-circle category-icon"></i>
+                {% elif category.value == 'annonces' %}<i class="fas fa-bullhorn category-icon"></i>
+                {% endif %}
+                {{ category_display }}
+            </h1>
+            <p class="lead mb-4">
+                {% if messages %}
+                    {{ messages|length }} message{{ 's' if messages|length > 1 else '' }} dans cette catégorie
+                {% else %}
+                    Aucun message dans cette catégorie
+                {% endif %}
+            </p>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('main.echanges') }}" class="btn btn-outline-light me-3">
+                    <i class="fas fa-arrow-left me-2"></i>Retour aux échanges
+                </a>
+                
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('main.nouveau_message') }}" class="btn btn-light">
+                    <i class="fas fa-plus me-2"></i>Nouveau message
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+        <!-- Statistiques de la catégorie -->
+        <div class="category-stats">
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <div class="mb-2">
+                        <i class="fas fa-comments fa-2x text-primary"></i>
+                    </div>
+                    <h4 class="mb-0">{{ messages|length }}</h4>
+                    <small class="text-muted">Messages</small>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-2">
+                        <i class="fas fa-reply fa-2x text-success"></i>
+                    </div>
+                    <h4 class="mb-0">{{ messages|sum(attribute='replies_count') }}</h4>
+                    <small class="text-muted">Réponses</small>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-2">
+                        <i class="fas fa-eye fa-2x text-info"></i>
+                    </div>
+                    <h4 class="mb-0">{{ messages|sum(attribute='view_count') }}</h4>
+                    <small class="text-muted">Vues totales</small>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-2">
+                        <i class="fas fa-thumbtack fa-2x text-warning"></i>
+                    </div>
+                    <h4 class="mb-0">{{ messages|selectattr('is_pinned', 'equalto', true)|list|length }}</h4>
+                    <small class="text-muted">Messages épinglés</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contrôles de tri -->
+        <div class="filter-controls">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6 class="mb-2">
+                        <i class="fas fa-sort me-2"></i>Trier par :
+                    </h6>
+                    <div class="sort-options">
+                        <button class="sort-btn active" onclick="sortMessages('recent')">
+                            <i class="fas fa-clock me-1"></i>Plus récents
+                        </button>
+                        <button class="sort-btn" onclick="sortMessages('popular')">
+                            <i class="fas fa-fire me-1"></i>Plus populaires
+                        </button>
+                        <button class="sort-btn" onclick="sortMessages('replies')">
+                            <i class="fas fa-reply me-1"></i>Plus de réponses
+                        </button>
+                        <button class="sort-btn" onclick="sortMessages('pinned')">
+                            <i class="fas fa-thumbtack me-1"></i>Épinglés d'abord
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('main.nouveau_message') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Nouveau message
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des messages -->
+        <div id="messages-container">
+            {% for message in messages %}
+            <div class="message-item card message-card {% if message.is_pinned %}pinned-message{% endif %}"
+                 data-date="{{ message.created_at.timestamp() }}"
+                 data-views="{{ message.view_count }}"
+                 data-replies="{{ message.replies_count }}"
+                 data-pinned="{{ '1' if message.is_pinned else '0' }}"
+                 onclick="window.location.href='{{ url_for('main.voir_message', message_id=message.id) }}'">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-start mb-2">
+                                {% if message.is_pinned %}
+                                <i class="fas fa-thumbtack text-warning me-2 mt-1" title="Message épinglé"></i>
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <h5 class="card-title mb-1">{{ message.title }}</h5>
+                                    {% if message.topic %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-tag me-1"></i>{{ message.topic }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <p class="card-text text-muted">
+                                {{ message.content[:200] }}{% if message.content|length > 200 %}...{% endif %}
+                            </p>
+                            
+                            <div class="message-meta">
+                                <i class="fas fa-user me-1"></i>
+                                {{ message.user.first_name }} {{ message.user.last_name[:1] }}.
+                                <span class="ms-3">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ message.created_at.strftime('%d/%m/%Y à %H:%M') }}
+                                </span>
+                                {% if message.updated_at != message.created_at %}
+                                <span class="ms-2 text-warning">
+                                    <i class="fas fa-edit me-1"></i>Modifié
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 text-end">
+                            <div class="message-meta">
+                                <div class="mb-2">
+                                    <span class="badge bg-light text-dark">
+                                        <i class="fas fa-eye me-1"></i>{{ message.view_count }} vue{{ 's' if message.view_count > 1 else '' }}
+                                    </span>
+                                </div>
+                                <div class="mb-2">
+                                    <span class="badge bg-primary">
+                                        <i class="fas fa-reply me-1"></i>{{ message.replies_count }} réponse{{ 's' if message.replies_count > 1 else '' }}
+                                    </span>
+                                </div>
+                                {% if message.reactions %}
+                                <div>
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-heart me-1"></i>{{ message.reactions|length }} réaction{{ 's' if message.reactions|length > 1 else '' }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    {% if message.replies_count > 0 %}
+                                        Dernière activité : {{ message.last_activity.strftime('%d/%m à %H:%M') }}
+                                    {% else %}
+                                        Créé le {{ message.created_at.strftime('%d/%m à %H:%M') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Message de fin -->
+        <div class="text-center mt-5 pt-5 border-top">
+            <p class="text-muted">
+                <i class="fas fa-check-circle me-2"></i>
+                Vous avez vu tous les messages de cette catégorie !
+            </p>
+            
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.nouveau_message') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Ajouter un message à cette catégorie
+            </a>
+            {% endif %}
+        </div>
+
+    {% else %}
+        <!-- État vide -->
+        <div class="empty-category">
+            <div class="mb-4">
+                {% if category.value == 'general' %}<i class="fas fa-comments fa-4x text-muted mb-3"></i>
+                {% elif category.value == 'technique' %}<i class="fas fa-cogs fa-4x text-muted mb-3"></i>
+                {% elif category.value == 'logistique' %}<i class="fas fa-clipboard-list fa-4x text-muted mb-3"></i>
+                {% elif category.value == 'networking' %}<i class="fas fa-handshake fa-4x text-muted mb-3"></i>
+                {% elif category.value == 'questions' %}<i class="fas fa-question-circle fa-4x text-muted mb-3"></i>
+                {% elif category.value == 'annonces' %}<i class="fas fa-bullhorn fa-4x text-muted mb-3"></i>
+                {% endif %}
+                
+                <h3 class="text-muted">Aucun message dans "{{ category_display }}"</h3>
+                <p class="lead">Soyez le premier à lancer une discussion dans cette catégorie !</p>
+            </div>
+            
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('main.nouveau_message') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus me-2"></i>Créer le premier message
+            </a>
+            {% else %}
+            <p class="text-muted">
+                <a href="{{ url_for('auth.login') }}">Connectez-vous</a> pour participer aux échanges
+            </p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animation d'entrée pour les messages
+    const messages = document.querySelectorAll('.message-item');
+    messages.forEach((message, index) => {
+        message.style.opacity = '0';
+        message.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            message.style.transition = 'all 0.6s ease';
+            message.style.opacity = '1';
+            message.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+
+function sortMessages(sortBy) {
+    const container = document.getElementById('messages-container');
+    const items = Array.from(document.querySelectorAll('.message-item'));
+    
+    // Mettre à jour l'état actif des boutons
+    document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    let sortedItems;
+    
+    switch(sortBy) {
+        case 'recent':
+            sortedItems = items.sort((a, b) => {
+                return parseFloat(b.dataset.date) - parseFloat(a.dataset.date);
+            });
+            break;
+        case 'popular':
+            sortedItems = items.sort((a, b) => {
+                return parseInt(b.dataset.views) - parseInt(a.dataset.views);
+            });
+            break;
+        case 'replies':
+            sortedItems = items.sort((a, b) => {
+                return parseInt(b.dataset.replies) - parseInt(a.dataset.replies);
+            });
+            break;
+        case 'pinned':
+            sortedItems = items.sort((a, b) => {
+                // D'abord les épinglés, puis par date récente
+                if (a.dataset.pinned !== b.dataset.pinned) {
+                    return parseInt(b.dataset.pinned) - parseInt(a.dataset.pinned);
+                }
+                return parseFloat(b.dataset.date) - parseFloat(a.dataset.date);
+            });
+            break;
+    }
+    
+    // Réorganiser les éléments avec animation
+    container.innerHTML = '';
+    sortedItems.forEach((item, index) => {
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(10px)';
+        container.appendChild(item);
+        
+        setTimeout(() => {
+            item.style.transition = 'all 0.4s ease';
+            item.style.opacity = '1';
+            item.style.transform = 'translateY(0)';
+        }, index * 50);
+    });
+}
+</script>
+{% endblock %}
