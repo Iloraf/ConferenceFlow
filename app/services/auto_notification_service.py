@@ -28,8 +28,6 @@ import time
 import schedule
 import logging
 import re
-import json
-
 
 class AutoNotificationService:
     """Service pour gérer les notifications automatiques d'événements."""
@@ -39,7 +37,7 @@ class AutoNotificationService:
         self.thread = None
         self.logger = logging.getLogger(__name__)
         
-    def start(self):
+    def start_notification_scheduler(self):
         """Démarre le service de notifications automatiques."""
         if self.is_running:
             self.logger.info("⚠️ Service auto-notifications déjà en cours")
@@ -60,7 +58,7 @@ class AutoNotificationService:
         
         self.logger.info("✅ Service auto-notifications démarré")
     
-    def stop(self):
+    def stop_notification_scheduler(self):
         """Arrête le service de notifications automatiques."""
         self.is_running = False
         schedule.clear()
@@ -88,13 +86,22 @@ class AutoNotificationService:
                 self.logger.warning("Fichier programme non trouvé pour synchronisation")
                 return
             
+            self.logger.info(f"🔍 Lecture du fichier: {program_file}")
             events = self._parse_program_csv(program_file)
+            self.logger.info(f"📝 {len(events)} événements parsés depuis le CSV")
+            
+            # Debug: afficher les premiers événements
+            for i, event in enumerate(events[:3]):
+                self.logger.info(f"  Événement {i+1}: '{event['title']}' à {event['start_time']}")
+            
             self._update_notification_events(events)
             
-            self.logger.info(f"✅ Synchronisation: {len(events)} événements traités")
+            self.logger.info(f"✅ Synchronisation terminée: {len(events)} événements traités")
             
         except Exception as e:
             self.logger.error(f"Erreur synchronisation programme: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
     
     def _find_program_file(self):
         """Trouve le fichier programme CSV de Conference Flow."""
@@ -106,6 +113,7 @@ class AutoNotificationService:
         else:
             self.logger.warning(f"Fichier programme.csv non trouvé à: {csv_path}")
             return None
+
     
     def _parse_program_csv(self, file_path):
         """Parse le fichier CSV du programme de Conference Flow."""
@@ -116,7 +124,13 @@ class AutoNotificationService:
                 # Utiliser le même délimiteur que dans votre projet (';')
                 reader = csv.DictReader(csvfile, delimiter=';')
                 
+                # Debug: afficher les colonnes
+                self.logger.info(f"📋 Colonnes disponibles: {list(reader.fieldnames)}")
+                
+                row_count = 0
                 for row in reader:
+                    row_count += 1
+                    
                     # Nettoyer les données comme dans conference_routes.py
                     cleaned_row = {}
                     for k, v in row.items():
@@ -124,12 +138,25 @@ class AutoNotificationService:
                         clean_v = v.strip() if v else ''
                         cleaned_row[clean_k] = clean_v
                     
+                    # Debug: afficher les premières lignes
+                    if row_count <= 3:
+                        self.logger.info(f"Ligne {row_count}: {cleaned_row}")
+                    
                     event = self._parse_csv_row(cleaned_row)
                     if event:
                         events.append(event)
+                        if row_count <= 3:
+                            self.logger.info(f"✅ Événement créé: {event['title']}")
+                    else:
+                        if row_count <= 3:
+                            self.logger.info(f"❌ Ligne ignorée (données manquantes ou erreur)")
+                
+                self.logger.info(f"📊 Total lignes lues: {row_count}, événements créés: {len(events)}")
                         
         except Exception as e:
             self.logger.error(f"Erreur lecture programme.csv: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
         
         return events
     
@@ -145,13 +172,24 @@ class AutoNotificationService:
             event_type = self._get_csv_value(row, ['type', 'category'], default='session')
             intervenant = self._get_csv_value(row, ['intervenant', 'speaker', 'conferencier'])
             
+            # Debug pour la première ligne
+            if not hasattr(self, '_debug_done'):
+                self.logger.info(f"🔍 Debug parsing première ligne:")
+                self.logger.info(f"  title: '{title}' (depuis {['session', 'titre', 'title', 'nom']})")
+                self.logger.info(f"  date_str: '{date_str}' (depuis {['date', 'jour', 'day']})")
+                self.logger.info(f"  time_str: '{time_str}' (depuis {['horaire', 'heure', 'time']})")
+                self.logger.info(f"  location: '{location}' (depuis {['lieu', 'location', 'salle', 'place']})")
+                self._debug_done = True
+            
             # Vérification des champs obligatoires
             if not all([title, date_str, time_str]):
+                self.logger.debug(f"❌ Ligne ignorée: titre='{title}', date='{date_str}', heure='{time_str}'")
                 return None
             
             # Parser la date/heure
             start_datetime = self._parse_datetime(date_str, time_str)
             if not start_datetime:
+                self.logger.warning(f"❌ Impossible de parser la date/heure: '{date_str}' '{time_str}'")
                 return None
             
             # Générer un ID unique
@@ -177,12 +215,14 @@ class AutoNotificationService:
                 'description': full_description,
                 'location': location,
                 'start_time': start_datetime,
-                'event_type': event_type,
-                'source_checksum': self._calculate_row_checksum(row)
+                'event_type': event_type
+                # Retirer source_checksum car le modèle ne l'a pas
             }
             
         except Exception as e:
             self.logger.error(f"Erreur parsing ligne CSV: {e}, row: {row}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             return None
     
     def _get_csv_value(self, row, possible_keys, default=''):
@@ -233,9 +273,10 @@ class AutoNotificationService:
         return hashlib.md5(combined).hexdigest()[:16]
     
     def _calculate_row_checksum(self, row):
-        """Calcule un checksum pour détecter les modifications."""
-        row_str = json.dumps(row, sort_keys=True).encode('utf-8')
-        return hashlib.sha256(row_str).hexdigest()
+        """Calcule un checksum pour détecter les modifications - désactivé car pas de colonne en base."""
+        # Cette méthode reste pour compatibilité mais ne sert plus 
+        # car le modèle n'a pas de colonne source_checksum
+        return None
     
     def _update_notification_events(self, parsed_events):
         """Met à jour les événements de notification en base."""
@@ -246,28 +287,25 @@ class AutoNotificationService:
                 ).first()
                 
                 if existing:
-                    # Vérifier si l'événement a été modifié
-                    if existing.source_checksum != event_data['source_checksum']:
-                        # Mettre à jour l'événement existant
-                        existing.title = event_data['title']
-                        existing.description = event_data['description']
-                        existing.location = event_data['location']
-                        existing.start_time = event_data['start_time']
-                        existing.event_type = event_data['event_type']
-                        existing.source_checksum = event_data['source_checksum']
-                        existing.updated_at = datetime.utcnow()
-                        
-                        self.logger.info(f"✏️ Événement mis à jour: {event_data['title']}")
+                    # Mettre à jour l'événement existant
+                    existing.title = event_data['title']
+                    existing.description = event_data['description']
+                    existing.location = event_data['location']
+                    existing.start_time = event_data['start_time']
+                    existing.event_type = event_data['event_type']
+                    existing.updated_at = datetime.utcnow()
+                    
+                    self.logger.info(f"✏️ Événement mis à jour: {event_data['title']}")
                 else:
-                    # Créer un nouvel événement
+                    # Créer un nouvel événement - adapter aux colonnes réelles du modèle
                     new_event = NotificationEvent(
                         event_id=event_data['event_id'],
                         title=event_data['title'],
                         description=event_data['description'],
                         location=event_data['location'],
                         start_time=event_data['start_time'],
-                        event_type=event_data['event_type'],
-                        source_checksum=event_data['source_checksum']
+                        event_type=event_data['event_type']
+                        # Retirer source_checksum car il n'existe pas dans le modèle
                     )
                     db.session.add(new_event)
                     
@@ -278,6 +316,8 @@ class AutoNotificationService:
         except Exception as e:
             db.session.rollback()
             self.logger.error(f"Erreur mise à jour événements: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
     
     def check_and_send_reminders(self):
         """Vérifie et envoie les rappels de notifications."""
@@ -468,8 +508,8 @@ class AutoNotificationService:
                 description="Événement de test pour vérifier les notifications automatiques",
                 location="Salle de test",
                 start_time=start_time,
-                event_type="test",
-                source_checksum="test_checksum"
+                event_type="test"
+                # Retirer source_checksum
             )
             
             db.session.add(test_event)
@@ -481,7 +521,37 @@ class AutoNotificationService:
         except Exception as e:
             db.session.rollback()
             self.logger.error(f"Erreur création événement test: {e}")
+    
+    def create_manual_event(self, title, start_time, location='', description=''):
+        """Crée un événement manuel."""
+        try:
+            event_id = self._generate_event_id(
+                start_time.strftime('%Y-%m-%d'), 
+                start_time.strftime('%H:%M'), 
+                title
+            )
+            
+            manual_event = NotificationEvent(
+                event_id=event_id,
+                title=title,
+                description=description,
+                location=location,
+                start_time=start_time,
+                event_type="manual",
+                source_checksum="manual_event"
+            )
+            
+            db.session.add(manual_event)
+            db.session.commit()
+            
+            self.logger.info(f"✅ Événement manuel créé: {title}")
+            return manual_event
+            
+        except Exception as e:
+            db.session.rollback()
+            self.logger.error(f"Erreur création événement manuel: {e}")
             return None
+
 
 # Instance globale du service
 auto_notification_service = AutoNotificationService()
