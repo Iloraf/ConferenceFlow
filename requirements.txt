@@ -46,3 +46,4 @@ gunicorn  # Serveur WSGI pour production
 # flask-limiter  # Rate limiting des API
 
 lxml
+schedule>=1.2.0
