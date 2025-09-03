@@ -59,35 +59,98 @@ def register():
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         
-        # Validation
+        # Validation basique
         if not all([first_name, last_name, email, password]):
             flash("Tous les champs sont obligatoires.", "danger")
             return render_template("auth/register.html")
         
-        if User.query.filter_by(email=email).first():
-            flash("Cette adresse email est déjà utilisée.", "danger")
+        # ⚠️ AMÉLIORATION : Validation email plus robuste
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            flash("Veuillez entrer une adresse email valide.", "danger")
+            return render_template("auth/register.html")
+        
+        # ⚠️ AMÉLIORATION : Vérification d'existence d'email plus explicite
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash("Cette adresse email est déjà utilisée par un autre compte.", "danger")
+            return render_template("auth/register.html")
+        
+        # Validation mot de passe
+        if len(password) < 8:
+            flash("Le mot de passe doit contenir au moins 8 caractères.", "danger")
             return render_template("auth/register.html")
         
         try:
+            # Création du nouvel utilisateur
             user = User(
                 first_name=first_name,
                 last_name=last_name,
-                email=email,
+                email=email
             )
             user.set_password(password)
+            
             db.session.add(user)
             db.session.commit()
             
-            flash("Inscription réussie ! Vous pouvez vous connecter.", "success")
+            flash(f"Compte créé avec succès ! Vous pouvez maintenant vous connecter.", "success")
             return redirect(url_for("auth.login"))
             
         except Exception as e:
             db.session.rollback()
-            flash("Erreur lors de l'inscription.", "danger")
+            current_app.logger.error(f"Erreur création utilisateur {email}: {str(e)}")
+            
+            if "UNIQUE constraint failed" in str(e) or "duplicate key" in str(e).lower():
+                flash("Cette adresse email est déjà utilisée.", "danger")
+            else:
+                flash("Erreur lors de la création du compte. Veuillez réessayer.", "danger")
+            
+            return render_template("auth/register.html")
     
     return render_template("auth/register.html")
 
-# NOUVELLES ROUTES POUR LE MOT DE PASSE OUBLIÉ
+#####################################################################################
+# @auth.route("/register", methods=["GET", "POST"])                                 #
+# def register():                                                                   #
+#     if current_user.is_authenticated:                                             #
+#         return redirect(url_for("main.index"))                                    #
+#                                                                                   #
+#     if request.method == "POST":                                                  #
+#         first_name = request.form.get("first_name", "").strip()                   #
+#         last_name = request.form.get("last_name", "").strip()                     #
+#         email = request.form.get("email", "").strip().lower()                     #
+#         password = request.form.get("password", "")                               #
+#                                                                                   #
+#         # Validation                                                              #
+#         if not all([first_name, last_name, email, password]):                     #
+#             flash("Tous les champs sont obligatoires.", "danger")                 #
+#             return render_template("auth/register.html")                          #
+#                                                                                   #
+#         if User.query.filter_by(email=email).first():                             #
+#             flash("Cette adresse email est déjà utilisée.", "danger")             #
+#             return render_template("auth/register.html")                          #
+#                                                                                   #
+#         try:                                                                      #
+#             user = User(                                                          #
+#                 first_name=first_name,                                            #
+#                 last_name=last_name,                                              #
+#                 email=email,                                                      #
+#             )                                                                     #
+#             user.set_password(password)                                           #
+#             db.session.add(user)                                                  #
+#             db.session.commit()                                                   #
+#                                                                                   #
+#             flash("Inscription réussie ! Vous pouvez vous connecter.", "success") #
+#             return redirect(url_for("auth.login"))                                #
+#                                                                                   #
+#         except Exception as e:                                                    #
+#             db.session.rollback()                                                 #
+#             flash("Erreur lors de l'inscription.", "danger")                      #
+#                                                                                   #
+#     return render_template("auth/register.html")                                  #
+#####################################################################################
+
 @auth.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():
     """Page pour demander la réinitialisation du mot de passe."""

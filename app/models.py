@@ -27,11 +27,7 @@ from enum import Enum
 
 db = SQLAlchemy()
 
-
-
-
 # ==================== TABLES D'ASSOCIATION ====================
-
 
 # Table d'association pour les auteurs des communications
 communication_authors = db.Table('communication_authors',
@@ -44,7 +40,6 @@ user_affiliations = db.Table('user_affiliations',
     db.Column('affiliation_id', db.Integer, db.ForeignKey('affiliation.id'), primary_key=True)
 )
 
-
 # ==================== MODÈLES PRINCIPAUX ====================
 
 class User(UserMixin, db.Model):
@@ -54,7 +49,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # Informations de base
-    email = db.Column(db.String(100), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     first_name = db.Column(db.String(50), nullable=True)
     last_name = db.Column(db.String(50), nullable=True)
