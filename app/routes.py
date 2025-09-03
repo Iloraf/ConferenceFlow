@@ -807,7 +807,7 @@ def decline_review_assignment(assignment_id):
                          assignment=assignment,
                          communication=assignment.communication)
 
-@main.route('/api/push-subscription', methods=['POST'])
+@main.route('/api/push-subscription_legacy', methods=['POST'])
 @login_required
 def save_push_subscription():
     """Sauvegarde l'abonnement aux notifications push."""

@@ -167,7 +167,8 @@ def create_app():
             from app import models  # vos modèles existants si vous en avez
             
             # 2. Import des modèles de notifications
-            from app.models_notifications import PushSubscription, NotificationEvent, AdminNotification, NotificationLog
+            #from app.models_notifications import PushSubscription, NotificationEvent, AdminNotification, NotificationLog
+            from app.models import PushSubscription, NotificationEvent, AdminNotification, NotificationLog
             app.logger.info("✅ Modèles de notifications importés")
             
             # 3. Créer TOUTES les tables (existantes + notifications)
@@ -261,7 +262,7 @@ def create_app():
         send_hal_collection_request
     )
     try:
-        from app.models_notifications import PushSubscription, NotificationEvent, AdminNotification, NotificationLog
+        from app.models import PushSubscription, NotificationEvent, AdminNotification, NotificationLog
         app.logger.info("✅ Modèles de notifications importés")
     except ImportError as e:
         app.logger.warning(f"⚠️ Modèles de notifications non disponibles: {e}")
@@ -289,24 +290,105 @@ def create_app():
 
 
     # ==================== NOTIFICATIONS AUTOMATIQUES ====================
-    if not app.config.get('TESTING', False):
+    ########################################################################################
+    # if not app.config.get('TESTING', False):                                             #
+    #     try:                                                                             #
+    #         from app.services.auto_notification_service import auto_notification_service #
+    #                                                                                      #
+    #         # Démarrer le service dans le contexte de l'app                              #
+    #         with app.app_context():                                                      #
+    #             auto_notification_service.start_notification_scheduler()                 #
+    #             app.logger.info("🔔 Service de notifications automatiques démarré")      #
+    #                                                                                      #
+    #         # Ajouter le service à l'app                                                 #
+    #         app.auto_notification_service = auto_notification_service                    #
+    #                                                                                      #
+    #     except ImportError as e:                                                         #
+    #         app.logger.warning(f"⚠️ Service notifications non disponible: {e}")           #
+    #     except Exception as e:                                                           #
+    #         app.logger.error(f"❌ Erreur service notifications: {e}")                    #
+    #                                                                                      #
+    #                                                                                      #
+    # return app                                                                           #
+    ########################################################################################
+
+
+    # ==================== NOTIFICATIONS AUTOMATIQUES ====================
+    if not app.config.get('TESTING', False):  # Ne pas démarrer en mode test
         try:
-            from app.services.auto_notification_service import auto_notification_service
+            from app.services.auto_notification_service import AutoNotificationService
             
-            # Démarrer le service dans le contexte de l'app
-            with app.app_context():
-                auto_notification_service.start_notification_scheduler()
-                app.logger.info("🔔 Service de notifications automatiques démarré")
+            class LazyNotificationService:
+                def __init__(self, app):
+                    self.app = app
+                    self._service = None
+                    self._initialized = False
+                    self.logger = app.logger
+                
+                def _ensure_initialized(self):
+                    """S'assure que le service est initialisé."""
+                    if not self._initialized:
+                        try:
+                            with self.app.app_context():
+                                self._service = AutoNotificationService()
+                                self._service.sync_events_from_program()
+                                self._service.start_notification_scheduler()
+                                self.logger.info("🔔 Service de notifications automatiques initialisé (lazy)")
+                                self._initialized = True
+                        except Exception as e:
+                            self.logger.error(f"Erreur initialisation lazy notifications: {e}")
+                
+                def sync_events_from_program(self):
+                    self._ensure_initialized()
+                    if self._service:
+                        with self.app.app_context():
+                            return self._service.sync_events_from_program()
+                
+                def start(self):
+                    self._ensure_initialized()
+                    if self._service:
+                        return self._service.start()
+                
+                def stop(self):
+                    if self._service:
+                        return self._service.stop()
+                
+                @property
+                def is_running(self):
+                    if not self._service:
+                        return False
+                    return self._service.is_running
             
-            # Ajouter le service à l'app
-            app.auto_notification_service = auto_notification_service
+            # ⚠️ AJOUT : Créer le service lazy
+            app.auto_notification_service = LazyNotificationService(app)
+            
+            # ⚠️ AJOUT : Hook pour initialiser au premier accès aux routes admin
+            @app.before_request
+            def init_notifications_on_first_admin_access():
+                from flask import request
+                if (request.endpoint and 
+                    request.endpoint.startswith('admin.') and 
+                    'notification' in request.endpoint and
+                    not app.auto_notification_service._initialized):
+                    
+                    app.auto_notification_service._ensure_initialized()
             
         except ImportError as e:
-            app.logger.warning(f"⚠️ Service notifications non disponible: {e}")
+            app.logger.error(f"Service de notifications automatiques non disponible: {e}")
         except Exception as e:
-            app.logger.error(f"❌ Erreur service notifications: {e}")
-
+            app.logger.error(f"Erreur setup notifications auto: {e}")
+    
+    # ⚠️ AJOUT : Arrêt propre du service
+    import atexit
+    
+    def shutdown_notification_service():
+        if hasattr(app, 'auto_notification_service'):
+            try:
+                app.auto_notification_service.stop()
+                app.logger.info("🛑 Service de notifications arrêté")
+            except Exception as e:
+                app.logger.error(f"Erreur arrêt service notifications: {e}")
+    
+    atexit.register(shutdown_notification_service)
 
     return app
-
-

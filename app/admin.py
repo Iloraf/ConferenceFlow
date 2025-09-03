@@ -5130,7 +5130,7 @@ def notification_stats():
     
     try:
         # Importer les modèles
-        from app.models_notifications import PushSubscription
+        from app.models import PushSubscription
         from app.models import User, Communication
         from app.services.notification_service import notification_service
         
@@ -5170,6 +5170,9 @@ def notification_stats():
 @login_required
 def send_admin_notification():
     """Envoie une notification depuis l'interface admin."""
+
+    current_app.logger.info(f"BLABLA")
+
     if not current_user.is_admin:
         return jsonify({'error': 'Accès refusé'}), 403
     
@@ -5181,7 +5184,7 @@ def send_admin_notification():
         if not data.get('title') or not data.get('message'):
             return jsonify({'error': 'Titre et message requis'}), 400
         
-        from app.models_notifications import PushSubscription
+        from app.models import PushSubscription
         from app.services.notification_service import notification_service
         
         if not notification_service.is_available():
@@ -5198,7 +5201,7 @@ def send_admin_notification():
         for subscription in subscriptions:
             try:
                 success = notification_service.send_notification_to_subscription(
-                    subscription_data=subscription.to_dict(),
+                    subscription_data=subscription.to_webpush_format(),
                     notification_data={
                         'title': data['title'],
                         'body': data['message'],
@@ -5317,7 +5320,8 @@ def auto_notifications_events():
         return redirect(url_for("main.index"))
     
     from app.services.auto_notification_service import auto_notification_service
-    from app.models_notifications import NotificationEvent
+    #from app.models_notifications import NotificationEvent
+    from app.models import NotificationEvent
     
     # Récupérer les prochains événements
     upcoming_events = auto_notification_service.get_upcoming_events(20)
@@ -5444,7 +5448,7 @@ def test_event_notification(event_id):
     
     try:
         from app.services.auto_notification_service import auto_notification_service
-        from app.models_notifications import NotificationEvent
+        from app.models import NotificationEvent
         
         event = NotificationEvent.query.filter_by(event_id=event_id).first()
         if not event:

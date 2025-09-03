@@ -22,7 +22,7 @@ import hashlib
 from datetime import datetime, timedelta
 from flask import current_app
 from app import db
-from app.models_notifications import NotificationEvent, PushSubscription, NotificationLog
+from app.models import PushSubscription, NotificationEvent, NotificationLog
 import threading
 import time
 import schedule
@@ -36,6 +36,7 @@ class AutoNotificationService:
         self.is_running = False
         self.thread = None
         self.logger = logging.getLogger(__name__)
+        self.app = current_app
         
     def start_notification_scheduler(self):
         """Démarre le service de notifications automatiques."""
@@ -90,10 +91,6 @@ class AutoNotificationService:
             events = self._parse_program_csv(program_file)
             self.logger.info(f"📝 {len(events)} événements parsés depuis le CSV")
             
-            # Debug: afficher les premiers événements
-            for i, event in enumerate(events[:3]):
-                self.logger.info(f"  Événement {i+1}: '{event['title']}' à {event['start_time']}")
-            
             self._update_notification_events(events)
             
             self.logger.info(f"✅ Synchronisation terminée: {len(events)} événements traités")
@@ -124,9 +121,6 @@ class AutoNotificationService:
                 # Utiliser le même délimiteur que dans votre projet (';')
                 reader = csv.DictReader(csvfile, delimiter=';')
                 
-                # Debug: afficher les colonnes
-                self.logger.info(f"📋 Colonnes disponibles: {list(reader.fieldnames)}")
-                
                 row_count = 0
                 for row in reader:
                     row_count += 1
@@ -138,15 +132,10 @@ class AutoNotificationService:
                         clean_v = v.strip() if v else ''
                         cleaned_row[clean_k] = clean_v
                     
-                    # Debug: afficher les premières lignes
-                    if row_count <= 3:
-                        self.logger.info(f"Ligne {row_count}: {cleaned_row}")
                     
                     event = self._parse_csv_row(cleaned_row)
                     if event:
                         events.append(event)
-                        if row_count <= 3:
-                            self.logger.info(f"✅ Événement créé: {event['title']}")
                     else:
                         if row_count <= 3:
                             self.logger.info(f"❌ Ligne ignorée (données manquantes ou erreur)")
@@ -172,14 +161,6 @@ class AutoNotificationService:
             event_type = self._get_csv_value(row, ['type', 'category'], default='session')
             intervenant = self._get_csv_value(row, ['intervenant', 'speaker', 'conferencier'])
             
-            # Debug pour la première ligne
-            if not hasattr(self, '_debug_done'):
-                self.logger.info(f"🔍 Debug parsing première ligne:")
-                self.logger.info(f"  title: '{title}' (depuis {['session', 'titre', 'title', 'nom']})")
-                self.logger.info(f"  date_str: '{date_str}' (depuis {['date', 'jour', 'day']})")
-                self.logger.info(f"  time_str: '{time_str}' (depuis {['horaire', 'heure', 'time']})")
-                self.logger.info(f"  location: '{location}' (depuis {['lieu', 'location', 'salle', 'place']})")
-                self._debug_done = True
             
             # Vérification des champs obligatoires
             if not all([title, date_str, time_str]):
@@ -295,7 +276,6 @@ class AutoNotificationService:
                     existing.event_type = event_data['event_type']
                     existing.updated_at = datetime.utcnow()
                     
-                    self.logger.info(f"✏️ Événement mis à jour: {event_data['title']}")
                 else:
                     # Créer un nouvel événement - adapter aux colonnes réelles du modèle
                     new_event = NotificationEvent(
@@ -309,7 +289,6 @@ class AutoNotificationService:
                     )
                     db.session.add(new_event)
                     
-                    self.logger.info(f"➕ Nouvel événement créé: {event_data['title']}")
             
             db.session.commit()
             
@@ -397,7 +376,7 @@ class AutoNotificationService:
                     if not getattr(user, 'enable_event_reminders', True):
                         continue
                     
-                    success = notification_service.send_push_notification(
+                    success = notification_service.send_notification_to_user(
                         subscription=subscription,
                         title=title,
                         message=message,

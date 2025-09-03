@@ -1559,7 +1559,7 @@ class PushSubscription(db.Model):
                 "auth": self.auth_key
             }
         }
-    
+
     def __repr__(self):
         return f'<PushSubscription {self.id}: {self.user.email}>'
 
@@ -1595,11 +1595,14 @@ class AdminNotification(db.Model):
     def __repr__(self):
         return f'<AdminNotification {self.id}: {self.title}>'
 
-
 class NotificationEvent(db.Model):
     """Événements programmés pour les rappels automatiques."""
+    __tablename__ = 'notification_events'  # Utiliser le nom de table de models_notifications
     
     id = db.Column(db.Integer, primary_key=True)
+    
+    # FUSION : Garder event_id unique de models_notifications + colonnes de models.py
+    event_id = db.Column(db.String(100), unique=True, nullable=False)  # De models_notifications
     
     # Informations sur l'événement
     title = db.Column(db.String(200), nullable=False)
@@ -1609,29 +1612,43 @@ class NotificationEvent(db.Model):
     # Dates et heures
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=True)
+    event_type = db.Column(db.String(50), default='session')
     
-    # Configuration des rappels
-    reminder_15min_sent = db.Column(db.Boolean, default=False)
-    reminder_3min_sent = db.Column(db.Boolean, default=False)
+    # FUSION : Les deux systèmes de notifications (garder les deux noms)
+    notification_15min_sent = db.Column(db.Boolean, default=False)  # De models_notifications
+    notification_3min_sent = db.Column(db.Boolean, default=False)   # De models_notifications
+    notification_start_sent = db.Column(db.Boolean, default=False)  # De models_notifications
+    
+    # Aliases pour compatibilité avec models.py
+    @property
+    def reminder_15min_sent(self):
+        return self.notification_15min_sent
+    
+    @reminder_15min_sent.setter
+    def reminder_15min_sent(self, value):
+        self.notification_15min_sent = value
+        
+    @property  
+    def reminder_3min_sent(self):
+        return self.notification_3min_sent
+    
+    @reminder_3min_sent.setter
+    def reminder_3min_sent(self, value):
+        self.notification_3min_sent = value
     
     # Métadonnées
-    event_type = db.Column(db.String(50), default='session')  # 'session', 'presentation', 'pause'
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Données source (pour synchronisation)
-    source_id = db.Column(db.String(100), nullable=True)  # ID depuis programme.csv
-    source_checksum = db.Column(db.String(64), nullable=True)  # Pour détecter les changements
+    source_id = db.Column(db.String(100), nullable=True)
+    source_checksum = db.Column(db.String(64), nullable=True)
     
-    @classmethod
-    def create_from_program_csv(cls, csv_row):
-        """Crée un événement à partir d'une ligne du programme.csv."""
-        # À implémenter selon le format de votre programme.csv
-        pass
-    
+    # Garder les méthodes utiles de models.py
     def should_send_15min_reminder(self):
         """Vérifie si il faut envoyer le rappel 15min."""
-        if self.reminder_15min_sent or not self.is_active:
+        if self.notification_15min_sent or not self.is_active:
             return False
         
         now = datetime.utcnow()
@@ -1641,7 +1658,7 @@ class NotificationEvent(db.Model):
     
     def should_send_3min_reminder(self):
         """Vérifie si il faut envoyer le rappel 3min."""
-        if self.reminder_3min_sent or not self.is_active:
+        if self.notification_3min_sent or not self.is_active:
             return False
         
         now = datetime.utcnow()
@@ -1649,9 +1666,14 @@ class NotificationEvent(db.Model):
         
         return now >= reminder_time and now < self.start_time
     
+    @classmethod
+    def create_from_program_csv(cls, csv_row):
+        """Crée un événement à partir d'une ligne du programme.csv."""
+        # À implémenter selon le format de votre programme.csv
+        pass
+    
     def __repr__(self):
-        return f'<NotificationEvent {self.id}: {self.title}>'
-
+        return f'<NotificationEvent {self.event_id}: {self.title}>'
 
 class NotificationLog(db.Model):
     """Log détaillé des notifications envoyées."""

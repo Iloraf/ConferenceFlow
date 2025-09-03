@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required, current_user
 from app import db
-from app.models_notifications import PushSubscription, NotificationEvent, AdminNotification, NotificationLog
+from app.models import PushSubscription, NotificationEvent, AdminNotification, NotificationLog
 from app.services.notification_service import notification_service
 from datetime import datetime, timedelta
 import json
@@ -42,15 +42,12 @@ def get_vapid_public_key():
 
 @notifications_api.route('/push-subscription', methods=['POST'])
 def save_push_subscription():
+    
     from flask_login import current_user
     print(f"Utilisateur authentifié: {current_user.is_authenticated if hasattr(current_user, 'is_authenticated') else 'Aucun current_user'}")
     
     if not current_user.is_authenticated:
         return jsonify({'error': 'Non authentifié'}), 401
-#@notifications_api.route('/push-subscription', methods=['POST'])
-#@login_required
-#def save_push_subscription():
-#    """Sauvegarde ou met à jour l'abonnement aux notifications push d'un utilisateur."""
     try:
         data = request.get_json()
         
@@ -78,8 +75,8 @@ def save_push_subscription():
         if existing_subscription:
             # Mettre à jour l'abonnement existant
             existing_subscription.user_id = current_user.id
-            existing_subscription.p256dh = keys['p256dh']
-            existing_subscription.auth = keys['auth']
+            existing_subscription.p256dh_key = keys['p256dh']
+            existing_subscription.auth_key = keys['auth']
             existing_subscription.user_agent = user_agent
             existing_subscription.is_active = True
             
@@ -89,8 +86,8 @@ def save_push_subscription():
             new_subscription = PushSubscription(
                 user_id=current_user.id,
                 endpoint=subscription_data['endpoint'],
-                p256dh=keys['p256dh'],
-                auth=keys['auth'],
+                p256dh_key=keys['p256dh'],
+                auth_key=keys['auth'],
                 user_agent=user_agent,
                 is_active=True
             )
@@ -269,6 +266,9 @@ def update_notification_preferences():
 @login_required
 def send_test_notification():
     """Envoie une notification de test à l'utilisateur connecté."""
+
+    current_app.logger.info(f"BLOBLO")
+
     try:
         if not current_user.has_active_push_subscription():
             return jsonify({
