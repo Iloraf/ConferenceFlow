@@ -118,7 +118,7 @@ content:
     greeting: "Bonjour {COAUTHOR_NAME},"
     intro: "Invitation comme co-auteur"
     body: |
-      Vous avez été invité(e) à être co-auteur d'une communication pour {CONFERENCE_NAME}.
+      Vous avez été invité(e) à être co-auteur d'une communication pour le {CONFERENCE_NAME}.
       
       📝 Communication : {COMMUNICATION_TITLE}
       📋 Type : {COMMUNICATION_TYPE}
@@ -141,7 +141,7 @@ content:
   # Email de review assignée
   review_assigned:
     greeting: "Bonjour {REVIEWER_NAME},"
-    intro: "Nouvelle review assignée pour {CONFERENCE_NAME}"
+    intro: "Nouvelle review assignée pour le {CONFERENCE_NAME}"
     body: |
       Vous avez été assigné(e) à {REVIEWS_COUNT} nouvelle(s) review(s).
       
@@ -165,7 +165,7 @@ content:
   # Email de bienvenue reviewer
   reviewer_welcome:
     greeting: "Bonjour {REVIEWER_NAME},"
-    intro: "Bienvenue comme reviewer pour {CONFERENCE_NAME}"
+    intro: "Bienvenue comme reviewer pour le {CONFERENCE_NAME}"
     body: |
       Nous vous remercions d'avoir accepté d'être reviewer pour {CONFERENCE_NAME}.
       

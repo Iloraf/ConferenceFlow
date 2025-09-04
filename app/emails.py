@@ -60,15 +60,43 @@ def _convert_codes_to_names(codes_string):
         logger.warning(f"Erreur conversion codes thématiques {codes_string}: {e}")
         return codes_string or 'Non spécifiées'
 
+
 def prepare_email_context(base_context, communication=None, user=None, reviewer=None):
     """Prépare le contexte email avec conversion automatique des thématiques."""
     context = base_context.copy()
     
     try:
         # Conversion des thématiques de communication
-        if communication and hasattr(communication, 'thematiques'):
-            context['COMMUNICATION_THEMES'] = _convert_codes_to_names(communication.thematiques)
-            context['COMMUNICATION_THEMES_CODES'] = communication.thematiques or ''
+        if communication:
+            # CORRECTION : Gérer les deux cas possibles
+            if hasattr(communication, 'thematiques_codes') and communication.thematiques_codes:
+                # Cas 1: codes stockés en string (ex: "COND,MULTI")
+                context['COMMUNICATION_THEMES'] = _convert_codes_to_names(communication.thematiques_codes)
+                context['COMMUNICATION_THEMES_CODES'] = communication.thematiques_codes
+            elif hasattr(communication, 'thematiques') and communication.thematiques:
+                # Cas 2: objets thématiques (ex: liste d'objets)
+                if isinstance(communication.thematiques, list):
+                    # Liste d'objets thématiques
+                    theme_names = []
+                    theme_codes = []
+                    for theme in communication.thematiques:
+                        if isinstance(theme, dict):
+                            theme_names.append(theme.get('nom', theme.get('code', 'Inconnu')))
+                            theme_codes.append(theme.get('code', ''))
+                        else:
+                            # Objet avec attributs
+                            theme_names.append(getattr(theme, 'nom', getattr(theme, 'code', 'Inconnu')))
+                            theme_codes.append(getattr(theme, 'code', ''))
+                    
+                    context['COMMUNICATION_THEMES'] = ' • '.join(theme_names)
+                    context['COMMUNICATION_THEMES_CODES'] = ','.join(theme_codes)
+                else:
+                    # String brute - utiliser la fonction de conversion
+                    context['COMMUNICATION_THEMES'] = _convert_codes_to_names(str(communication.thematiques))
+                    context['COMMUNICATION_THEMES_CODES'] = str(communication.thematiques)
+            else:
+                context['COMMUNICATION_THEMES'] = 'Non spécifiées'
+                context['COMMUNICATION_THEMES_CODES'] = ''
         
         # Conversion des spécialités de reviewer
         if reviewer and hasattr(reviewer, 'specialites_codes'):
@@ -88,20 +116,62 @@ def prepare_email_context(base_context, communication=None, user=None, reviewer=
         
     except Exception as e:
         logger.warning(f"Erreur préparation contexte email: {e}")
+        # En cas d'erreur, au moins retourner le contexte de base
+        context['COMMUNICATION_THEMES'] = 'Non spécifiées'
+        context['COMMUNICATION_THEMES_CODES'] = ''
         return context
+
+
+def _build_info_section_with_icons(context, primary_color):
+    """Construit une section d'informations contextuelles avec émojis universels."""
+    info_parts = []
+    
+    # Informations communication avec émojis
+    if context.get('COMMUNICATION_TITLE'):
+        info_parts.append(f'<li>📄 <strong>Communication :</strong> {context["COMMUNICATION_TITLE"]}</li>')
+    if context.get('COMMUNICATION_ID'):
+        info_parts.append(f'<li>🔢 <strong>ID :</strong> {context["COMMUNICATION_ID"]}</li>')
+    if context.get('COMMUNICATION_THEMES'):
+        info_parts.append(f'<li>🏷️ <strong>Thématiques :</strong> <span class="themes">{context["COMMUNICATION_THEMES"]}</span></li>')
+    
+    # Informations reviewer avec émojis
+    if context.get('REVIEWER_AFFILIATIONS'):
+        info_parts.append(f'<li>🏛️ <strong>Affiliations :</strong> {context["REVIEWER_AFFILIATIONS"]}</li>')
+    
+    # Informations utilisateur avec émojis
+    if context.get('USER_EMAIL'):
+        info_parts.append(f'<li>📧 <strong>Email :</strong> {context["USER_EMAIL"]}</li>')
+    
+    # Informations de fichier (si présentes)
+    if context.get('FILE_VERSION'):
+        info_parts.append(f'<li>📁 <strong>Version :</strong> {context["FILE_VERSION"]}</li>')
+    
+    if context.get('SUBMISSION_DATE'):
+        info_parts.append(f'<li>📅 <strong>Date :</strong> {context["SUBMISSION_DATE"]}</li>')
+    
+    if info_parts:
+        return f'''
+        <div class="info-box">
+            <h4 style="margin-top: 0; color: {primary_color};">ℹ️ Détails :</h4>
+            <ul style="list-style: none; padding-left: 0;">
+                {''.join(info_parts)}
+            </ul>
+        </div>
+        '''
+    
+    return ""
+
 
 def _build_html_email(template_name, context, color_scheme='blue'):
     """Construit le HTML d'un email en utilisant les templates configurés."""
     try:
         config_loader = current_app.config_loader
         
-        # Récupérer le contenu du template
-        content_config = config_loader.get_email_content(template_name)
+        content_config = config_loader.get_email_content(template_name, **context)
         if not content_config:
             logger.warning(f"Template {template_name} non trouvé")
             return None
         
-        # Définir les couleurs selon le schéma
         colors = {
             'blue': {'primary': '#007bff', 'secondary': '#6c757d'},
             'green': {'primary': '#28a745', 'secondary': '#20c997'},
@@ -110,8 +180,15 @@ def _build_html_email(template_name, context, color_scheme='blue'):
             'purple': {'primary': '#6f42c1', 'secondary': '#6610f2'}
         }.get(color_scheme, {'primary': '#007bff', 'secondary': '#6c757d'})
         
-        # Construire le HTML
         html_parts = []
+        
+        # En-tête avec styles CSS uniquement
+        html_parts.append(f'''
+        <style>
+            .email-container {{ font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; }}
+        </style>
+        <div class="email-container">
+        ''')
         
         # En-tête
         if content_config.get('greeting'):
@@ -129,21 +206,16 @@ def _build_html_email(template_name, context, color_scheme='blue'):
             body_html = body.replace('\n\n', '</p><p>').replace('\n', '<br>')
             html_parts.append(f"<p>{body_html}</p>")
         
-        # Section d'informations spécialisées (communication, reviewer, etc.)
-        info_section = _build_info_section(context, colors['primary'])
-        if info_section:
-            html_parts.append(info_section)
-        
-        # Bouton d'action
+        # Bouton d'action avec émoji
         if context.get('call_to_action_url'):
             button_text = content_config.get('call_to_action', 'Accéder à la plateforme')
-            #button_text = config_loader.format_template(button_text, **context)
+            button_text = config_loader._replace_variables(button_text, context)
             html_parts.append(f'''
             <div style="text-align: center; margin: 30px 0;">
                 <a href="{context['call_to_action_url']}" 
                    style="background-color: {colors['primary']}; color: white; padding: 12px 25px; 
                           text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-                    {button_text}
+                    🔗 {button_text}
                 </a>
             </div>
             ''')
@@ -154,59 +226,21 @@ def _build_html_email(template_name, context, color_scheme='blue'):
             signature_html = signature.replace('\n', '<br>')
             html_parts.append(f"<hr><p>{signature_html}</p>")
         
+        html_parts.append('</div>')
+        
         return ''.join(html_parts)
         
     except Exception as e:
         logger.error(f"Erreur construction HTML email {template_name}: {e}")
         return None
 
-def _build_info_section(context, primary_color):
-    """Construit une section d'informations contextuelles pour l'email."""
-    info_parts = []
-    
-    # Informations communication
-    if context.get('COMMUNICATION_TITLE'):
-        info_parts.append(f"<li><strong>Communication :</strong> {context['COMMUNICATION_TITLE']}</li>")
-    if context.get('COMMUNICATION_ID'):
-        info_parts.append(f"<li><strong>ID :</strong> {context['COMMUNICATION_ID']}</li>")
-    if context.get('COMMUNICATION_THEMES'):
-        info_parts.append(f"<li><strong>Thématiques :</strong> {context['COMMUNICATION_THEMES']}</li>")
-    
-    # Informations reviewer
-    #######################################################################################################
-    # if context.get('REVIEWER_SPECIALTIES'):                                                             #
-    #     info_parts.append(f"<li><strong>Spécialités :</strong> {context['REVIEWER_SPECIALTIES']}</li>") #
-    #######################################################################################################
-    if context.get('REVIEWER_AFFILIATIONS'):
-        info_parts.append(f"<li><strong>Affiliations :</strong> {context['REVIEWER_AFFILIATIONS']}</li>")
-    
-    # Informations utilisateur
-    if context.get('USER_EMAIL'):
-        info_parts.append(f"<li><strong>Email :</strong> {context['USER_EMAIL']}</li>")
-    ###################################################################################################
-    # if context.get('USER_SPECIALTIES'):                                                             #
-    #     info_parts.append(f"<li><strong>Spécialités :</strong> {context['USER_SPECIALTIES']}</li>") #
-    ###################################################################################################
-    
-    if info_parts:
-        return f"""
-        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; 
-                    border-left: 4px solid {primary_color};">
-            <h4 style="margin-top: 0; color: {primary_color};">Détails :</h4>
-            <ul>
-                {''.join(info_parts)}
-            </ul>
-        </div>
-        """
-    
-    return ""
 
 def _build_text_email(template_name, context):
     """Construit la version texte d'un email."""
     try:
         config_loader = current_app.config_loader
         
-        content_config = config_loader.get_email_content(template_name)
+        content_config = config_loader.get_email_content(template_name, **context)
         if not content_config:
             return None
         
@@ -224,14 +258,10 @@ def _build_text_email(template_name, context):
             body = content_config['body']
             text_parts.append(f"\n\n{body}")
         
-        # Informations contextuelles en texte
-        if context.get('COMMUNICATION_TITLE'):
-            text_parts.append(f"\n\nCommunication : {context['COMMUNICATION_TITLE']}")
-        if context.get('COMMUNICATION_THEMES'):
-            text_parts.append(f"Thématiques : {context['COMMUNICATION_THEMES']}")
-        
         if context.get('call_to_action_url'):
-            text_parts.append(f"\n\nAccéder à la plateforme : {context['call_to_action_url']}")
+            button_text = content_config.get('call_to_action', 'Accéder à la plateforme')
+            button_text = config_loader._replace_variables(button_text, context)
+            text_parts.append(f"\n\n🔗 {button_text} : {context['call_to_action_url']}")
         
         signature = config_loader.get_email_signature('default', **context)
         if signature:
@@ -242,6 +272,7 @@ def _build_text_email(template_name, context):
     except Exception as e:
         logger.error(f"Erreur construction texte email {template_name}: {e}")
         return None
+
 
 # ===== FONCTION GÉNÉRIQUE POUR ENVOYER DES EMAILS =====
 
@@ -278,9 +309,17 @@ def send_any_email_with_themes(template_name, recipient_email, base_context,
 
 # ===== FONCTIONS SPÉCIALISÉES =====
 
-def send_submission_confirmation_email(user, communication, submission_type='résumé'):
+# Dans app/emails.py
+# Remplacer la fonction send_submission_confirmation_email existante :
+
+def send_submission_confirmation_email(communication, submission_type='résumé', submission_file=None):
     """Envoie un email de confirmation après le dépôt d'un fichier."""
     try:
+        main_author = communication.authors[0] if communication.authors else None
+        if not main_author:
+            logger.error(f"Aucun auteur trouvé pour la communication {communication.id}")
+            return
+        
         # Mapper les types vers les templates
         template_mapping = {
             'résumé': 'resume_submission_confirmed',
@@ -303,35 +342,49 @@ def send_submission_confirmation_email(user, communication, submission_type='ré
         
         color_scheme = color_mapping.get(submission_type.lower(), 'blue')
         
+        # CORRECTION : Gestion sécurisée de la date
+        from datetime import datetime
+        submission_date = datetime.utcnow().strftime('%d/%m/%Y à %H:%M')
+        if hasattr(communication, 'updated_at') and communication.updated_at:
+            submission_date = communication.updated_at.strftime('%d/%m/%Y à %H:%M')
+        
+        # CORRECTION : Gestion sécurisée de la version du fichier
+        file_version = "1"
+        if submission_file and hasattr(submission_file, 'version'):
+            file_version = str(submission_file.version)
+        
         # Préparer le contexte de base
         base_context = {
-            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
-            'USER_LAST_NAME': user.last_name or '',
-            'USER_EMAIL': user.email,
+            'USER_FIRST_NAME': main_author.first_name or main_author.email.split('@')[0],
+            'USER_LAST_NAME': main_author.last_name or '',
+            'USER_EMAIL': main_author.email,
+            'AUTHOR_NAME': main_author.full_name or main_author.email,  # Variable supplémentaire pour les templates
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
             'COMMUNICATION_TYPE': submission_type.title(),
             'SUBMISSION_TYPE': submission_type.upper(),
-            'SUBMISSION_DATE': communication.last_modified.strftime('%d/%m/%Y à %H:%M') if communication.last_modified else 'Date inconnue',
+            'SUBMISSION_DATE': submission_date,
+            'FILE_VERSION': file_version,
             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
         }
         
         # Envoyer l'email avec gestion automatique des thématiques
         send_any_email_with_themes(
             template_name=template_name,
-            recipient_email=user.email,
+            recipient_email=main_author.email,
             base_context=base_context,
             communication=communication,
-            user=user,
+            user=main_author,
             color_scheme=color_scheme
         )
         
-        logger.info(f"Email de confirmation {submission_type} envoyé à {user.email} pour communication {communication.id}")
+        logger.info(f"Email de confirmation {submission_type} envoyé à {main_author.email} pour communication {communication.id}")
         
     except Exception as e:
-        logger.error(f"Erreur envoi confirmation {submission_type} à {user.email}: {e}")
+        logger.error(f"Erreur envoi confirmation {submission_type} pour communication {communication.id}: {e}")
         # Ne pas faire échouer la soumission à cause d'un problème d'email
         pass
+
 
 def send_activation_email_to_user(user, token):
     """Envoie l'email d'activation à un reviewer."""
@@ -359,13 +412,20 @@ def send_activation_email_to_user(user, token):
 def send_coauthor_notification_email(user, communication, token):
     """Envoie un email de notification à un nouveau co-auteur."""
     try:
+        # CORRECTION : Utiliser communication.authors[0] pour l'auteur principal
+        main_author = communication.authors[0] if communication.authors else None
+        if main_author:
+            main_author_name = main_author.full_name if main_author.full_name else main_author.email
+        else:
+            main_author_name = "Auteur inconnu"
+        
         base_context = {
             'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
             'USER_LAST_NAME': user.last_name or '',
             'USER_EMAIL': user.email,
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
-            'MAIN_AUTHOR': communication.user.full_name or communication.user.email,
+            'MAIN_AUTHOR_NAME': main_author_name,  # CORRIGÉ : utiliser le premier auteur
             'ACTIVATION_TOKEN': token if token else '',
             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True) if not token else url_for('main.activate_account', token=token, _external=True)
         }
@@ -381,9 +441,43 @@ def send_coauthor_notification_email(user, communication, token):
             color_scheme='green'
         )
         
+        logger.info(f"Email co-auteur envoyé à {user.email} pour communication {communication.id}")
+        
     except Exception as e:
         logger.error(f"Erreur envoi notification co-auteur à {user.email}: {e}")
         raise
+    
+    
+#################################################################################################################################################################################################
+# def send_coauthor_notification_email(user, communication, token):                                                                                                                             #
+#     """Envoie un email de notification à un nouveau co-auteur."""                                                                                                                             #
+#     try:                                                                                                                                                                                      #
+#         base_context = {                                                                                                                                                                      #
+#             'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],                                                                                                                   #
+#             'USER_LAST_NAME': user.last_name or '',                                                                                                                                           #
+#             'USER_EMAIL': user.email,                                                                                                                                                         #
+#             'COMMUNICATION_TITLE': communication.title,                                                                                                                                       #
+#             'COMMUNICATION_ID': communication.id,                                                                                                                                             #
+#             'MAIN_AUTHOR': communication.user.full_name or communication.user.email,                                                                                                          #
+#             'ACTIVATION_TOKEN': token if token else '',                                                                                                                                       #
+#             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True) if not token else url_for('main.activate_account', token=token, _external=True) #
+#         }                                                                                                                                                                                     #
+#                                                                                                                                                                                               #
+#         template_name = 'coauthor_notification' if not token else 'coauthor_invitation'                                                                                                       #
+#                                                                                                                                                                                               #
+#         send_any_email_with_themes(                                                                                                                                                           #
+#             template_name=template_name,                                                                                                                                                      #
+#             recipient_email=user.email,                                                                                                                                                       #
+#             base_context=base_context,                                                                                                                                                        #
+#             communication=communication,                                                                                                                                                      #
+#             user=user,                                                                                                                                                                        #
+#             color_scheme='green'                                                                                                                                                              #
+#         )                                                                                                                                                                                     #
+#                                                                                                                                                                                               #
+#     except Exception as e:                                                                                                                                                                    #
+#         logger.error(f"Erreur envoi notification co-auteur à {user.email}: {e}")                                                                                                              #
+#         raise                                                                                                                                                                                 #
+#################################################################################################################################################################################################
 
 def send_review_reminder_email(reviewer, assignments):
     """Envoie un email de rappel à un reviewer avec ses reviews en attente."""
@@ -421,32 +515,42 @@ def send_review_reminder_email(reviewer, assignments):
     except Exception as e:
         logger.error(f"Erreur envoi rappel review à {reviewer.email}: {e}")
         raise
-
-def send_decision_email(communication, decision_type, additional_info=""):
-    """Envoie un email de décision à l'auteur principal d'une communication."""
+def send_decision_email(communication, decision_type, additional_info=''):
+    """Envoie un email de notification de décision à l'auteur principal."""
     try:
+        # CORRECTION : Récupérer l'auteur principal (premier auteur)
+        main_author = communication.authors[0] if communication.authors else None
+        if not main_author:
+            logger.error(f"Aucun auteur trouvé pour la communication {communication.id}")
+            return
+        
         # Mapper les types de décision vers les templates
         decision_templates = {
             'accept': 'decision_accept',
+            'accepter': 'decision_accept',  # Support des deux formats
             'reject': 'decision_reject', 
-            'revise': 'decision_revise'
+            'rejeter': 'decision_reject',  # Support des deux formats
+            'revise': 'decision_revise',
+            'reviser': 'decision_revise'  # Support des deux formats
         }
         
         # Couleurs par type de décision
         decision_colors = {
             'accept': 'green',
+            'accepter': 'green',
             'reject': 'red',
-            'revise': 'orange'
+            'rejeter': 'red',
+            'revise': 'orange',
+            'reviser': 'orange'
         }
         
-        template_name = decision_templates.get(decision_type, 'decision_notification')
-        color_scheme = decision_colors.get(decision_type, 'blue')
-        
-        user = communication.user
+        template_name = decision_templates.get(decision_type.lower(), 'decision_notification')
+        color_scheme = decision_colors.get(decision_type.lower(), 'blue')
         
         base_context = {
-            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
-            'USER_LAST_NAME': user.last_name or '',
+            'USER_FIRST_NAME': main_author.first_name or main_author.email.split('@')[0],
+            'USER_LAST_NAME': main_author.last_name or '',
+            'AUTHOR_NAME': main_author.full_name or main_author.email,
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
             'DECISION_TYPE': decision_type.upper(),
@@ -456,39 +560,52 @@ def send_decision_email(communication, decision_type, additional_info=""):
         
         send_any_email_with_themes(
             template_name=template_name,
-            recipient_email=user.email,
+            recipient_email=main_author.email,
             base_context=base_context,
             communication=communication,
-            user=user,
+            user=main_author,
             color_scheme=color_scheme
         )
+        
+        logger.info(f"Email de décision {decision_type} envoyé à {main_author.email} pour communication {communication.id}")
         
     except Exception as e:
         logger.error(f"Erreur envoi décision {decision_type} pour communication {communication.id}: {e}")
         raise
 
-def send_biot_fourier_audition_notification(user, communication):
+def send_biot_fourier_audition_notification(communication):
     """Envoie une notification pour une audition Biot-Fourier."""
     try:
+        # CORRECTION : Récupérer l'auteur principal (premier auteur)
+        main_author = communication.authors[0] if communication.authors else None
+        if not main_author:
+            logger.error(f"Aucun auteur trouvé pour la communication {communication.id}")
+            return
+        
         base_context = {
-            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+            'USER_FIRST_NAME': main_author.first_name or main_author.email.split('@')[0],
+            'AUTHOR_NAME': main_author.full_name or main_author.email,
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
+            'COMMUNICATION_TYPE': communication.type.title() if communication.type else 'Communication',
             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
         }
         
         send_any_email_with_themes(
             template_name='biot_fourier_nomination',
-            recipient_email=user.email,
+            recipient_email=main_author.email,
             base_context=base_context,
             communication=communication,
-            user=user,
+            user=main_author,
             color_scheme='purple'
         )
         
+        logger.info(f"Email Biot-Fourier envoyé à {main_author.email} pour communication {communication.id}")
+        
     except Exception as e:
-        logger.error(f"Erreur envoi notification Biot-Fourier à {user.email}: {e}")
+        logger.error(f"Erreur envoi notification Biot-Fourier pour communication {communication.id}: {e}")
         raise
+
 
 def send_qr_code_reminder_email(user, communication, qr_code_url):
     """Envoie un email avec le QR code d'un poster."""
@@ -607,17 +724,23 @@ def send_admin_alert_email(admin_email, alert_type, alert_message):
         logger.error(f"Erreur envoi alerte admin: {e}")
         raise
 
-
 def send_existing_coauthor_notification_email(user, communication):
     """Envoie un email de notification à un co-auteur existant (déjà activé)."""
     try:
+        # CORRECTION : Utiliser communication.authors[0] pour l'auteur principal
+        main_author = communication.authors[0] if communication.authors else None
+        if main_author:
+            main_author_name = main_author.full_name if main_author.full_name else main_author.email
+        else:
+            main_author_name = "Auteur inconnu"
+        
         base_context = {
             'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
             'USER_LAST_NAME': user.last_name or '',
             'USER_EMAIL': user.email,
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
-            'MAIN_AUTHOR': communication.user.full_name or communication.user.email,
+            'MAIN_AUTHOR_NAME': main_author_name,  # CORRIGÉ : utiliser le nom de l'auteur principal
             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
         }
         
