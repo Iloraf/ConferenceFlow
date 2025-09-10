@@ -2291,54 +2291,72 @@ def generate_book_latex(book_type):
         current_app.logger.error(f"Erreur génération LaTeX {book_type}: {e}")
         return f"Erreur lors de la génération du PDF: {str(e)}", 500
 
+
 def compile_latex_book(title, communications_by_theme, book_type):
-    """Compile un livre LaTeX et retourne le chemin du PDF."""
+    """Compile un livre LaTeX et retourne l'URL relative du PDF généré (ex: static/uploads/...)."""
     import tempfile
     import subprocess
     import os
     import shutil
+    import time
+    from flask import current_app
     
-    # Créer un répertoire temporaire
     with tempfile.TemporaryDirectory() as temp_dir:
-        
         # Copier les fichiers de template LaTeX
         copy_latex_templates(temp_dir)
-        
+
         # Générer le fichier .tex principal
         tex_content = generate_latex_content(title, communications_by_theme, book_type)
-        
         tex_file = os.path.join(temp_dir, "livre.tex")
-        with open(tex_file, 'w', encoding='utf-8') as f:
+        with open(tex_file, "w", encoding="utf-8") as f:
             f.write(tex_content)
-        
+
         # Copier les PDFs des communications
         copy_communication_pdfs(communications_by_theme, temp_dir, book_type)
-        
-        # Compiler LaTeX
+
         try:
-            # Première compilation
-            subprocess.run(['pdflatex', '-interaction=nonstopmode', 'livre.tex'], 
-                         cwd=temp_dir, check=True, capture_output=True)
-            
-            # Deuxième compilation pour les références
-            subprocess.run(['pdflatex', '-interaction=nonstopmode', 'livre.tex'], 
-                         cwd=temp_dir, check=True, capture_output=True)
-            
-            # Copier le PDF final vers un lieu permanent
+            # Deux compilations LaTeX pour stabiliser les références
+            for _ in range(2):
+                subprocess.run(
+                    ["pdflatex", "-interaction=nonstopmode", "livre.tex"],
+                    cwd=temp_dir,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+
+            # Vérifier que le PDF a bien été généré
             pdf_source = os.path.join(temp_dir, "livre.pdf")
-            pdf_dest = os.path.join(current_app.config['UPLOAD_FOLDER'], f"latex_book_{book_type}.pdf")
+            if not os.path.exists(pdf_source):
+                raise FileNotFoundError(f"PDF non généré : {pdf_source}")
+
+            # Dossier uploads
+            uploads_dir = os.path.join(current_app.root_path, "static", "uploads")
+            os.makedirs(uploads_dir, exist_ok=True)
+
+            # Nom final (ajout timestamp pour éviter les collisions)
+            filename = f"latex_book_{book_type}_{int(time.time())}.pdf"
+            pdf_dest = os.path.join(uploads_dir, filename)   # absolu
+            pdf_web_path = f"static/uploads/{filename}"      # relatif web
+
+            # Copier le PDF
             shutil.copy2(pdf_source, pdf_dest)
-            
-            return pdf_dest
-            
+
+            current_app.logger.info(f"PDF généré avec succès: {pdf_web_path}")
+
+            # ✅ Retour uniquement l'URL relative pour le front
+            return pdf_web_path
+
         except subprocess.CalledProcessError as e:
-            # Lire le log pour débugger
+            # Lire le log LaTeX pour aider au debug
             log_file = os.path.join(temp_dir, "livre.log")
             if os.path.exists(log_file):
-                with open(log_file, 'r') as f:
+                with open(log_file, "r") as f:
                     log_content = f.read()
-                current_app.logger.error(f"Erreur LaTeX: {log_content}")
-            raise Exception(f"Erreur compilation LaTeX: {e}")
+                current_app.logger.error(f"Erreur LaTeX: {log_content[:2000]}...")
+
+            raise Exception("Erreur compilation LaTeX — voir logs.")
+
 
 
 
@@ -2416,13 +2434,15 @@ def generate_latex_content(title, communications_by_theme, book_type):
     theme_num = 1
     for theme_name, communications in communications_by_theme.items():
         if communications:
+            current_app.logger.info(f"DEBUG: theme_name='{theme_name}' -> escaped='{escape_latex(theme_name)}'")
             latex_content += f"""
 %%%%%%% THEME {theme_num} %%%%%
 \\cleardoublepage
 \\phantomsection
 \\addcontentsline{{toc}}{{part}}{{Thème {theme_num}}}
 
-\\chapter{{{theme_name}}}
+            
+\\chapter{{{escape_latex(theme_name)}}}
 \\minitoc
 
 """
@@ -2469,13 +2489,21 @@ def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
 
 def generate_communication_tex(comm, temp_dir):
     """Génère un fichier .tex minimal pour une communication."""
-    authors_str = ", ".join([f"{a.first_name} {a.last_name}" for a in comm.authors])
+    # Échapper le titre et les noms d'auteurs
+    escaped_title = escape_latex(comm.title)
+    escaped_authors = []
+    for author in comm.authors:
+        escaped_first = escape_latex(author.first_name)
+        escaped_last = escape_latex(author.last_name)
+        escaped_authors.append(f"{escaped_first} {escaped_last}")
+    
+    authors_str = ", ".join(escaped_authors)
     
     tex_content = f"""
 % Communication {comm.id}
 \\phantomsection\\addtocounter{{section}}{{1}}
-\\addcontentsline{{toc}}{{section}}{{{comm.title}}}
-{{\\Large \\textbf{{{comm.title}}}}}\\label{{ref:{comm.id}}}
+\\addcontentsline{{toc}}{{section}}{{{escaped_title}}}
+{{\\Large \\textbf{{{escaped_title}}}}}\\label{{ref:{comm.id}}}
 
 \\vspace{{2mm}}
 {authors_str}
@@ -2599,14 +2627,13 @@ def copy_latex_templates(temp_dir):
     generate_prix_biot_fourier_tex(temp_dir)
 
 
-
-
-    
 def generate_remerciements_tex(temp_dir, config):
     """Génère remerciements.tex depuis static/content/remerciements.yml."""
     try:
         from pathlib import Path
         import yaml
+        import os
+        from flask import current_app
         
         # Charger depuis remerciements.yml
         content_dir = Path(current_app.root_path) / "static" / "content"
@@ -2618,8 +2645,8 @@ def generate_remerciements_tex(temp_dir, config):
         else:
             remerciements_data = {
                 'title': 'Remerciements',
-                'content': 'Le Comité d\'organisation remercie tous les participants.',
-                'signature': 'Le Comité d\'organisation'
+                'content': "Le Comité d'organisation remercie tous les participants.",
+                'signature': "Le Comité d'organisation"
             }
         
         # Remplacer les variables
@@ -2636,9 +2663,29 @@ def generate_remerciements_tex(temp_dir, config):
             content = content.replace('{' + var + '}', value)
             signature = signature.replace('{' + var + '}', value)
         
-        # Convertir en LaTeX (remplacer • par \item, etc.)
-        content_latex = content.replace('•', '\\item').replace('\n\n', '\n\n')
+        # Gestion des puces
+        if "•" in content:
+            lines = content.splitlines()
+            processed_lines = []
+            in_itemize = False
+            for line in lines:
+                if line.strip().startswith("•"):
+                    if not in_itemize:
+                        processed_lines.append("\\begin{itemize}")
+                        in_itemize = True
+                    processed_lines.append(line.replace("•", "\\item", 1).strip())
+                else:
+                    if in_itemize:
+                        processed_lines.append("\\end{itemize}")
+                        in_itemize = False
+                    processed_lines.append(line)
+            if in_itemize:
+                processed_lines.append("\\end{itemize}")
+            content_latex = "\n".join(processed_lines)
+        else:
+            content_latex = content
         
+        # Construction du LaTeX final
         remerciements_content = f"""\\chapter*{{{remerciements_data['title']}}}
 
 {content_latex}
@@ -2653,9 +2700,11 @@ def generate_remerciements_tex(temp_dir, config):
             
     except Exception as e:
         current_app.logger.error(f"Erreur génération remerciements.tex: {e}")
-        # Créer un fichier par défaut
+        # Fallback par défaut
         with open(os.path.join(temp_dir, "remerciements.tex"), 'w', encoding='utf-8') as f:
             f.write("\\chapter*{Remerciements}\nRemerciements en cours de rédaction.\n")
+
+
 
 
 
@@ -2702,7 +2751,7 @@ def generate_comite_organisation_tex(temp_dir, config):
         
         # Générer le contenu LaTeX
         congress_name = config.get('conference', {}).get('name', 'Congrès')
-        lab_name = config.get('conference', {}).get('organizing_lab', {}).get('name', 'Laboratoire')
+        lab_name = escape_latex(config.get('conference', {}).get('organizing_lab', {}).get('name', 'Laboratoire'))
         
         comite_content = f"""\\chapter{{Comité d'organisation}}
 
@@ -2938,7 +2987,7 @@ def generate_prix_biot_fourier_tex(temp_dir):
 
 def generate_page_garde_tex(temp_dir, config):
     """Génère page-garde.tex dynamiquement."""
-    theme = config.get('conference', {}).get('theme', 'Thermique')
+    theme = escape_latex(config.get('conference', {}).get('theme', 'Thermique'))
     presidents = get_presidents_names_for_latex(config)
     congress_name = config.get('conference', {}).get('series', 'Congrès')
     short_name = config.get('conference', {}).get('short_name', 'CONF')
@@ -3034,112 +3083,115 @@ def get_presidents_names_for_latex(config):
         return ""
 
 
-def compile_latex_book(title, communications_by_theme, book_type):
-    """Compile un livre LaTeX et retourne le chemin du PDF."""
-    import tempfile
-    import subprocess
-    import os
-    import shutil
-    import time
+# def compile_latex_book(title, communications_by_theme, book_type):
+#     """Compile un livre LaTeX et retourne le chemin du PDF."""
+#     import tempfile
+#     import subprocess
+#     import os
+#     import shutil
+#     import time
     
-    # Créer un répertoire temporaire
-    with tempfile.TemporaryDirectory() as temp_dir:
-        current_app.logger.info(f"Compilation LaTeX dans {temp_dir}")
+#     # Créer un répertoire temporaire
+#     with tempfile.TemporaryDirectory() as temp_dir:
+#         current_app.logger.info(f"Compilation LaTeX dans {temp_dir}")
         
-        try:
-            # 1. Générer tous les fichiers LaTeX nécessaires
-            copy_latex_templates(temp_dir)
+#         try:
+#             # 1. Générer tous les fichiers LaTeX nécessaires
+#             copy_latex_templates(temp_dir)
             
-            # 2. Générer le fichier .tex principal
-            tex_content = generate_latex_content(title, communications_by_theme, book_type)
+#             # 2. Générer le fichier .tex principal
+#             tex_content = generate_latex_content(title, communications_by_theme, book_type)
             
-            tex_file = os.path.join(temp_dir, "livre.tex")
-            with open(tex_file, 'w', encoding='utf-8') as f:
-                f.write(tex_content)
+#             tex_file = os.path.join(temp_dir, "livre.tex")
+#             with open(tex_file, 'w', encoding='utf-8') as f:
+#                 f.write(tex_content)
+#             debug_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'debug_latex')
+#             os.makedirs(debug_dir, exist_ok=True)
+#             shutil.copy2(tex_file, debug_dir)
+#             current_app.logger.info(f"Fichier livre.tex copié vers {debug_dir} pour debug")
+#             # 3. Copier les PDFs des communications
+#             copy_communication_pdfs(communications_by_theme, temp_dir, book_type)
             
-            # 3. Copier les PDFs des communications
-            copy_communication_pdfs(communications_by_theme, temp_dir, book_type)
+#             # 4. Créer les fichiers auxiliaires nécessaires
+#             create_auxiliary_files(temp_dir)
             
-            # 4. Créer les fichiers auxiliaires nécessaires
-            create_auxiliary_files(temp_dir)
+#             # 5. Première compilation LaTeX
+#             cmd = ['pdflatex', '-interaction=nonstopmode', 'livre.tex']
+#             current_app.logger.info(f"Exécution: {' '.join(cmd)}")
             
-            # 5. Première compilation LaTeX
-            cmd = ['pdflatex', '-interaction=nonstopmode', 'livre.tex']
-            current_app.logger.info(f"Exécution: {' '.join(cmd)}")
+#             result = subprocess.run(cmd, cwd=temp_dir, capture_output=True, text=True, 
+#                                   timeout=60, encoding='utf-8', errors='replace')
             
-            result = subprocess.run(cmd, cwd=temp_dir, capture_output=True, text=True, 
-                                  timeout=60, encoding='utf-8', errors='replace')
-            
-            # Lire le log LaTeX pour diagnostiquer (avec gestion des erreurs d'encodage)
-            log_file = os.path.join(temp_dir, "livre.log")
-            if os.path.exists(log_file):
-                try:
-                    # Essayer plusieurs encodages
-                    for encoding in ['utf-8', 'latin1', 'cp1252']:
-                        try:
-                            with open(log_file, 'r', encoding=encoding) as f:
-                                log_content = f.read()
-                                break
-                        except UnicodeDecodeError:
-                            continue
-                    else:
-                        # Si aucun encodage ne fonctionne, lire en binaire
-                        with open(log_file, 'rb') as f:
-                            log_content = f.read().decode('utf-8', errors='replace')
-                except Exception as e:
-                    current_app.logger.warning(f"Impossible de lire le log: {e}")
-                    log_content = "Log illisible"
+#             # Lire le log LaTeX pour diagnostiquer (avec gestion des erreurs d'encodage)
+#             log_file = os.path.join(temp_dir, "livre.log")
+#             if os.path.exists(log_file):
+#                 try:
+#                     # Essayer plusieurs encodages
+#                     for encoding in ['utf-8', 'latin1', 'cp1252']:
+#                         try:
+#                             with open(log_file, 'r', encoding=encoding) as f:
+#                                 log_content = f.read()
+#                                 break
+#                         except UnicodeDecodeError:
+#                             continue
+#                     else:
+#                         # Si aucun encodage ne fonctionne, lire en binaire
+#                         with open(log_file, 'rb') as f:
+#                             log_content = f.read().decode('utf-8', errors='replace')
+#                 except Exception as e:
+#                     current_app.logger.warning(f"Impossible de lire le log: {e}")
+#                     log_content = "Log illisible"
                 
-                # Analyser les erreurs
-                if result.returncode != 0:
-                    current_app.logger.error(f"pdflatex code retour: {result.returncode}")
-                    current_app.logger.error(f"pdflatex stderr: {result.stderr}")
+#                 # Analyser les erreurs
+#                 if result.returncode != 0:
+#                     current_app.logger.error(f"pdflatex code retour: {result.returncode}")
+#                     current_app.logger.error(f"pdflatex stderr: {result.stderr}")
                     
-                    # Extraire les lignes d'erreur du log
-                    error_lines = []
-                    if log_content:
-                        for line in log_content.split('\n'):
-                            line_lower = line.lower()
-                            if ('!' in line or 'error:' in line_lower or 
-                                'undefined' in line_lower or 'missing' in line_lower):
-                                error_lines.append(line.strip())
+#                     # Extraire les lignes d'erreur du log
+#                     error_lines = []
+#                     if log_content:
+#                         for line in log_content.split('\n'):
+#                             line_lower = line.lower()
+#                             if ('!' in line or 'error:' in line_lower or 
+#                                 'undefined' in line_lower or 'missing' in line_lower):
+#                                 error_lines.append(line.strip())
                     
-                    # Copier les fichiers pour debug
-                    debug_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'debug_latex')
-                    os.makedirs(debug_dir, exist_ok=True)
+#                     # Copier les fichiers pour debug
+#                     debug_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'debug_latex')
+#                     os.makedirs(debug_dir, exist_ok=True)
                     
-                    debug_files = ['livre.tex', 'livre.log', 'config.tex', 'page-garde.tex', 
-                                 'remerciements.tex', 'comite-organisation.tex']
-                    for file in debug_files:
-                        src = os.path.join(temp_dir, file)
-                        if os.path.exists(src):
-                            shutil.copy2(src, debug_dir)
+#                     debug_files = ['livre.tex', 'livre.log', 'config.tex', 'page-garde.tex', 
+#                                  'remerciements.tex', 'comite-organisation.tex']
+#                     for file in debug_files:
+#                         src = os.path.join(temp_dir, file)
+#                         if os.path.exists(src):
+#                             shutil.copy2(src, debug_dir)
                     
-                    # Afficher les premières erreurs
-                    if error_lines:
-                        current_app.logger.error(f"Erreurs LaTeX: {error_lines[:3]}")
-                        error_summary = " | ".join(error_lines[:3])
-                        raise Exception(f"Erreur LaTeX: {error_summary}")
-                    else:
-                        raise Exception(f"Erreur pdflatex (code {result.returncode}). Fichiers debug copiés.")
+#                     # Afficher les premières erreurs
+#                     if error_lines:
+#                         current_app.logger.error(f"Erreurs LaTeX: {error_lines[:3]}")
+#                         error_summary = " | ".join(error_lines[:3])
+#                         raise Exception(f"Erreur LaTeX: {error_summary}")
+#                     else:
+#                         raise Exception(f"Erreur pdflatex (code {result.returncode}). Fichiers debug copiés.")
             
-            # Vérifier que le PDF a été généré
-            pdf_source = os.path.join(temp_dir, "livre.pdf")
-            if not os.path.exists(pdf_source):
-                raise Exception("Le fichier PDF n'a pas été généré")
+#             # Vérifier que le PDF a été généré
+#             pdf_source = os.path.join(temp_dir, "livre.pdf")
+#             if not os.path.exists(pdf_source):
+#                 raise Exception("Le fichier PDF n'a pas été généré")
             
-            # 6. Copier le PDF final
-            os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
-            pdf_dest = os.path.join(current_app.config['UPLOAD_FOLDER'], f"latex_book_{book_type}_{int(time.time())}.pdf")
-            shutil.copy2(pdf_source, pdf_dest)
+#             # 6. Copier le PDF final
+#             os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
+#             pdf_dest = os.path.join(current_app.config['UPLOAD_FOLDER'], f"latex_book_{book_type}_{int(time.time())}.pdf")
+#             shutil.copy2(pdf_source, pdf_dest)
             
-            current_app.logger.info(f"PDF généré avec succès: {pdf_dest}")
-            return pdf_dest
+#             current_app.logger.info(f"PDF généré avec succès: {pdf_dest}")
+#             return pdf_dest
             
-        except subprocess.TimeoutExpired:
-            raise Exception("Timeout lors de la compilation LaTeX")
-        except Exception as e:
-            raise Exception(f"Erreur compilation LaTeX: {e}")
+#         except subprocess.TimeoutExpired:
+#             raise Exception("Timeout lors de la compilation LaTeX")
+#         except Exception as e:
+#             raise Exception(f"Erreur compilation LaTeX: {e}")
     
 
 
@@ -3173,5 +3225,29 @@ def copy_latex_templates(temp_dir):
     
     current_app.logger.info("Tous les fichiers LaTeX ont été générés")
 
+def escape_latex(text):
+    """Échappe les caractères spéciaux pour LaTeX."""
+    if not text:
+        return ""
+    
+    # Dictionnaire des caractères à échapper
+    latex_chars = {
+        '\\': r'\textbackslash{}', 
+        '&': r'\&',
+        '%': r'\%', 
+        '$': r'\$',
+        '#': r'\#',
+        '^': r'\textasciicircum{}',
+        '_': r'\_',
+        '{': r'\{',
+        '}': r'\}',
+        '~': r'\textasciitilde{}',
+    }
+    
+    escaped_text = str(text)
+    for char, replacement in latex_chars.items():
+        escaped_text = escaped_text.replace(char, replacement)
+    
+    return escaped_text
 
 
