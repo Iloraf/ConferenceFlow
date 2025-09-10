@@ -2303,7 +2303,7 @@ def compile_latex_book(title, communications_by_theme, book_type):
     
     with tempfile.TemporaryDirectory() as temp_dir:
         # Copier les fichiers de template LaTeX
-        copy_latex_templates(temp_dir)
+        copy_latex_templates(temp_dir, title)
 
         # Générer le fichier .tex principal
         tex_content = generate_latex_content(title, communications_by_theme, book_type)
@@ -2611,15 +2611,15 @@ def generate_config_tex(temp_dir, config):
         f.write(config_content)
 
 
-def copy_latex_templates(temp_dir):
+def copy_latex_templates(temp_dir, title=None, book_type=None):
     """Génère tous les fichiers LaTeX nécessaires dans le répertoire temporaire."""
     config = get_conference_config()
-    
+
     # 1. Générer config.tex dynamiquement
     generate_config_tex(temp_dir, config)
-    
+
     # 2. Générer tous les autres fichiers .tex depuis les données de l'appli
-    generate_page_garde_tex(temp_dir, config)
+    generate_page_garde_tex(temp_dir, config, title or book_type)
     generate_remerciements_tex(temp_dir, config)
     generate_comite_organisation_tex(temp_dir, config)
     generate_tableau_reviewer_tex(temp_dir)
@@ -2985,7 +2985,7 @@ def generate_prix_biot_fourier_tex(temp_dir):
         with open(os.path.join(temp_dir, "prix-biot-fourier.tex"), 'w', encoding='utf-8') as f:
             f.write("\\chapter{Prix Biot-Fourier}\nLes communications sélectionnées seront annoncées prochainement.\n")
 
-def generate_page_garde_tex(temp_dir, config):
+def generate_page_garde_tex(temp_dir, config, title):
     """Génère page-garde.tex dynamiquement."""
     theme = escape_latex(config.get('conference', {}).get('theme', 'Thermique'))
     presidents = get_presidents_names_for_latex(config)
@@ -2993,6 +2993,7 @@ def generate_page_garde_tex(temp_dir, config):
     short_name = config.get('conference', {}).get('short_name', 'CONF')
     dates = config.get('dates', {}).get('dates', 'Date à définir')
     city = config.get('location', {}).get('city', 'Ville')
+    title = escape_latex(title) if title else "Recueil des résumés"
     
     organizing_lab = config.get('conference', {}).get('organizing_lab', {})
     lab_name = organizing_lab.get('short_name', 'LAB')
@@ -3020,7 +3021,7 @@ def generate_page_garde_tex(temp_dir, config):
         page_garde_content += "%\n"
     
     page_garde_content += "{\\Huge\\bfseries\n"
-    page_garde_content += "Recueil des résumés\\\\\n"
+    page_garde_content += f"{title}\\\\\n"
     page_garde_content += "%\n"
     page_garde_content += "}\n"
     page_garde_content += "\\vspace{1em}\n"
@@ -3210,19 +3211,19 @@ delim_2 " \\\\dotfill "
     with open(os.path.join(temp_dir, "index_style.ist"), 'w', encoding='utf-8') as f:
         f.write(index_style)
 
-def copy_latex_templates(temp_dir):
+def copy_latex_templates(temp_dir, title=None, book_type=None):
     """Génère tous les fichiers LaTeX nécessaires dans le répertoire temporaire."""
     config = get_conference_config()
-    
+
     # Générer tous les fichiers .tex depuis les données de l'appli
     generate_config_tex(temp_dir, config)
-    generate_page_garde_tex(temp_dir, config)
+    generate_page_garde_tex(temp_dir, config, title or book_type)
     generate_remerciements_tex(temp_dir, config)
     generate_comite_organisation_tex(temp_dir, config)
     generate_tableau_reviewer_tex(temp_dir)
     generate_introduction_tex(temp_dir, config)
     generate_prix_biot_fourier_tex(temp_dir)
-    
+
     current_app.logger.info("Tous les fichiers LaTeX ont été générés")
 
 def escape_latex(text):
