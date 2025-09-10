@@ -27,7 +27,8 @@ templates:
     review_assigned: "Nouvelle review assignée - {CONFERENCE_SHORT_NAME}"
     review_reminder: "Rappel : Reviews en attente - {CONFERENCE_SHORT_NAME}"
     reviewer_welcome: "Bienvenue comme reviewer - {CONFERENCE_SHORT_NAME}"
-    
+    reviewer_activation: "Invitation à devenir reviewer - {CONFERENCE_SHORT_NAME}"
+
     # Décisions
     decision_notification: "Décision sur votre communication - {CONFERENCE_SHORT_NAME}"
     decision_accept: "Félicitations ! Communication acceptée - {CONFERENCE_SHORT_NAME}"
@@ -68,8 +69,8 @@ content:
       
       Vous pouvez dès maintenant vous connecter et commencer à soumettre vos communications.
       
-      📅 Dates : {CONFERENCE_DATES}
-      📍 Lieu : {CONFERENCE_LOCATION}
+      Dates : {CONFERENCE_DATES}
+      Lieu : {CONFERENCE_LOCATION}
     
   # Email d'activation
   activation:
@@ -79,18 +80,18 @@ content:
       Pour terminer la création de votre compte, cliquez sur le lien d'activation ci-dessous.
       Ce lien est valable 7 jours.
       
-      📧 Email : {USER_EMAIL}
-      👤 Rôle : {USER_ROLE}
+      Email : {USER_EMAIL}
+      Rôle : {USER_ROLE}
     call_to_action: "Activer mon compte"
 
   # Template pour la réinitialisation de mot de passe - NOUVEAU
   password_reset:
-    greeting: "Bonjour {USER_FIRST_NAME},"
+    greeting: "Bonjour {AUTHOR_NAME},"
     intro: "Vous avez demandé la réinitialisation de votre mot de passe pour {CONFERENCE_SHORT_NAME}."
     body: |
       Pour créer un nouveau mot de passe, cliquez sur le lien ci-dessous :
       
-      ⚠️ Ce lien expire dans {TOKEN_EXPIRES_HOURS} heure(s).
+      Ce lien expire dans {TOKEN_EXPIRES_HOURS} heure(s).
       
       Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email en toute sécurité.
     call_to_action: "Réinitialiser mon mot de passe"
@@ -100,44 +101,63 @@ content:
     
   # Email de co-auteur
   coauthor_notification:
-    greeting: "Bonjour {USER_FIRST_NAME},"
+    greeting: "Bonjour {AUTHOR_NAME},"
     intro: "Vous avez été ajouté(e) comme co-auteur d'une communication"
     body: |
       Une nouvelle communication a été soumise pour le {CONFERENCE_NAME} avec vous comme co-auteur(rice).
       
-      📝 Titre : {COMMUNICATION_TITLE}
-      📋 Type : {COMMUNICATION_TYPE}
-      👤 Auteur principal : {MAIN_AUTHOR_NAME}
-      🆔 ID : {COMMUNICATION_ID}
+      Titre : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      Auteur principal : {MAIN_AUTHOR_NAME}
+      ID : {COMMUNICATION_ID}
       
       Vous pouvez consulter les détails en vous connectant à votre compte.
     call_to_action: "Consulter la communication"
 
   # Email invitation co-auteur
   coauthor_invitation:
-    greeting: "Bonjour {COAUTHOR_NAME},"
+    greeting: "Bonjour {AUTHOR_NAME},"
     intro: "Invitation comme co-auteur"
     body: |
       Vous avez été invité(e) à être co-auteur d'une communication pour le {CONFERENCE_NAME}.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Type : {COMMUNICATION_TYPE}
-      👤 Auteur principal : {MAIN_AUTHOR_NAME}
-      🆔 ID : {COMMUNICATION_ID}
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      Auteur principal : {MAIN_AUTHOR_NAME}
+      ID : {COMMUNICATION_ID}
       
-      📧 **Votre participation :**
+       **Votre participation :**
       L'auteur principal souhaite vous associer à cette communication en tant que co-auteur.
       
-      🔐 **Pour accepter cette invitation :**
+      **Pour accepter cette invitation :**
       1. Créez votre compte ou connectez-vous
       2. Confirmez votre participation
       3. Complétez vos informations d'affiliation
       
-      ⏰ **Date limite de réponse :** {INVITATION_DEADLINE}
+       **Date limite de réponse :** {INVITATION_DEADLINE}
       
       Pour toute question, contactez directement l'auteur principal : {MAIN_AUTHOR_EMAIL}
     call_to_action: "Accepter l'invitation"
+
+  reviewer_activation:
+    greeting: "Bonjour {USER_FIRST_NAME},"
+    intro: "Invitation à participer comme reviewer"
+    body: |
+      Vous êtes sollicité(e) pour participer au processus de relecture du {CONFERENCE_NAME}.
     
+      En tant que reviewer, vous contribuerez à l'évaluation scientifique des communications soumises selon vos domaines d'expertise :
+      • Spécialités : {USER_SPECIALTIES}
+      • Affiliations : {USER_AFFILIATIONS}
+    
+      **Si vous acceptez cette mission :**
+      Cliquez sur le lien ci-dessous pour créer votre compte reviewer et accéder à la plateforme.
+    
+      **Si vous ne souhaitez pas participer :**
+      Merci de nous le faire savoir en répondant à cet email ou en contactant {SCIENTIFIC_EMAIL}.
+    
+      Votre contribution est précieuse pour maintenir la qualité scientifique du congrès.
+    call_to_action: "► Accepter et créer mon compte reviewer"
+
   # Email de review assignée
   review_assigned:
     greeting: "Bonjour {REVIEWER_NAME},"
@@ -145,8 +165,8 @@ content:
     body: |
       Vous avez été assigné(e) à {REVIEWS_COUNT} nouvelle(s) review(s).
       
-      🎯 Vos spécialités : {REVIEWER_SPECIALTIES}
-      ⏰ Échéance : {REVIEW_DEADLINE}
+      Vos spécialités : {REVIEWER_SPECIALTIES}
+      Échéance : {REVIEW_DEADLINE}
       
       Consultez votre tableau de bord pour commencer vos évaluations.
     call_to_action: "Accéder au tableau de bord"
@@ -169,14 +189,14 @@ content:
     body: |
       Nous vous remercions d'avoir accepté d'être reviewer pour {CONFERENCE_NAME}.
       
-      👤 Vos informations :
-      📧 Email : {USER_EMAIL}
-      🎯 Spécialités : {REVIEWER_SPECIALTIES}
-      🏢 Affiliations : {REVIEWER_AFFILIATIONS}
+      Vos informations :
+      Email : {USER_EMAIL}
+      Spécialités : {REVIEWER_SPECIALTIES}
+      Affiliations : {REVIEWER_AFFILIATIONS}
       
       Vous recevrez prochainement les assignations de communications à évaluer selon vos spécialités.
       
-      📅 **Dates importantes :**
+      **Dates importantes :**
       - Assignations des reviews : {ASSIGNMENT_DATE}
       - Échéance pour les évaluations : {REVIEW_DEADLINE}
       
@@ -190,9 +210,9 @@ content:
     body: |
       La décision concernant votre communication pour le {CONFERENCE_NAME} est disponible.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Décision : {DECISION_STATUS}
-      📅 Date de décision : {DECISION_DATE}
+      Communication : {COMMUNICATION_TITLE}
+      Décision : {DECISION_STATUS}
+      Date de décision : {DECISION_DATE}
       
       {DECISION_DETAILS}
     call_to_action: "Consulter les détails"
@@ -204,15 +224,15 @@ content:
     body: |
       Nous avons le plaisir de vous informer que votre communication a été acceptée pour {CONFERENCE_NAME} !
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Type : {COMMUNICATION_TYPE}
-      🆔 ID : {COMMUNICATION_ID}
-      ✅ Décision : **ACCEPTÉE**
-      📅 Date de décision : {DECISION_DATE}
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Décision : **ACCEPTÉE**
+      Date de décision : {DECISION_DATE}
       
-      🎉 **Félicitations !** Votre travail a été retenu par le comité scientifique.
+      **Félicitations !** Votre travail a été retenu par le comité scientifique.
       
-      📅 **Prochaines étapes :**
+      **Prochaines étapes :**
       - Préparer votre présentation/poster pour le congrès
       - Vous inscrire au congrès si ce n'est pas encore fait
       - Finaliser votre article complet (si applicable)
@@ -227,15 +247,15 @@ content:
     body: |
       Nous vous remercions pour votre soumission au {CONFERENCE_NAME}.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Type : {COMMUNICATION_TYPE}
-      🆔 ID : {COMMUNICATION_ID}
-      📋 Décision : **NON RETENUE**
-      📅 Date de décision : {DECISION_DATE}
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Décision : **NON RETENUE**
+      Date de décision : {DECISION_DATE}
       
       Cette décision ne remet pas en cause la qualité de vos recherches, mais reflète la forte concurrence et les contraintes du programme.
       
-      📝 **Commentaires du comité :**
+      **Commentaires du comité :**
       {COMMENTS_SECTION}
       
       Merci pour votre contribution et votre intérêt pour le congrès.
@@ -248,19 +268,19 @@ content:
     body: |
       Suite à l'évaluation de votre communication pour {CONFERENCE_NAME}, des révisions sont demandées.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Type : {COMMUNICATION_TYPE}
-      🆔 ID : {COMMUNICATION_ID}
-      📋 Décision : **RÉVISIONS DEMANDÉES**
-      📅 Date de décision : {DECISION_DATE}
-      ⏰ Date limite révisions : {REVISION_DEADLINE}
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Décision : **RÉVISIONS DEMANDÉES**
+      Date de décision : {DECISION_DATE}
+      Date limite révisions : {REVISION_DEADLINE}
       
-      🔄 **Votre communication peut être acceptée sous réserve de révisions.**
+      **Votre communication peut être acceptée sous réserve de révisions.**
       
-      📝 **Commentaires et demandes des reviewers :**
+      **Commentaires et demandes des reviewers :**
       {COMMENTS_SECTION}
       
-      ⚡ **Important :** Le respect de la date limite est impératif pour maintenir l'acceptation.
+      **Important :** Le respect de la date limite est impératif pour maintenir l'acceptation.
     call_to_action: "Déposer ma révision"
 
   # Emails de soumission
@@ -270,11 +290,11 @@ content:
     body: |
       Nous accusons réception de votre soumission pour {CONFERENCE_NAME}.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Type : {COMMUNICATION_TYPE}
-      🆔 ID : {COMMUNICATION_ID}
-      📅 Date de dépôt : {SUBMISSION_DATE}
-      📁 Fichier : {FILE_NAME} (version {FILE_VERSION})
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Date de dépôt : {SUBMISSION_DATE}
+      Fichier : {FILE_NAME} (version {FILE_VERSION})
       
       Votre soumission est maintenant enregistrée dans notre système et sera traitée selon le calendrier de la conférence.
     call_to_action: "Consulter ma soumission"
@@ -285,14 +305,14 @@ content:
     body: |
       Nous accusons réception de votre {SUBMISSION_TYPE} pour {CONFERENCE_NAME}.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Thématique(s) : {COMMUNICATION_THEMES}
-      🆔 ID : {COMMUNICATION_ID}
-      📅 Date de dépôt : {SUBMISSION_DATE}
+      Communication : {COMMUNICATION_TITLE}
+      Thématique(s) : {COMMUNICATION_THEMES}
+      ID : {COMMUNICATION_ID}
+      Date de dépôt : {SUBMISSION_DATE}
       
-      ✅ Votre {SUBMISSION_TYPE} est maintenant soumis{STATUS_MESSAGE}
+      Votre {SUBMISSION_TYPE} est maintenant soumis{STATUS_MESSAGE}
       
-      📅 **Prochaines étapes :**
+      **Prochaines étapes :**
       {NEXT_STEPS}
     call_to_action: "Voir ma communication"
 
@@ -302,13 +322,13 @@ content:
     body: |
       Nous accusons réception de la mise à jour de votre communication pour {CONFERENCE_NAME}.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Type de fichier mis à jour : {UPDATE_TYPE}
-      🆔 ID : {COMMUNICATION_ID}
-      📅 Date de mise à jour : {SUBMISSION_DATE}
-      📄 Nouvelle version : {FILE_VERSION}
+      Communication : {COMMUNICATION_TITLE}
+      Type de fichier mis à jour : {UPDATE_TYPE}
+      ID : {COMMUNICATION_ID}
+      Date de mise à jour : {SUBMISSION_DATE}
+      Nouvelle version : {FILE_VERSION}
       
-      ✅ Votre mise à jour a été prise en compte et remplace la version précédente.
+      Votre mise à jour a été prise en compte et remplace la version précédente.
     call_to_action: "Voir ma communication"
 
   resume_submission_confirmed:
@@ -317,12 +337,12 @@ content:
     body: |
       Nous accusons réception de votre résumé pour {CONFERENCE_NAME}.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Thématique(s) : {COMMUNICATION_THEMES}
-      🆔 ID : {COMMUNICATION_ID}
-      📅 Date de dépôt : {SUBMISSION_DATE}
+      Communication : {COMMUNICATION_TITLE}
+      Thématique(s) : {COMMUNICATION_THEMES}
+      ID : {COMMUNICATION_ID}
+      Date de dépôt : {SUBMISSION_DATE}
       
-      ✅ Votre résumé est maintenant soumis et sera évalué par le comité scientifique.
+      Votre résumé est maintenant soumis et sera évalué par le comité scientifique.
     call_to_action: "Voir ma communication"
 
   article_submission_confirmed:
@@ -331,13 +351,13 @@ content:
     body: |
       Nous accusons réception de votre article complet pour {CONFERENCE_NAME}.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Thématique(s) : {COMMUNICATION_THEMES}
-      🆔 ID : {COMMUNICATION_ID}
-      📅 Date de dépôt : {SUBMISSION_DATE}
-      📄 Version : {FILE_VERSION}
+      Communication : {COMMUNICATION_TITLE}
+      Thématique(s) : {COMMUNICATION_THEMES}
+      ID : {COMMUNICATION_ID}
+      Date de dépôt : {SUBMISSION_DATE}
+      Version : {FILE_VERSION}
       
-      ✅ Votre article est maintenant soumis et sera envoyé aux reviewers pour évaluation.
+      Votre article est maintenant soumis et sera envoyé aux reviewers pour évaluation.
     call_to_action: "Voir ma communication"
 
   wip_submission_confirmed:
@@ -346,12 +366,12 @@ content:
     body: |
       Nous accusons réception de votre Work in Progress pour {CONFERENCE_NAME}.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Thématique(s) : {COMMUNICATION_THEMES}
-      🆔 ID : {COMMUNICATION_ID}
-      📅 Date de dépôt : {SUBMISSION_DATE}
+      Communication : {COMMUNICATION_TITLE}
+      Thématique(s) : {COMMUNICATION_THEMES}
+      ID : {COMMUNICATION_ID}
+      Date de dépôt : {SUBMISSION_DATE}
       
-      ✅ Votre WIP est maintenant enregistré et sera présenté lors de la session poster.
+      Votre WIP est maintenant enregistré et sera présenté lors de la session poster.
     call_to_action: "Voir ma communication"
 
   poster_submission_confirmed:
@@ -367,7 +387,7 @@ content:
       
       L'équipe d'organisation va examiner votre poster et vous contactera si des modifications sont nécessaires.
     closing: "Nous vous remercions pour votre participation à {CONFERENCE_SHORT_NAME}."
-    call_to_action: "Vous pouvez consulter le statut de votre soumission dans votre espace personnel."
+    call_to_action: "Voir ma communication"
     call_to_action_url: "{BASE_URL}/mes-communications"
 
   revision_confirmed:
@@ -376,13 +396,13 @@ content:
     body: |
       Nous accusons réception de votre révision pour {CONFERENCE_NAME}.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      📋 Type de fichier révisé : {REVISION_TYPE}
-      🆔 ID : {COMMUNICATION_ID}
-      📅 Date de révision : {SUBMISSION_DATE}
-      📄 Version : {FILE_VERSION}
+      Communication : {COMMUNICATION_TITLE}
+      Type de fichier révisé : {REVISION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Date de révision : {SUBMISSION_DATE}
+      Version : {FILE_VERSION}
       
-      ✅ Votre révision a été prise en compte et remplace la version précédente.
+      Votre révision a été prise en compte et remplace la version précédente.
     call_to_action: "Voir ma communication"
 
   # Prix Biot-Fourier
@@ -392,14 +412,14 @@ content:
     body: |
       Votre communication a été sélectionnée pour l'audition du Prix Biot-Fourier !
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      🆔 ID : {COMMUNICATION_ID}
-      📋 Type : {COMMUNICATION_TYPE}
+      Communication : {COMMUNICATION_TITLE}
+      ID : {COMMUNICATION_ID}
+      Type : {COMMUNICATION_TYPE}
       
-      🏆 **À propos du Prix Biot-Fourier :**
+      **À propos du Prix Biot-Fourier :**
       Le Prix Biot-Fourier récompense la meilleure communication présentée par un jeune chercheur (moins de 35 ans) lors du congrès.
       
-      📅 **Prochaines étapes :**
+      **Prochaines étapes :**
       - Audition devant le jury (15 min + 10 min questions)
       - Date et lieu : pendant le congrès (détails à venir)
       
@@ -413,11 +433,11 @@ content:
     body: |
       Le QR Code pour votre communication est maintenant disponible.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      🆔 ID : {COMMUNICATION_ID}
-      📱 QR Code : disponible sur votre espace personnel
+      Communication : {COMMUNICATION_TITLE}
+      ID : {COMMUNICATION_ID}
+      QR Code : disponible sur votre espace personnel
       
-      🖼️ **Instructions pour votre poster :**
+      **Instructions pour votre poster :**
       - Intégrez le QR Code fourni sur votre poster
       - Format recommandé : A0 portrait
       - Le QR Code permet l'accès direct à votre communication
@@ -429,11 +449,11 @@ content:
     body: |
       Nous vous rappelons que la date limite pour déposer votre poster approche.
       
-      📝 Communication : {COMMUNICATION_TITLE}
-      🆔 ID : {COMMUNICATION_ID}
-      📅 Date limite : {POSTER_DEADLINE}
+      Communication : {COMMUNICATION_TITLE}
+      ID : {COMMUNICATION_ID}
+      Date limite : {POSTER_DEADLINE}
       
-      📋 **Actions requises :**
+      **Actions requises :**
       - Finaliser votre poster (format A0 portrait recommandé)
       - Intégrer le QR Code fourni
       - Déposer le fichier via votre espace personnel
@@ -448,13 +468,13 @@ content:
       
       Dans le cadre de ce congrès, nous souhaitons déposer l'ensemble des communications acceptées dans une collection dédiée sur HAL.
       
-      📋 **Détails de la demande :**
+      **Détails de la demande :**
       - Collection demandée : {COLLECTION_ID}
       - Congrès : {CONFERENCE_NAME}
       - Organisateur : {ORGANIZING_LAB_NAME}
       - Nombre estimé de documents : {ESTIMATED_DOCS}
       
-      👤 **Contact responsable :**
+      **Contact responsable :**
       - Nom : {CONTACT_NAME}
       - Email : {CONTACT_EMAIL}
       - Login HAL : {HAL_LOGIN}
@@ -502,7 +522,7 @@ predefined_templates:
       
       [Votre message ici]
       
-      📝 Communication concernée : {COMMUNICATION_TITLE} (ID: {COMMUNICATION_ID})
+      Communication concernée : {COMMUNICATION_TITLE} (ID: {COMMUNICATION_ID})
       
       Pour toute question, n'hésitez pas à nous contacter.
       
@@ -516,9 +536,9 @@ predefined_templates:
       
       Nous vous rappelons que vous avez une review en attente pour la communication suivante :
       
-      📝 Titre : {COMMUNICATION_TITLE}
-      🆔 ID : {COMMUNICATION_ID}
-      ⏰ Échéance : {REVIEW_DEADLINE}
+      Titre : {COMMUNICATION_TITLE}
+      ID : {COMMUNICATION_ID}
+      Échéance : {REVIEW_DEADLINE}
       
       Merci de compléter votre évaluation dans les meilleurs délais.
       

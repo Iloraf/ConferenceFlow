@@ -217,12 +217,13 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-info" 
-                                            onclick="showPotentialReviewers({{ comm.id }})"
-                                            title="Voir les reviewers potentiels">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
+                              <div class="btn-group btn-group-sm">
+
+<a href="{{ url_for('admin.suggest_reviewers', comm_id=comm.id) }}" 
+   class="btn btn-sm btn-outline-info" 
+   title="Voir les reviewers potentiels">
+    <i class="fas fa-eye"></i>
+</a>
                                     <button class="btn btn-outline-success" 
                                             onclick="assignSingle({{ comm.id }})"
                                             title="Affecter individuellement">
@@ -291,24 +292,8 @@ function toggleAllCommunications() {
     selectAllCheckbox.checked = isChecked;
 }
 
-function showPotentialReviewers(communicationId) {
-    const modal = new bootstrap.Modal(document.getElementById('potentialReviewersModal'));
-    document.getElementById('potentialReviewersContent').innerHTML = `
-        <div class="text-center">
-            <i class="fas fa-spinner fa-spin fa-2x"></i>
-            <p class="mt-2">Chargement des reviewers potentiels...</p>
-        </div>
-    `;
-    modal.show();
-    
-    // Simulation du chargement - à remplacer par un appel AJAX réel
-    setTimeout(() => {
-        document.getElementById('potentialReviewersContent').innerHTML = `
-            <p>Reviewers potentiels pour la communication ${communicationId}</p>
-            <p>Fonctionnalité à implémenter : liste des reviewers avec leurs spécialités, charge de travail, etc.</p>
-        `;
-    }, 1000);
-}
+
+  
 
 function assignSingle(communicationId) {
     if (confirm(`Affecter automatiquement des reviewers à la communication ${communicationId} ?`)) {

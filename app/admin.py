@@ -1582,7 +1582,7 @@ def generate_test_data():
         
         # 1 utilisateur avec votre email actif
         real_user = User(
-            email="farges.olivier@gmail.com",  # Remplacez par votre vrai email
+            email="farges.olivier@toto.com",  # Remplacez par votre vrai email
             first_name="Test",
             last_name="Actif",
             idhal="test-actif-123",
@@ -4174,28 +4174,47 @@ def run_email_tests():
             'success': False,
             'message': f'Erreur: {str(e)}'
         }), 500
-
-
 def run_activation_test(user, dry_run):
-    """Test email d'activation."""
+    """Test email d'activation - détecte automatiquement le type d'utilisateur."""
     try:
         if not dry_run:
-            from app.emails import send_activation_email_to_user
-            send_activation_email_to_user(user, "test_token_12345")
+            # Vérifier si c'est un reviewer
+            if getattr(user, 'is_reviewer', False):
+                # Pour les reviewers : utiliser le template reviewer_activation
+                from app.emails import send_any_email_with_themes
+                
+                base_context = {
+                    'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+                    'USER_LAST_NAME': user.last_name or '',
+                    'USER_EMAIL': user.email,
+                    'ACTIVATION_TOKEN': "test_token_12345",
+                    'call_to_action_url': 'https://conference-flow.example.com/activate/test_token_12345'
+                }
+                
+                send_any_email_with_themes(
+                    template_name='reviewer_activation',
+                    recipient_email=user.email,
+                    base_context=base_context,
+                    user=user,  # Permet la conversion automatique des spécialités
+                    color_scheme='blue'
+                )
+            else:
+                # Pour les utilisateurs classiques : garder la fonction existante
+                from app.emails import send_activation_email_to_user
+                send_activation_email_to_user(user, "test_token_12345")
         
         return {
-            'test': 'Email d\'activation',
+            'test': 'Email d\'activation reviewer' if getattr(user, 'is_reviewer', False) else 'Email d\'activation',
             'success': True,
             'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
         }
     except Exception as e:
         return {
-            'test': 'Email d\'activation',
+            'test': 'Email d\'activation reviewer' if getattr(user, 'is_reviewer', False) else 'Email d\'activation',
             'success': False,
             'message': f'Erreur: {str(e)}'
         }
-
-
+    
 def run_coauthor_new_test(user, communication, dry_run):
     """Test email co-auteur nouveau."""
     try:
@@ -4301,9 +4320,8 @@ def run_biot_fourier_test(communication, dry_run):
     try:
         if not dry_run:
             from app.emails import send_biot_fourier_audition_notification
-            # Passer l'utilisateur (auteur principal) ET la communication
-            user = communication.user
-            send_biot_fourier_audition_notification(user, communication)
+            # CORRECTION : Ne passer que la communication
+            send_biot_fourier_audition_notification(communication)
         
         return {
             'test': 'Email Biot-Fourier',
@@ -4315,7 +4333,7 @@ def run_biot_fourier_test(communication, dry_run):
             'test': 'Email Biot-Fourier',
             'success': False,
             'message': f'Erreur: {str(e)}'
-        }
+        }   
 
 def test_email_configuration():
     """Test de la configuration emails."""
@@ -4388,9 +4406,25 @@ def run_reviewer_welcome_test(user, dry_run):
     """Test email de bienvenue reviewer."""
     try:
         if not dry_run:
-            from app.emails import send_activation_email_to_user
-            # Utilise la fonction d'activation qui peut servir de bienvenue
-            send_activation_email_to_user(user, "welcome_token_test")
+            from app.emails import send_any_email_with_themes
+            
+            base_context = {
+                'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+                'USER_LAST_NAME': user.last_name or '',
+                'USER_EMAIL': user.email,
+                'REVIEWER_NAME': user.full_name or f"{user.first_name} {user.last_name}".strip() or user.email.split('@')[0],
+                'REVIEWER_SPECIALTIES': getattr(user, 'specialites_codes', 'Non spécifiées'),
+                'REVIEWER_AFFILIATIONS': 'Non spécifiées',
+                'call_to_action_url': 'https://conference-flow.example.com/reviewer/dashboard'
+            }
+            
+            send_any_email_with_themes(
+                template_name='reviewer_welcome',  # Template spécifique pour l'accueil
+                recipient_email=user.email,
+                base_context=base_context,
+                user=user,
+                color_scheme='green'
+            )
         
         return {
             'test': 'Email bienvenue reviewer',
@@ -4403,6 +4437,7 @@ def run_reviewer_welcome_test(user, dry_run):
             'success': False,
             'message': f'Erreur: {str(e)}'
         }
+
 def run_admin_weekly_summary_test(test_email, dry_run):
     """Test email résumé hebdomadaire admin."""
     try:
@@ -4467,13 +4502,15 @@ def create_test_objects_for_admin(test_email):
     from datetime import datetime
     
     test_user = type('MockUser', (), {
+        'id': 999,
         'email': test_email,
         'first_name': 'Jean',
         'last_name': 'Dupont',
         'full_name': 'Jean Dupont',
         'specialites_codes': 'COND,MULTI',
         'is_reviewer': True,
-        'affiliations': []
+        'affiliations': [],
+        'authors': []
     })()
     
     test_communication = type('MockCommunication', (), {
@@ -4490,6 +4527,7 @@ def create_test_objects_for_admin(test_email):
     
     test_assignment = type('MockAssignment', (), {
         'communication': test_communication,
+        'id': 999,
         'reviewer': test_user,
         'due_date': datetime(2025, 9, 15),
         'is_overdue': False
@@ -4507,7 +4545,7 @@ def run_submission_confirmation_test(submission_type, user, communication, dry_r
     try:
         if not dry_run:
             from app.emails import send_submission_confirmation_email
-            send_submission_confirmation_email(user, communication, submission_type)
+            send_submission_confirmation_email(communication, submission_type)
         
         return {
             'test': f'Email confirmation {submission_type}',
@@ -4623,6 +4661,7 @@ def email_reviewers(comm_id):
                          email_templates=processed_templates,
                          default_template=default_template)
 
+
 @admin.route('/reviewers/send-activation/<int:user_id>')
 @login_required
 def send_activation_email(user_id):
@@ -4640,15 +4679,39 @@ def send_activation_email(user_id):
     token = user.generate_activation_token()
     db.session.commit()
     
-    # Envoyer l'email avec votre fonction
+    # MODIFICATION : Utiliser la bonne logique selon le type d'utilisateur
     try:
-        current_app.send_activation_email_to_user(user, token)
-        flash(f'Email d\'activation envoyé à {user.email}', 'success')
+        if user.is_reviewer:
+            # Pour les reviewers : utiliser le template reviewer_activation
+            from app.emails import send_any_email_with_themes
+            
+            base_context = {
+                'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+                'USER_LAST_NAME': user.last_name or '',
+                'USER_EMAIL': user.email,
+                'ACTIVATION_TOKEN': token,
+                'call_to_action_url': url_for('main.activate_account', token=token, _external=True)
+            }
+            
+            send_any_email_with_themes(
+                template_name='reviewer_activation',
+                recipient_email=user.email,
+                base_context=base_context,
+                user=user,  # Permet la conversion automatique des spécialités
+                color_scheme='blue'
+            )
+            flash(f'Email d\'invitation reviewer envoyé à {user.email}', 'success')
+        else:
+            # Pour les utilisateurs classiques : fonction existante
+            current_app.send_activation_email_to_user(user, token)
+            flash(f'Email d\'activation envoyé à {user.email}', 'success')
+            
     except Exception as e:
         flash(f'Erreur lors de l\'envoi de l\'email : {str(e)}', 'danger')
         current_app.logger.error(f"Erreur envoi email activation: {e}")
     
     return redirect(url_for('admin.pending_activation_reviewers'))
+
 
 
 @admin.route('/reviews/send-reminders', methods=['POST'])

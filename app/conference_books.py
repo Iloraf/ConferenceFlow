@@ -23,6 +23,7 @@ from datetime import datetime
 import tempfile
 import os
 from io import BytesIO
+import time
 
 try:
     from weasyprint import HTML, CSS
@@ -213,195 +214,393 @@ def get_conference_config():
             'location': {'city': 'Nancy'}
         }
 
-
 def get_book_css():
     """CSS reproduisant exactement le style LaTeX SFT de référence."""
     return """
-    /* === CONFIGURATION DE PAGE === */
-    @page {
-        size: A4;
-        margin: 1.5cm 1.8cm 1.5cm 1.8cm;  /* Marges exactes du LaTeX */
-        
-        @top-center {
-            content: string(page-header);
-            font-family: "Helvetica", Arial, sans-serif;
-            font-size: 9pt;
-            border-bottom: 0.5pt solid #000;
-            padding-bottom: 3pt;
-            margin-bottom: 10pt;
+        @page {
+            size: A4;
+            margin: 0;
         }
         
-        @bottom-center {
-            content: counter(page);
-            font-family: "Helvetica", Arial, sans-serif;
-            font-size: 10pt;
-        }
-    }
-    
-    @page cover {
-        margin: 0;
-        @top-center { content: none; }
-        @bottom-center { content: none; }
-    }
-    
-    @page toc {
-        @bottom-center { 
-            content: counter(page, lower-roman);
-            font-family: "Helvetica", Arial, sans-serif;
-            font-size: 10pt;
-        }
-    }
-    
-    /* === TYPOGRAPHIE EXACTE DU LATEX === */
-    body {
-        font-family: "Helvetica", Arial, sans-serif;  /* Sans-serif comme dans LaTeX */
-        font-size: 11pt;
-        line-height: 1.2;
-        color: #000;
-        margin: 0;
-        padding: 0;
-    }
-    
-    /* Paragraphes avec indentation et espacement du LaTeX */
-    p {
-        margin: 0;
-        padding: 0;
-        text-indent: 10mm;  
-        margin-bottom: 2mm; 
-        text-align: justify;
-    }
-    
-    /* Pas d'indentation pour le premier paragraphe */
-    p:first-child, .no-indent {
-        text-indent: 0;
-    }
-    
-    h1, h2, h3, h4, h5, h6 {
-        font-family: "Helvetica", Arial, sans-serif;
-        color: #000;
-        margin: 0;
-        padding: 0;
-        font-weight: bold;
-        text-indent: 0;  /* Pas d'indentation pour les titres */
-    }
-    
-    /* === PAGE DE COUVERTURE STYLE SFT === */
-    .cover-page {
-        page: cover;
-        height: 100vh;
-        background: white;
-        color: black;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        font-family: "Helvetica", Arial, sans-serif;
-        page-break-after: always;
-    }
-    
-    .cover-theme-line {
-        font-size: 18pt;  
-        font-weight: normal;
-        margin-bottom: 1em;
-        text-transform: uppercase;
-        letter-spacing: 0.5pt;
-    }
-    
-    .cover-authors {
-        font-size: 12pt;  
-        font-weight: normal;
-        margin-bottom: 3em;
-        line-height: 1.3;
-    }
-    
-    .cover-actes {
-        font-size: 24pt;  
-        font-weight: bold;
-        margin-bottom: 1em;
-        text-transform: uppercase;
-    }
-    
-    .cover-du {
-        font-size: 12pt;
-        margin-bottom: 1em;
-    }
-    
-    .cover-congres-title {
-        font-size: 24pt;  
-        font-weight: normal;
-        margin-bottom: 2em;
-        line-height: 1.2;
-    }
-    
-    .cover-event-code {
-        font-size: 24pt;  
-        font-weight: bold;
-        margin-bottom: 2em;
-    }
-    
-    .cover-dates {
-        font-size: 14pt;  
-        font-weight: normal;
-        margin-bottom: 0.5em;
-    }
-    
-    .cover-location {
-        font-size: 14pt;  
-        font-weight: normal;
-        margin-bottom: 2em;
-    }
-    
-    .cover-organise {
-        font-size: 14pt;  
-        font-weight: normal;
-        margin-bottom: 1em;
-    }
-    
-    .cover-organizer {
-        font-size: 12pt;  
-        font-weight: normal;
-        margin-bottom: 0.5em;
-        line-height: 1.3;
-    }
-    
-    /* === SECTIONS PRINCIPALES === */
-    .part-page {
-        page-break-before: always;
-        page-break-after: always;
-        text-align: center;
-        padding-top: 40%;
-    }
-    
-    .part-title {
-        font-size: 18pt;
-        font-weight: bold;
-        margin-bottom: 1em;
-        text-indent: 0;
-    }
-    
-    /* === APERÇU WEB === */
-    @media screen {
-        body { 
-            background: #f5f5f5; 
-            padding: 20px; 
+        body {
+            font-family: 'Computer Modern', 'Times New Roman', serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.2;
         }
         
-        .cover-page, .part-page {
-            background: white;
-            padding: 40px;
-            margin-bottom: 20px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            min-height: 80vh;
+        .cover-page {
+            width: 210mm;
+            height: 297mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 40mm 20mm;
+            box-sizing: border-box;
+            position: relative;
         }
         
-        /* En mode web, on désactive l'indentation pour la lisibilité */
-        p {
-            text-indent: 0;
-            margin-bottom: 1em;
+        /* THÈME EN HAUT */
+        .cover-theme-line {
+            font-size: 18pt;
+            font-weight: normal;
+            text-transform: uppercase;
+            letter-spacing: 0.5pt;
+            margin-bottom: 0;
         }
-    }
+        
+        /* ESPACES FLEXIBLES (reproduit \vspace{\stretch{1}}) */
+        .cover-spacer-1 { flex: 1; }
+        .cover-spacer-2 { flex: 0.5; }
+        .cover-spacer-3 { flex: 1; }
+        .cover-spacer-4 { flex: 1; }
+        .cover-spacer-5 { flex: 1; }
+        .cover-spacer-large { flex: 2; }
+        
+        /* PRÉSIDENTS */
+        .cover-presidents {
+            font-size: 12pt;
+            font-weight: normal;
+            line-height: 1.4;
+        }
+        
+        /* TITRE PRINCIPAL */
+        .cover-title-main {
+            font-size: 32pt;
+            font-weight: bold;
+            margin-bottom: 0.3em;
+        }
+        
+        .cover-du {
+            font-size: 18pt;
+            font-weight: normal;
+            margin-bottom: 0.5em;
+        }
+        
+        /* CONGRÈS */
+        .cover-congress-title {
+            font-size: 32pt;
+            font-weight: normal;
+            line-height: 1.1;
+            margin-bottom: 0;
+        }
+        
+        /* CODE ÉVÉNEMENT */
+        .cover-event-code {
+            font-size: 32pt;
+            font-weight: bold;
+        }
+        
+        /* DATES ET LIEU */
+        .cover-dates-location {
+            font-size: 16pt;
+            font-weight: normal;
+            line-height: 1.3;
+        }
+        
+        /* ORGANISÉ PAR */
+        .cover-organized-by {
+            font-size: 14pt;
+            font-weight: normal;
+            margin-bottom: 0.5em;
+        }
+        
+        .cover-organizer {
+            font-size: 12pt;
+            font-weight: normal;
+            line-height: 1.4;
+        }
+/* STYLES POUR LES CHAPITRES (nouveaux) */
+.chapter-page {
+    width: 210mm;
+    height: 297mm;
+    padding: 25mm 20mm;
+    box-sizing: border-box;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.4;
+}
+
+.chapter-title {
+    font-size: 18pt;
+    font-weight: bold;
+    margin-bottom: 1.5em;
+    text-align: left;
+    border-bottom: 1px solid #000;
+    padding-bottom: 0.5em;
+}
+
+.chapter-content {
+    text-align: justify;
+    line-height: 1.5;
+}
+
+.chapter-content h2 {
+    font-size: 14pt;
+    font-weight: bold;
+    margin: 1.5em 0 1em 0;
+    text-decoration: underline;
+}
+
+.chapter-content h3 {
+    font-size: 12pt;
+    font-weight: bold;
+    margin: 1.2em 0 0.8em 0;
+}
+
+.chapter-content p {
+    margin-bottom: 1em;
+    text-align: justify;
+}
+
+.chapter-content ul {
+    margin: 1em 0;
+    padding-left: 0;
+    list-style: none;
+}
+
+.chapter-content ul li {
+    margin-bottom: 0.5em;
+    padding-left: 1em;
+    position: relative;
+}
+
+.chapter-content ul li:before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+}
+
+.signature {
+    margin-top: 3em;
+    text-align: right;
+    font-style: italic;
+}
+
+.remerciements-text, .introduction-text {
+    line-height: 1.6;
+}
+
+/* Styles spécifiques comité organisation */
+.chapter-content strong {
+    font-weight: bold;
+}
+
+.chapter-content small {
+    font-size: 10pt;
+    color: #666;
+}
+
+        
+        /* Responsive pour l'aperçu web */
+        @media screen and (max-width: 800px) {
+            .cover-page {
+                width: 100vw;
+                height: 140vw;
+                padding: 8vw 4vw;
+            }
+            
+            .cover-theme-line { font-size: 4vw; }
+            .cover-title-main { font-size: 7vw; }
+            .cover-congress-title { font-size: 7vw; }
+            .cover-event-code { font-size: 7vw; }
+            .cover-dates-location { font-size: 3.5vw; }
+            .cover-organized-by { font-size: 3vw; }
+            .cover-organizer { font-size: 2.5vw; }
+            .cover-presidents { font-size: 2.5vw; }
+        }
     """
+
+# def get_book_css():
+#     """CSS reproduisant exactement le style LaTeX SFT de référence."""
+#     return """
+#     /* === CONFIGURATION DE PAGE === */
+#     @page {
+#         size: A4;
+#         margin: 1.5cm 1.8cm 1.5cm 1.8cm;  /* Marges exactes du LaTeX */
+        
+#         @top-center {
+#             content: string(page-header);
+#             font-family: "Helvetica", Arial, sans-serif;
+#             font-size: 9pt;
+#             border-bottom: 0.5pt solid #000;
+#             padding-bottom: 3pt;
+#             margin-bottom: 10pt;
+#         }
+        
+#         @bottom-center {
+#             content: counter(page);
+#             font-family: "Helvetica", Arial, sans-serif;
+#             font-size: 10pt;
+#         }
+#     }
+    
+#     @page cover {
+#         margin: 0;
+#         @top-center { content: none; }
+#         @bottom-center { content: none; }
+#     }
+    
+#     @page toc {
+#         @bottom-center { 
+#             content: counter(page, lower-roman);
+#             font-family: "Helvetica", Arial, sans-serif;
+#             font-size: 10pt;
+#         }
+#     }
+    
+#     /* === TYPOGRAPHIE EXACTE DU LATEX === */
+#     body {
+#         font-family: "Helvetica", Arial, sans-serif;  /* Sans-serif comme dans LaTeX */
+#         font-size: 11pt;
+#         line-height: 1.2;
+#         color: #000;
+#         margin: 0;
+#         padding: 0;
+#     }
+    
+#     /* Paragraphes avec indentation et espacement du LaTeX */
+#     p {
+#         margin: 0;
+#         padding: 0;
+#         text-indent: 10mm;  
+#         margin-bottom: 2mm; 
+#         text-align: justify;
+#     }
+    
+#     /* Pas d'indentation pour le premier paragraphe */
+#     p:first-child, .no-indent {
+#         text-indent: 0;
+#     }
+    
+#     h1, h2, h3, h4, h5, h6 {
+#         font-family: "Helvetica", Arial, sans-serif;
+#         color: #000;
+#         margin: 0;
+#         padding: 0;
+#         font-weight: bold;
+#         text-indent: 0;  /* Pas d'indentation pour les titres */
+#     }
+    
+#     /* === PAGE DE COUVERTURE STYLE SFT === */
+#     .cover-page {
+#         page: cover;
+#         height: 100vh;
+#         background: white;
+#         color: black;
+#         text-align: center;
+#         display: flex;
+#         flex-direction: column;
+#         justify-content: center;
+#         align-items: center;
+#         font-family: "Helvetica", Arial, sans-serif;
+#         page-break-after: always;
+#     }
+    
+#     .cover-theme-line {
+#         font-size: 18pt;  
+#         font-weight: normal;
+#         margin-bottom: 1em;
+#         text-transform: uppercase;
+#         letter-spacing: 0.5pt;
+#     }
+    
+#     .cover-authors {
+#         font-size: 12pt;  
+#         font-weight: normal;
+#         margin-bottom: 3em;
+#         line-height: 1.3;
+#     }
+    
+#     .cover-actes {
+#         font-size: 24pt;  
+#         font-weight: bold;
+#         margin-bottom: 1em;
+#         text-transform: uppercase;
+#     }
+    
+#     .cover-du {
+#         font-size: 12pt;
+#         margin-bottom: 1em;
+#     }
+    
+#     .cover-congres-title {
+#         font-size: 24pt;  
+#         font-weight: normal;
+#         margin-bottom: 2em;
+#         line-height: 1.2;
+#     }
+    
+#     .cover-event-code {
+#         font-size: 24pt;  
+#         font-weight: bold;
+#         margin-bottom: 2em;
+#     }
+    
+#     .cover-dates {
+#         font-size: 14pt;  
+#         font-weight: normal;
+#         margin-bottom: 0.5em;
+#     }
+    
+#     .cover-location {
+#         font-size: 14pt;  
+#         font-weight: normal;
+#         margin-bottom: 2em;
+#     }
+    
+#     .cover-organise {
+#         font-size: 14pt;  
+#         font-weight: normal;
+#         margin-bottom: 1em;
+#     }
+    
+#     .cover-organizer {
+#         font-size: 12pt;  
+#         font-weight: normal;
+#         margin-bottom: 0.5em;
+#         line-height: 1.3;
+#     }
+    
+#     /* === SECTIONS PRINCIPALES === */
+#     .part-page {
+#         page-break-before: always;
+#         page-break-after: always;
+#         text-align: center;
+#         padding-top: 40%;
+#     }
+    
+#     .part-title {
+#         font-size: 18pt;
+#         font-weight: bold;
+#         margin-bottom: 1em;
+#         text-indent: 0;
+#     }
+    
+#     /* === APERÇU WEB === */
+#     @media screen {
+#         body { 
+#             background: #f5f5f5; 
+#             padding: 20px; 
+#         }
+        
+#         .cover-page, .part-page {
+#             background: white;
+#             padding: 40px;
+#             margin-bottom: 20px;
+#             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+#             min-height: 80vh;
+#         }
+        
+#         /* En mode web, on désactive l'indentation pour la lisibilité */
+#         p {
+#             text-indent: 0;
+#             margin-bottom: 1em;
+#         }
+#     }
+#     """
 
 
 def generate_dynamic_header(config):
@@ -557,8 +756,8 @@ def generate_complete_book_pdf(title, communications_by_theme, authors_index, bo
         
         # 2. GÉNÉRATION DES PARTIES HTML (couverture, TOC, index)
         html_parts = generate_book_html_parts(title, communications_by_theme, authors_index, page_mapping, book_type)
-        
-        # 3. ASSEMBLAGE FINAL
+
+# 3. ASSEMBLAGE FINAL
         pdf_writer = PdfWriter()
         current_page = 1
         
@@ -569,23 +768,38 @@ def generate_complete_book_pdf(title, communications_by_theme, authors_index, bo
             pdf_writer.add_page(page)
         current_page += len(cover_reader.pages)
         
-        # B. TOC (numérotation romaine)
+        # B. SECTIONS PRÉLIMINAIRES (numérotation romaine)
+        prelim_sections = ['remerciements', 'comite_organisation', 'reviewers', 'introduction', 'prix_biot_fourier']
+        roman_page = 1
+        
+        for section_name in prelim_sections:
+            if section_name in html_parts:
+                section_pdf = html_to_pdf(html_parts[section_name])
+                section_reader = PdfReader(BytesIO(section_pdf))
+                for page in section_reader.pages:
+                    numbered_page = add_page_number(page, roman_page, format='roman')
+                    pdf_writer.add_page(numbered_page)
+                    roman_page += 1
+        
+        # C. TOC (continuation numérotation romaine)
         toc_pdf = html_to_pdf(html_parts['toc'])
         toc_reader = PdfReader(BytesIO(toc_pdf))
-        for i, page in enumerate(toc_reader.pages):
-            numbered_page = add_page_number(page, current_page + i, format='roman')
+        for page in toc_reader.pages:
+            numbered_page = add_page_number(page, roman_page, format='roman')
             pdf_writer.add_page(numbered_page)
-        current_page += len(toc_reader.pages)
+            roman_page += 1
         
-        # C. COMMUNICATIONS PAR THÉMATIQUE (numérotation arabe)
+        # D. COMMUNICATIONS PAR THÉMATIQUE (numérotation arabe recommence à 1)
+        arabic_page = 1
+        
         for theme_name, communications in communications_by_theme.items():
             # Page de séparateur thématique
             theme_page_pdf = generate_theme_separator_pdf(theme_name)
             theme_reader = PdfReader(BytesIO(theme_page_pdf))
             for page in theme_reader.pages:
-                numbered_page = add_page_number(page, current_page, format='arabic')
+                numbered_page = add_page_number(page, arabic_page, format='arabic')
                 pdf_writer.add_page(numbered_page)
-                current_page += 1
+                arabic_page += 1
             
             # PDF des communications
             for comm in communications:
@@ -600,25 +814,86 @@ def generate_complete_book_pdf(title, communications_by_theme, authors_index, bo
                             page = add_wip_watermark(page)
                         
                         # Ajouter numérotation
-                        numbered_page = add_page_number(page, current_page, format='arabic')
+                        numbered_page = add_page_number(page, arabic_page, format='arabic')
                         pdf_writer.add_page(numbered_page)
-                        current_page += 1
+                        arabic_page += 1
                 else:
                     # Page placeholder si PDF manquant
                     placeholder_pdf = generate_placeholder_pdf(comm)
                     placeholder_reader = PdfReader(BytesIO(placeholder_pdf))
                     for page in placeholder_reader.pages:
-                        numbered_page = add_page_number(page, current_page, format='arabic')
+                        numbered_page = add_page_number(page, arabic_page, format='arabic')
                         pdf_writer.add_page(numbered_page)
-                        current_page += 1
+                        arabic_page += 1
         
-        # D. INDEX DES AUTEURS (continuation numérotation arabe)
+        # E. INDEX DES AUTEURS (continuation numérotation arabe)
         index_pdf = html_to_pdf(html_parts['index'])
         index_reader = PdfReader(BytesIO(index_pdf))
         for page in index_reader.pages:
-            numbered_page = add_page_number(page, current_page, format='arabic')
+            numbered_page = add_page_number(page, arabic_page, format='arabic')
             pdf_writer.add_page(numbered_page)
-            current_page += 1
+            arabic_page += 1
+
+
+        
+        
+        # # A. Page de garde (pas de numérotation)
+        # cover_pdf = html_to_pdf(html_parts['cover'])
+        # cover_reader = PdfReader(BytesIO(cover_pdf))
+        # for page in cover_reader.pages:
+        #     pdf_writer.add_page(page)
+        # current_page += len(cover_reader.pages)
+        
+        # # B. TOC (numérotation romaine)
+        # toc_pdf = html_to_pdf(html_parts['toc'])
+        # toc_reader = PdfReader(BytesIO(toc_pdf))
+        # for i, page in enumerate(toc_reader.pages):
+        #     numbered_page = add_page_number(page, current_page + i, format='roman')
+        #     pdf_writer.add_page(numbered_page)
+        # current_page += len(toc_reader.pages)
+        
+        # # C. COMMUNICATIONS PAR THÉMATIQUE (numérotation arabe)
+        # for theme_name, communications in communications_by_theme.items():
+        #     # Page de séparateur thématique
+        #     theme_page_pdf = generate_theme_separator_pdf(theme_name)
+        #     theme_reader = PdfReader(BytesIO(theme_page_pdf))
+        #     for page in theme_reader.pages:
+        #         numbered_page = add_page_number(page, current_page, format='arabic')
+        #         pdf_writer.add_page(numbered_page)
+        #         current_page += 1
+            
+        #     # PDF des communications
+        #     for comm in communications:
+        #         comm_pdf_path = get_communication_pdf(comm, book_type)
+                
+        #         if comm_pdf_path and os.path.exists(comm_pdf_path):
+        #             comm_reader = PdfReader(comm_pdf_path)
+                    
+        #             for page_num, page in enumerate(comm_reader.pages):
+        #                 # Appliquer le filigrane WIP si nécessaire
+        #                 if book_type == 'resume' and comm.type == 'wip':
+        #                     page = add_wip_watermark(page)
+                        
+        #                 # Ajouter numérotation
+        #                 numbered_page = add_page_number(page, current_page, format='arabic')
+        #                 pdf_writer.add_page(numbered_page)
+        #                 current_page += 1
+        #         else:
+        #             # Page placeholder si PDF manquant
+        #             placeholder_pdf = generate_placeholder_pdf(comm)
+        #             placeholder_reader = PdfReader(BytesIO(placeholder_pdf))
+        #             for page in placeholder_reader.pages:
+        #                 numbered_page = add_page_number(page, current_page, format='arabic')
+        #                 pdf_writer.add_page(numbered_page)
+        #                 current_page += 1
+        
+        # # D. INDEX DES AUTEURS (continuation numérotation arabe)
+        # index_pdf = html_to_pdf(html_parts['index'])
+        # index_reader = PdfReader(BytesIO(index_pdf))
+        # for page in index_reader.pages:
+        #     numbered_page = add_page_number(page, current_page, format='arabic')
+        #     pdf_writer.add_page(numbered_page)
+        #     current_page += 1
         
         # 4. FINALISATION
         final_buffer = BytesIO()
@@ -715,6 +990,13 @@ def generate_book_html_parts(title, communications_by_theme, authors_index, page
     # COUVERTURE
     parts['cover'] = generate_cover_only_html(title, config)
     
+    # NOUVELLES SECTIONS (dans l'ordre LaTeX)
+    parts['remerciements'] = generate_remerciements_html(config)
+    parts['comite_organisation'] = generate_comite_organisation_html(config)
+    parts['reviewers'] = generate_reviewers_html(config)
+    parts['introduction'] = generate_introduction_html(config)
+    parts['prix_biot_fourier'] = generate_prix_biot_fourier_html(config)
+    
     # TABLE DES MATIÈRES
     parts['toc'] = generate_toc_html(communications_by_theme, page_mapping)
     
@@ -723,12 +1005,40 @@ def generate_book_html_parts(title, communications_by_theme, authors_index, page
     
     return parts
 
+# def generate_book_html_parts(title, communications_by_theme, authors_index, page_mapping, book_type):
+#     """Génère les parties HTML du livre (couverture, TOC, index)."""
+#     config = get_conference_config()
+    
+#     parts = {}
+    
+#     # COUVERTURE
+#     parts['cover'] = generate_cover_only_html(title, config)
+    
+#     # TABLE DES MATIÈRES
+#     parts['toc'] = generate_toc_html(communications_by_theme, page_mapping)
+    
+#     # INDEX DES AUTEURS
+#     parts['index'] = generate_index_html(authors_index)
+    
+#     return parts
 
 def generate_cover_only_html(title, config):
-    """Page de garde uniquement."""
-    header_text = generate_dynamic_header(config)
+    """Page de garde conforme au template SFT."""
+    
+    # Garder la logique existante
     presidents_names = get_presidents_names(config)
     livre_titre, livre_type = get_book_title_type(title)
+    
+    # Nouvelles données pour template SFT
+    theme = config.get('conference', {}).get('theme', 'Thermique')
+    congress_name = config.get('conference', {}).get('series', 'Congrès')
+    organizing_lab = config.get('conference', {}).get('organizing_lab', {})
+    
+    # Format organisateur SFT
+    lab_name = organizing_lab.get('short_name', 'LEMTA')
+    lab_umr = organizing_lab.get('umr', '7563')
+    lab_university = organizing_lab.get('university', 'Université de Lorraine')
+    organizer_text = f"{lab_name} (UMR {lab_umr} - {lab_university})"
     
     return f"""
 <!DOCTYPE html>
@@ -740,34 +1050,588 @@ def generate_cover_only_html(title, config):
 </head>
 <body>
     <div class="cover-page">
-        <div class="cover-theme-line">{config['conference']['theme'].upper()}</div>
-        <div style="flex: 1;"></div>
-        <div class="cover-authors">{presidents_names}</div>
+        <div class="cover-theme-line">{theme}</div>
+        <div style="flex: 0.3;"></div>
+        {f'<div class="cover-authors">{presidents_names}</div>' if presidents_names else ''}
         <div style="flex: 1;"></div>
         <div class="cover-actes">{livre_titre}</div>
         <div class="cover-du">{livre_type}</div>
-        <div class="cover-congres-title">
-            CONGRÈS ANNUEL DE LA<br>
-            SOCIÉTÉ FRANÇAISE DE THERMIQUE
-        </div>
+<div class="cover-congres-title">
+    Congrès Annuel de la<br>
+    Société Française de Thermique
+</div>
         <div style="flex: 1;"></div>
         <div class="cover-event-code">{config['conference']['short_name']}</div>
         <div style="flex: 1;"></div>
         <div class="cover-dates">{config.get('dates', {}).get('dates', '20 juillet 2026')}</div>
         <div class="cover-location">{config['location']['city']}</div>
         <div style="flex: 1;"></div>
-        <div class="cover-organise">ORGANISÉ PAR</div>
-        <div class="cover-organizer">
-            {config['conference']['organizing_lab']['description']}<br>
-            {config['conference']['organizing_lab']['short_name']}<br>
-            {config['location']['city'].upper()}
-        </div>
+        <div class="cover-organise">Organisé par</div>
+        <div class="cover-organizer">{organizer_text}</div>
     </div>
 </body>
 </html>
 """
 
 
+def get_presidents_names(config):
+    """Extrait les présidents depuis conference.yml."""
+    # Chercher dans conference.presidents (structure actuelle)
+    presidents_list = config.get('conference', {}).get('presidents', [])
+    
+    # Alternative : chercher dans organizing.presidents  
+    if not presidents_list:
+        organizing = config.get('organizing', {})
+        presidents_list = organizing.get('presidents', [])
+    
+    # Alternative : chercher dans contacts.program.presidents
+    if not presidents_list:
+        contacts = config.get('contacts', {})
+        program = contacts.get('program', {})
+        presidents_list = program.get('presidents', [])
+    
+    names = []
+    for president in presidents_list:
+        if isinstance(president, dict):
+            name = president.get('name', '')
+            if not name:
+                # Essayer first_name + last_name
+                first = president.get('first_name', '')
+                last = president.get('last_name', '')
+                name = (first + " " + last).strip()
+            if name:
+                # Mettre le nom de famille en majuscules
+                parts = name.split()
+                if len(parts) >= 2:
+                    # Dernier mot = nom de famille en majuscules
+                    parts[-1] = parts[-1].upper()
+                    name = ' '.join(parts)
+                names.append(name)
+        elif isinstance(president, str):
+            names.append(president)
+    
+    if not names:
+        return ""
+    
+    # Format académique : une ligne par nom
+    return "<br>".join(names)
+
+def get_book_css():
+    """CSS reproduisant le style LaTeX SFT."""
+    return """
+        @page {
+            size: A4;
+            margin: 0;
+        }
+        
+        body {
+            font-family: "Helvetica Neue Light","Helvetica Neue", Helvetica, Arial, sans-serif;
+            font-weight: 300;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .cover-page {
+            width: 210mm;
+            height: 297mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 15mm 25mm 30mm 25mm;
+            box-sizing: border-box;
+            font-variant: small-caps;
+        }
+        
+        .cover-theme-line {
+            font-size: 20.74pt;
+            font-weight: 400;
+            margin-bottom: 0;
+        }
+        
+        .cover-authors {
+            font-size: 12pt;
+            font-weight: normal;
+            line-height: 1.4;
+            font-variant: normal;
+        }
+        
+        .cover-actes {
+            font-size: 24.88pt;
+            font-weight: bold;
+            margin-bottom: 0.3em;
+        }
+        
+        .cover-du {
+            font-size: 12pt;
+            margin: 1em 0;
+        }
+        
+        .cover-congres-title {
+            font-size: 24.88pt;
+            font-weight: normal;
+            line-height: 1.1;
+        }
+        
+        .cover-event-code {
+            font-size: 24.88pt;
+            font-weight: bold;
+        }
+        
+        .cover-dates, .cover-location {
+            font-size: 17.28pt;
+            font-variant: normal;
+        }
+        
+        .cover-organise {
+            font-size: 17.28pt;
+            margin-bottom: 1em;
+        }
+        
+        .cover-organizer {
+            font-size: 12pt;
+            font-variant: normal;
+            line-height: 1.4;
+        }
+    """
+def generate_remerciements_html(config):
+    """Génère la page de remerciements."""
+    try:
+        # Charger depuis remerciements.yml
+        from .config_loader import ConfigLoader
+        config_loader = ConfigLoader()
+        content_dir = config_loader.config_dir
+        
+        import yaml
+        remerciements_file = content_dir / "remerciements.yml"
+        
+        if remerciements_file.exists():
+            with open(remerciements_file, 'r', encoding='utf-8') as f:
+                remerciements_data = yaml.safe_load(f)
+        else:
+            # Contenu par défaut
+            remerciements_data = {
+                'title': 'Remerciements',
+                'content': 'Le Comité d\'organisation remercie tous les participants.',
+                'signature': 'Le Comité d\'organisation'
+            }
+        
+        # Remplacer les variables
+        content = remerciements_data['content']
+        signature = remerciements_data['signature']
+        
+        # Variables de remplacement
+        variables = {
+            'CONFERENCE_NAME': config.get('conference', {}).get('name', ''),
+            'CONFERENCE_SHORT_NAME': config.get('conference', {}).get('short_name', ''),
+            'ORGANIZATION_NAME': config.get('conference', {}).get('organizer', {}).get('name', '')
+        }
+        
+        for var, value in variables.items():
+            content = content.replace('{' + var + '}', value)
+            signature = signature.replace('{' + var + '}', value)
+        
+        return f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{remerciements_data['title']}</title>
+    <style>{get_book_css()}</style>
+</head>
+<body>
+    <div class="chapter-page">
+        <h1 class="chapter-title">{remerciements_data['title']}</h1>
+        <div class="chapter-content">
+            <div class="remerciements-text">
+                {content.replace(chr(10), '<br>').replace('•', '&bull;')}
+            </div>
+            <div class="signature">
+                {signature.replace(chr(10), '<br>')}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération remerciements: {e}")
+        return "<html><body><p>Erreur chargement remerciements</p></body></html>"
+
+def generate_comite_organisation_html(config):
+    """Génère la page du comité d'organisation."""
+    try:
+        # Utiliser la même logique que la page /organisation
+        def load_csv_data(filename):
+            """Charge les données depuis un fichier CSV."""
+            import csv
+            import os
+            csv_path = os.path.join(current_app.root_path, 'static', 'content', filename)
+            if not os.path.exists(csv_path):
+                return []
+                
+            data = []
+            try:
+                with open(csv_path, 'r', encoding='utf-8') as file:
+                    reader = csv.DictReader(file, delimiter=';')
+                    for row in reader:
+                        cleaned_row = {k.strip(): v.strip() for k, v in row.items()}
+                        data.append(cleaned_row)
+            except Exception as e:
+                current_app.logger.error(f"Erreur chargement {filename}: {e}")
+                return []
+            return data
+        
+        # Charger les données
+        organizing_members = load_csv_data('comite_local.csv')
+        scientific_members = load_csv_data('comite_sft.csv')
+        
+        # Séparer présidents et membres
+        presidents = []
+        members = []
+        
+        for member in organizing_members:
+            member_data = {
+                'name': member.get('nom', ''),
+                'role': member.get('role', ''),
+                'institution': member.get('institution', '')
+            }
+            
+            if member.get('role', '').lower() in ['président', 'president', 'présidente']:
+                presidents.append(member_data)
+            else:
+                members.append(member_data)
+        
+        # Construire le HTML
+        presidents_html = ""
+        if presidents:
+            presidents_html = "<h3>Président :</h3><ul>"
+            for president in presidents:
+                presidents_html += f"<li><strong>{president['name']}</strong>"
+                if president['institution']:
+                    presidents_html += f" - {president['institution']}"
+                presidents_html += "</li>"
+            presidents_html += "</ul>"
+        
+        members_html = ""
+        if members:
+            members_html = "<h3>Membres :</h3><ul>"
+            for member in members:
+                members_html += f"<li><strong>{member['name']}</strong>"
+                if member['role']:
+                    members_html += f" - {member['role']}"
+                if member['institution']:
+                    members_html += f" ({member['institution']})"
+                members_html += "</li>"
+            members_html += "</ul>"
+        
+        return f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Comité d'organisation</title>
+    <style>{get_book_css()}</style>
+</head>
+<body>
+    <div class="chapter-page">
+        <h1 class="chapter-title">Comité d'organisation</h1>
+        <div class="chapter-content">
+            <h2>Équipe locale</h2>
+            <p>Le congrès {config.get('conference', {}).get('name', '')} s'est organisé par l'équipe locale du {config.get('conference', {}).get('organizing_lab', {}).get('name', '')}.</p>
+            
+            {presidents_html}
+            {members_html}
+        </div>
+    </div>
+</body>
+</html>
+"""
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération comité organisation: {e}")
+        return "<html><body><p>Erreur chargement comité d'organisation</p></body></html>"
+
+def generate_reviewers_html(config):
+    """Génère le tableau des reviewers."""
+    try:
+        from .models import User, CommunicationReview
+        
+        # Récupérer tous les reviewers (utilisateurs ayant fait des reviews)
+        reviewers = db.session.query(User).join(CommunicationReview).distinct().all()
+        
+        # Trier par nom de famille
+        reviewers_sorted = sorted(reviewers, key=lambda x: x.last_name or x.email)
+        
+        reviewers_html = ""
+        if reviewers_sorted:
+            # Organiser en colonnes
+            reviewers_html = '<div class="reviewers-grid">'
+            for reviewer in reviewers_sorted:
+                name = f"{reviewer.first_name or ''} {reviewer.last_name or ''}".strip()
+                if not name:
+                    name = reviewer.email
+                
+                institution = reviewer.institution or ""
+                
+                reviewers_html += f'<div class="reviewer-entry">'
+                reviewers_html += f'<strong>{name}</strong>'
+                if institution:
+                    reviewers_html += f'<br><small>{institution}</small>'
+                reviewers_html += f'</div>'
+            
+            reviewers_html += '</div>'
+        else:
+            reviewers_html = "<p>Liste des reviewers en cours de constitution.</p>"
+        
+        return f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Tableau des reviewers</title>
+    <style>
+    {get_book_css()}
+    .reviewers-grid {{
+        columns: 3;
+        column-gap: 20pt;
+        column-fill: balance;
+        margin-top: 1em;
+    }}
+    .reviewer-entry {{
+        break-inside: avoid;
+        margin-bottom: 1em;
+        font-size: 11pt;
+    }}
+    </style>
+</head>
+<body>
+    <div class="chapter-page">
+        <h1 class="chapter-title">Tableau des reviewers</h1>
+        <div class="chapter-content">
+            <p>Le comité d'organisation adresse de très vifs remerciements aux relecteurs qui ont pris le temps de lire et d'expertiser les articles soumis au congrès.</p>
+            
+            {reviewers_html}
+        </div>
+    </div>
+</body>
+</html>
+"""
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération reviewers: {e}")
+        return f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Tableau des reviewers</title>
+    <style>{get_book_css()}</style>
+</head>
+<body>
+    <div class="chapter-page">
+        <h1 class="chapter-title">Tableau des reviewers</h1>
+        <div class="chapter-content">
+            <p>Le comité d'organisation adresse de très vifs remerciements aux relecteurs qui ont pris le temps de lire et d'expertiser les articles soumis au congrès.</p>
+            <p><em>Liste des reviewers en cours de constitution.</em></p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+def generate_introduction_html(config):
+    """Génère la page d'introduction."""
+    try:
+        # Charger depuis introduction.yml
+        from .config_loader import ConfigLoader
+        config_loader = ConfigLoader()
+        content_dir = config_loader.config_dir
+        
+        import yaml
+        introduction_file = content_dir / "introduction.yml"
+        
+        if introduction_file.exists():
+            with open(introduction_file, 'r', encoding='utf-8') as f:
+                intro_data = yaml.safe_load(f)
+        else:
+            # Contenu par défaut
+            intro_data = {
+                'title': 'Introduction',
+                'content': 'Bienvenue au congrès.',
+                'signature': 'Le Comité d\'organisation'
+            }
+        
+        # Compter les communications pour les statistiques
+        from .models import Communication, CommunicationStatus
+        total_communications = Communication.query.filter_by(status=CommunicationStatus.ACCEPTED).count()
+        
+        # Variables de remplacement
+        content = intro_data['content']
+        signature = intro_data['signature']
+        
+        variables = {
+            'CONFERENCE_NAME': config.get('conference', {}).get('name', ''),
+            'CONFERENCE_SHORT_NAME': config.get('conference', {}).get('short_name', ''),
+            'CONFERENCE_EDITION': config.get('conference', {}).get('edition', ''),
+            'CONFERENCE_THEME': config.get('conference', {}).get('theme', ''),
+            'CONFERENCE_LOCATION': config.get('location', {}).get('city', ''),
+            'CONFERENCE_DATES': config.get('dates', {}).get('dates', ''),
+            'ORGANIZATION_NAME': config.get('conference', {}).get('organizer', {}).get('name', ''),
+            'TOTAL_COMMUNICATIONS': str(total_communications)
+        }
+        
+        for var, value in variables.items():
+            content = content.replace('{' + var + '}', value)
+            signature = signature.replace('{' + var + '}', value)
+        
+        return f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{intro_data['title']}</title>
+    <style>{get_book_css()}</style>
+</head>
+<body>
+    <div class="chapter-page">
+        <h1 class="chapter-title">{intro_data['title']}</h1>
+        <div class="chapter-content">
+            <div class="introduction-text">
+                {content.replace(chr(10), '<br>')}
+            </div>
+            <div class="signature">
+                {signature.replace(chr(10), '<br>')}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération introduction: {e}")
+        return "<html><body><p>Erreur chargement introduction</p></body></html>"   
+
+def generate_prix_biot_fourier_html(config):
+    """Génère la page des prix Biot-Fourier."""
+    try:
+        from .models import Communication, Review
+        
+        # Récupérer les communications sélectionnées pour l'audition
+        audition_candidates = Communication.query.filter_by(
+            biot_fourier_audition_selected=True
+        ).all()
+        
+        candidates_html = ""
+        
+        if audition_candidates:
+            candidates_html = f'<p>{len(audition_candidates)} contributions ont été présélectionnées pour le Prix Biot-Fourier. Les auteurs présenteront leurs travaux à l\'occasion de sessions orales.</p>'
+            candidates_html += '<p>Le Prix Biot-Fourier sera attribué en fonction des rapports d\'expertise et de la qualité des présentations orales.</p>'
+            candidates_html += '<div class="candidates-list">'
+            
+            for candidate in audition_candidates:
+                authors_str = ", ".join([
+                    f"{'<u>' if i == 0 else ''}{a.first_name} {a.last_name}{'</u>' if i == 0 else ''}" 
+                    for i, a in enumerate(candidate.authors)
+                ])
+                
+                # Récupérer les affiliations des auteurs
+                affiliations = []
+                for author in candidate.authors:
+                    if author.institution and author.institution not in affiliations:
+                        affiliations.append(author.institution)
+                
+                affiliations_str = "<br>".join([f"$^{{{i+1}}}$ {aff}" for i, aff in enumerate(affiliations)])
+                
+                candidates_html += f'''
+                <div class="candidate-entry">
+                    <h4>{candidate.title}</h4>
+                    <p class="authors">{authors_str}</p>
+                    {f'<p class="affiliations">{affiliations_str}</p>' if affiliations else ''}
+                    <p class="reference">(Cf. page référence)</p>
+                </div>
+                <hr>
+                '''
+            
+            candidates_html += '</div>'
+        else:
+            candidates_html = '<p>Les communications sélectionnées pour le Prix Biot-Fourier seront annoncées prochainement.</p>'
+        
+        return f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Prix Biot-Fourier</title>
+    <style>
+    {get_book_css()}
+    .candidates-list {{
+        margin-top: 2em;
+    }}
+    .candidate-entry {{
+        margin-bottom: 1.5em;
+    }}
+    .candidate-entry h4 {{
+        margin-bottom: 0.5em;
+        font-size: 14pt;
+        font-weight: bold;
+    }}
+    .authors {{
+        margin-bottom: 0.3em;
+        font-size: 12pt;
+    }}
+    .affiliations {{
+        font-size: 10pt;
+        margin-bottom: 0.5em;
+        color: #666;
+    }}
+    .reference {{
+        font-style: italic;
+        color: #666;
+        margin-bottom: 0;
+        font-size: 11pt;
+    }}
+    hr {{
+        margin: 1.5em 0;
+        border: none;
+        border-top: 1px solid #ccc;
+    }}
+    </style>
+</head>
+<body>
+    <div class="chapter-page">
+        <h1 class="chapter-title">Prix Biot-Fourier</h1>
+        <div class="chapter-content">
+            {candidates_html}
+        </div>
+    </div>
+</body>
+</html>
+"""
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération prix Biot-Fourier: {e}")
+        return f"""
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Prix Biot-Fourier</title>
+    <style>{get_book_css()}</style>
+</head>
+<body>
+    <div class="chapter-page">
+        <h1 class="chapter-title">Prix Biot-Fourier</h1>
+        <div class="chapter-content">
+            <p>Les communications sélectionnées pour le Prix Biot-Fourier seront annoncées prochainement.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+    
 def generate_toc_html(communications_by_theme, page_mapping):
     """Table des matières."""
     toc_entries = ""
@@ -967,21 +1831,219 @@ def generate_placeholder_pdf(communication):
 """
     return html_to_pdf(html)
 
+def get_presidents_names_sft_format(config):
+    """Extrait les présidents depuis conference.yml format SFT."""
+    # Chercher dans organizing.presidents
+    organizing = config.get('organizing', {})
+    presidents_list = organizing.get('presidents', [])
+    
+    # Alternative : chercher dans conference.presidents  
+    if not presidents_list:
+        presidents_list = config.get('conference', {}).get('presidents', [])
+    
+    # Alternative : chercher dans contacts.program.presidents
+    if not presidents_list:
+        contacts = config.get('contacts', {})
+        program = contacts.get('program', {})
+        presidents_list = program.get('presidents', [])
+    
+    names = []
+    for president in presidents_list:
+        if isinstance(president, dict):
+            name = president.get('name', '')
+            if not name:
+                # Essayer first_name + last_name
+                first = president.get('first_name', '')
+                last = president.get('last_name', '')
+                name = f"{first} {last}".strip()
+            if name:
+                names.append(name)
+        elif isinstance(president, str):
+            names.append(president)
+    
+    if not names:
+        return ""
+    
+    # Format SFT : une ligne par nom
+    return "<br>".join(names)
 
-def get_presidents_names(config):
-    """Récupère les noms des présidents."""
-    if 'presidents' in config.get('conference', {}) and config['conference']['presidents']:
-        return "<br>".join([p['name'] for p in config['conference']['presidents']])
+
+# def get_presidents_names(config):
+#     """Récupère les noms des présidents."""
+#     if 'presidents' in config.get('conference', {}) and config['conference']['presidents']:
+#         return "<br>".join([p['name'] for p in config['conference']['presidents']])
+#     else:
+#         return "Jean-Baptiste Biot, Joseph Fourier"
+
+def get_book_title_type_sft(title):
+    """Détermine le titre selon les conventions SFT exactes."""
+    title_lower = title.lower()
+    
+    if 'résumé' in title_lower or 'resume' in title_lower:
+        return ("Recueil des résumés", "du")
+    elif 'acte' in title_lower:
+        return ("ACTES", "du") 
+    elif 'tome' in title_lower:
+        if 'tome 1' in title_lower or '1' in title_lower:
+            return ("ACTES", "du")  # Tome 1
+        elif 'tome 2' in title_lower or '2' in title_lower:
+            return ("ACTES", "du")  # Tome 2  
+        else:
+            return ("ACTES", "du")
     else:
-        return "Jean-Baptiste Biot, Joseph Fourier"
+        return ("Recueil", "du")
+
+
+def get_sft_exact_css():
+    """CSS reproduisant EXACTEMENT le template LaTeX SFT (Computer Modern + espacements LaTeX)."""
+    return """
+        /* PAGE A4 EXACTE */
+        @page {
+            size: A4;
+            margin: 0;
+        }
+        
+        body {
+            font-family: "Latin Modern Roman", "Computer Modern", "Times", serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.2;
+        }
+        
+        /* TITLEPAGE - reproduit \\begin{titlepage}\\center\\scshape */
+        .titlepage {
+            width: 210mm;
+            height: 297mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-sizing: border-box;
+            font-variant: small-caps;  /* reproduit \\scshape */
+            padding: 30mm 25mm;
+        }
+        
+        /* THÈME - reproduit \\LARGE */
+        .theme-top {
+            font-size: 17.28pt;  /* LaTeX \\LARGE = 17.28pt à 12pt de base */
+            font-weight: normal;
+            margin-bottom: 0;
+            line-height: 1.2;
+        }
+        
+        /* ESPACES FLEXIBLES - reproduisent \\vspace{\\stretch{1}} */
+        .vspace-stretch-1 { flex: 1; }
+        .vspace-stretch-2 { flex: 0.3; min-height: 10mm; }
+        .vspace-stretch-3 { flex: 1; }
+        .vspace-stretch-4 { flex: 1; }
+        .vspace-stretch-5 { flex: 1; }
+        
+        /* PRÉSIDENTS - reproduit les lignes normales */
+        .presidents-block {
+            font-size: 12pt;
+            font-weight: normal;
+            line-height: 1.4;
+            font-variant: normal;  /* Pas de small-caps pour les noms */
+        }
+        
+        /* TITRE PRINCIPAL - reproduit {\\Huge\\bfseries Recueil des résumés\\\\} */
+        .title-main {
+            font-size: 24.88pt;  /* LaTeX \\Huge = 24.88pt à 12pt de base */
+            font-weight: bold;
+            line-height: 1.1;
+            margin-bottom: 0.2em;
+        }
+        
+        /* DU - reproduit vspace{1em} + du + vspace{1em} */
+        .du-spacing {
+            font-size: 12pt;
+            font-weight: normal;
+            margin: 1em 0;
+        }
+        
+        /* CONGRÈS - reproduit {\\Huge Congrès Annuel de la\\\\ Société Française de Thermique\\\\} */
+        .congress-title {
+            font-size: 24.88pt;  /* \\Huge */
+            font-weight: normal;
+            line-height: 1.1;
+            margin-bottom: 0;
+        }
+        
+        /* CODE ÉVÉNEMENT - reproduit {\\Huge\\bfseries SFT 2021}\\\\ */
+        .event-code {
+            font-size: 24.88pt;  /* \\Huge */
+            font-weight: bold;
+            line-height: 1.1;
+        }
+        
+        /* DATES ET LIEU - reproduit le format exact */
+        .dates-location {
+            font-size: 12pt;
+            font-weight: normal;
+            line-height: 1.3;
+            font-variant: normal;
+        }
+        
+        /* ORGANISÉ PAR - reproduit \\large Organisé par\\\\ */
+        .organized-by {
+            font-size: 14.4pt;  /* LaTeX \\large = 14.4pt à 12pt de base */
+            font-weight: normal;
+            margin-bottom: 1em;
+        }
+        
+        /* ORGANISATEUR - reproduit \\normalsize nom du laboratoire */
+        .organizer-name {
+            font-size: 12pt;  /* \\normalsize */
+            font-weight: normal;
+            line-height: 1.4;
+            font-variant: normal;
+        }
+        
+        /* RESPONSIVE pour aperçu web */
+        @media screen and (max-width: 800px) {
+            .titlepage {
+                width: 100vw;
+                height: 140vw;
+                padding: 8vw 4vw;
+            }
+            
+            .theme-top { font-size: 4.5vw; }
+            .title-main { font-size: 6.5vw; }
+            .congress-title { font-size: 6.5vw; }
+            .event-code { font-size: 6.5vw; }
+            .dates-location { font-size: 3vw; }
+            .organized-by { font-size: 3.5vw; }
+            .organizer-name { font-size: 3vw; }
+            .presidents-block { font-size: 3vw; }
+        }
+    """
+
 
 
 def get_book_title_type(title):
-    """Détermine le titre et type de livre."""
-    if 'article' in title.lower():
-        return "ACTES", "du"
+    """Détermine le titre et type de livre selon la convention SFT."""
+    title_lower = title.lower()
+    
+    if 'résumé' in title_lower or 'resume' in title_lower:
+        return ("Recueil des résumés", "du")
+    elif 'acte' in title_lower:
+        return ("ACTES", "du") 
+    elif 'tome' in title_lower:
+        if 'tome 1' in title_lower:
+            return ("ACTES - TOME 1", "du")
+        elif 'tome 2' in title_lower:
+            return ("ACTES - TOME 2", "du")
+        else:
+            return ("ACTES", "du")
     else:
-        return "RECUEIL DES RÉSUMÉS", "du"
+        return ("Recueil", "du")
+
+# def get_book_title_type(title):
+#     """Détermine le titre et type de livre."""
+#     if 'article' in title.lower():
+#         return "ACTES", "du"
+#     else:
+#         return "RECUEIL DES RÉSUMÉS", "du"
 
 
 # === ROUTES PRINCIPALES ===
@@ -1186,4 +2248,930 @@ def preview_book(book_type):
     except Exception as e:
         current_app.logger.error(f"Erreur prévisualisation {book_type}: {e}")
         return f"Erreur lors de la prévisualisation: {str(e)}", 500
+
+
+
+@books.route('/latex/<book_type>.pdf')
+@login_required
+def generate_book_latex(book_type):
+    """Génère un livre PDF via compilation LaTeX."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    if book_type not in ['tome1', 'tome2', 'resumes-wip']:
+        abort(404)
+    
+    try:
+        # Récupérer les communications
+        communications = get_communications_by_type_and_status()
+        
+        if book_type == 'tome1':
+            tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
+            title = "Articles - Tome 1"
+            communications_data = tomes_split['tome1']
+        elif book_type == 'tome2':
+            tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
+            title = "Articles - Tome 2" 
+            communications_data = tomes_split['tome2']
+        else:  # resumes-wip
+            all_communications = communications['resumes'] + communications['wips']
+            title = "Résumés et Work in Progress"
+            communications_data = group_communications_by_thematique(all_communications)
+        
+        # Générer et compiler le LaTeX
+        pdf_path = compile_latex_book(title, communications_data, book_type)
+        
+        # Retourner le PDF
+        config = get_conference_config()
+        filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_{title.replace(' ', '_')}.pdf"
+        
+        return send_file(pdf_path, as_attachment=True, download_name=filename, mimetype='application/pdf')
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération LaTeX {book_type}: {e}")
+        return f"Erreur lors de la génération du PDF: {str(e)}", 500
+
+def compile_latex_book(title, communications_by_theme, book_type):
+    """Compile un livre LaTeX et retourne le chemin du PDF."""
+    import tempfile
+    import subprocess
+    import os
+    import shutil
+    
+    # Créer un répertoire temporaire
+    with tempfile.TemporaryDirectory() as temp_dir:
+        
+        # Copier les fichiers de template LaTeX
+        copy_latex_templates(temp_dir)
+        
+        # Générer le fichier .tex principal
+        tex_content = generate_latex_content(title, communications_by_theme, book_type)
+        
+        tex_file = os.path.join(temp_dir, "livre.tex")
+        with open(tex_file, 'w', encoding='utf-8') as f:
+            f.write(tex_content)
+        
+        # Copier les PDFs des communications
+        copy_communication_pdfs(communications_by_theme, temp_dir, book_type)
+        
+        # Compiler LaTeX
+        try:
+            # Première compilation
+            subprocess.run(['pdflatex', '-interaction=nonstopmode', 'livre.tex'], 
+                         cwd=temp_dir, check=True, capture_output=True)
+            
+            # Deuxième compilation pour les références
+            subprocess.run(['pdflatex', '-interaction=nonstopmode', 'livre.tex'], 
+                         cwd=temp_dir, check=True, capture_output=True)
+            
+            # Copier le PDF final vers un lieu permanent
+            pdf_source = os.path.join(temp_dir, "livre.pdf")
+            pdf_dest = os.path.join(current_app.config['UPLOAD_FOLDER'], f"latex_book_{book_type}.pdf")
+            shutil.copy2(pdf_source, pdf_dest)
+            
+            return pdf_dest
+            
+        except subprocess.CalledProcessError as e:
+            # Lire le log pour débugger
+            log_file = os.path.join(temp_dir, "livre.log")
+            if os.path.exists(log_file):
+                with open(log_file, 'r') as f:
+                    log_content = f.read()
+                current_app.logger.error(f"Erreur LaTeX: {log_content}")
+            raise Exception(f"Erreur compilation LaTeX: {e}")
+
+
+
+def generate_latex_content(title, communications_by_theme, book_type):
+    """Génère le contenu LaTeX principal basé sur les templates existants."""
+    
+    config = get_conference_config()
+    
+    # Déterminer le type de livre
+    if 'résumé' in title.lower() or 'resume' in title.lower():
+        doc_type = 'resume'
+    else:
+        doc_type = 'article'
+    
+    # En-tête LaTeX basé sur le template
+    latex_content = f"""\\documentclass[12pt,a4paper, openright]{{book}}
+%=====================================
+%   WARNING
+%   FICHIER AUTOMATISE - Conference Flow
+%   NE PAS MODIFIER
+%=====================================
+
+\\input{{config.tex}}
+
+\\hypersetup{{
+  pdfinfo={{
+    Title={{{config.get('conference', {}).get('short_name', 'CONF')} - {title}}},
+    Author={{Communauté {config.get('conference', {}).get('organizer', {}).get('short_name', 'CONF')}}},
+    Subjects={{{config.get('conference', {}).get('name', 'Congrès')} - {config.get('location', {}).get('city', 'Ville')}}},
+    Producer={{Conference Flow}},
+    Creator={{{config.get('conference', {}).get('organizing_lab', {}).get('short_name', 'LAB')}}}
+  }}
+}}
+
+\\begin{{document}}
+\\SetBgContents{{}}
+\\pagestyle{{fancyplain}}
+\\dominitoc
+
+%BLABLABLA
+
+\\frontmatter
+%
+\\input{{./page-garde.tex}}
+%
+\\part{{Prolégomènes}}
+
+ \\input{{./remerciements.tex}}
+ \\cleardoublepage
+ \\input{{./comite-organisation.tex}}
+ \\cleardoublepage
+ \\input{{./Tableau_Reviewer.tex}}
+ \\cleardoublepage
+ \\input{{./introduction.tex}}
+ \\cleardoublepage
+ \\input{{./prix-biot-fourier.tex}}
+
+\\phantomsection
+\\addcontentsline{{toc}}{{chapter}}{{Table des matières}}
+\\tableofcontents
+%
+\\mainmatter
+
+\\adjustmtc[+1]
+
+\\part{{Résumé des communications}}
+%
+\\makeatletter
+\\renewcommand{{\\@chapapp}}{{Thème}}
+\\makeatother
+
+"""
+
+    # Ajouter les thématiques et communications
+    theme_num = 1
+    for theme_name, communications in communications_by_theme.items():
+        if communications:
+            latex_content += f"""
+%%%%%%% THEME {theme_num} %%%%%
+\\cleardoublepage
+\\phantomsection
+\\addcontentsline{{toc}}{{part}}{{Thème {theme_num}}}
+
+\\chapter{{{theme_name}}}
+\\minitoc
+
+"""
+            
+            # Ajouter chaque communication
+            for comm in communications:
+                comm_filename = f"comm_{comm.id}"
+                latex_content += f"\\input{{{comm_filename}.tex}}\n"
+                latex_content += f"\\includepdf[pages=-,pagecommand={{\\thispagestyle{{fancyplain}}}},width=1.05\\paperwidth]{{{comm_filename}.pdf}}\n"
+            
+            theme_num += 1
+    
+    # Fin du document
+    latex_content += """
+\\end{document}
+"""
+    
+    return latex_content
+
+
+
+def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
+    """Copie les PDFs des communications vers le répertoire temporaire."""
+    import os
+    import shutil
+    
+    for theme_name, communications in communications_by_theme.items():
+        for comm in communications:
+            # Récupérer le PDF de la communication
+            pdf_path = get_communication_pdf(comm, book_type)
+            
+            if pdf_path and os.path.exists(pdf_path):
+                # Copier avec un nom standardisé
+                dest_filename = f"comm_{comm.id}.pdf"
+                dest_path = os.path.join(temp_dir, dest_filename)
+                shutil.copy2(pdf_path, dest_path)
+                
+                # Générer aussi un fichier .tex minimal pour cette communication
+                generate_communication_tex(comm, temp_dir)
+            else:
+                current_app.logger.warning(f"PDF manquant pour communication {comm.id}: {comm.title}")
+                # Créer un placeholder
+                create_placeholder_tex(comm, temp_dir)
+
+def generate_communication_tex(comm, temp_dir):
+    """Génère un fichier .tex minimal pour une communication."""
+    authors_str = ", ".join([f"{a.first_name} {a.last_name}" for a in comm.authors])
+    
+    tex_content = f"""
+% Communication {comm.id}
+\\phantomsection\\addtocounter{{section}}{{1}}
+\\addcontentsline{{toc}}{{section}}{{{comm.title}}}
+{{\\Large \\textbf{{{comm.title}}}}}\\label{{ref:{comm.id}}}
+
+\\vspace{{2mm}}
+{authors_str}
+\\vspace{{4mm}}
+
+"""
+    
+    tex_filename = f"comm_{comm.id}.tex"
+    tex_path = os.path.join(temp_dir, tex_filename)
+    
+    with open(tex_path, 'w', encoding='utf-8') as f:
+        f.write(tex_content)
+
+
+
+def generate_config_tex(temp_dir, config):
+    """Génère config.tex dynamiquement avec les bonnes informations."""
+    
+    # Extraire les infos depuis conference.yml
+    congress_name = config.get('conference', {}).get('name', 'Congrès')
+    short_name = config.get('conference', {}).get('short_name', 'CONF')
+    city = config.get('location', {}).get('city', 'Ville')
+    dates = config.get('dates', {}).get('dates', 'Dates à définir')
+    
+    # Formater les dates pour l'en-tête (ex: "2 -- 5 juin 2026")
+    header_dates = dates  # À adapter selon le format souhaité
+    
+    config_content = f"""\\usepackage[french]{{babel}}
+\\usepackage[utf8]{{inputenc}}
+\\usepackage[T1]{{fontenc}}
+\\usepackage{{xspace}}
+
+\\usepackage[]{{pdfpages}}
+\\usepackage{{marvosym}}
+\\usepackage{{sansmathfonts}}
+\\usepackage[scaled]{{helvet}}
+\\renewcommand{{\\familydefault}}{{\\sfdefault}}
+\\hyphenpenalty=0
+\\pdfminorversion=7
+\\usepackage{{amsfonts}}
+\\usepackage{{amsmath}}
+\\usepackage{{amssymb}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\\usepackage[nohints]{{minitoc}}
+\\setcounter{{minitocdepth}}{{2}}
+\\setlength{{\\mtcindent}}{{0pt}}
+\\renewcommand{{\\mtcfont}}{{\\small}}
+\\renewcommand{{\\mtcSfont}}{{\\small}}
+\\mtcsettitle{{minitoc}}{{}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\\setcounter{{tocdepth}}{{1}}
+\\setcounter{{secnumdepth}}{{1}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\\usepackage{{enumitem}}
+\\usepackage[makeindex]{{imakeidx}}
+\\makeindex[options= -s ../index_style.ist, title=Liste des auteurs]
+
+\\usepackage[a4paper,top=1.5cm,bottom=1.5cm,left=1.8cm,right=1.8cm]{{geometry}}
+
+\\usepackage{{graphicx}}
+\\DeclareGraphicsExtensions{{.jpg,.eps,.pdf,.png}}
+
+\\usepackage{{supertabular}}
+
+\\setlength{{\\parindent}}{{10mm}}
+\\setlength{{\\parskip}}{{2mm}}
+\\usepackage{{tcolorbox}}
+\\tcbuselibrary{{breakable}}
+
+\\usepackage[pages=some,contents={{Work In Progress}},color=gray!50]{{background}}
+
+\\usepackage[compact]{{titlesec}}
+
+%%%%%%%%%% Titre en haut de page
+\\usepackage{{fancyhdr}}
+\\setlength{{\\headheight}}{{15pt}}
+\\renewcommand{{\\headrule}}{{\\hrule height 0.5pt}}
+\\renewcommand{{\\footrule}}{{\\hrule height 0.5pt}}
+
+\\fancyhf{{}}
+\\fancyfoot[C]{{\\thepage}}
+\\fancyhead[C]{{{congress_name} {short_name}, {city}, {header_dates}}}
+\\fancyhead[L]{{}}
+\\fancyhead[R]{{}}
+\\pagestyle{{fancy}}
+
+\\usepackage{{ifthen}}
+
+\\usepackage[final,colorlinks,linkcolor={{blue}},citecolor={{blue}},urlcolor={{red}}]{{hyperref}}
+
+\\hyphenation{{con-flu-ence Ga-ny-me-de}}
+\\newcommand{{\\unit}}[1]{{\\,\\mathsf{{#1}}}}
+\\newcommand{{\\dC}}{{\\,{{}}^{{\\circ}}\\mathsf{{C}}{{}}}}
+
+%============
+% Réglages césure des mots
+%===========
+\\sloppy
+\\widowpenalty=10000
+\\clubpenalty=10000
+\\raggedbottom"""
+
+    with open(os.path.join(temp_dir, "config.tex"), 'w', encoding='utf-8') as f:
+        f.write(config_content)
+
+
+def copy_latex_templates(temp_dir):
+    """Génère tous les fichiers LaTeX nécessaires dans le répertoire temporaire."""
+    config = get_conference_config()
+    
+    # 1. Générer config.tex dynamiquement
+    generate_config_tex(temp_dir, config)
+    
+    # 2. Générer tous les autres fichiers .tex depuis les données de l'appli
+    generate_page_garde_tex(temp_dir, config)
+    generate_remerciements_tex(temp_dir, config)
+    generate_comite_organisation_tex(temp_dir, config)
+    generate_tableau_reviewer_tex(temp_dir)
+    generate_introduction_tex(temp_dir, config)
+    generate_prix_biot_fourier_tex(temp_dir)
+
+
+
+
+    
+def generate_remerciements_tex(temp_dir, config):
+    """Génère remerciements.tex depuis static/content/remerciements.yml."""
+    try:
+        from pathlib import Path
+        import yaml
+        
+        # Charger depuis remerciements.yml
+        content_dir = Path(current_app.root_path) / "static" / "content"
+        remerciements_file = content_dir / "remerciements.yml"
+        
+        if remerciements_file.exists():
+            with open(remerciements_file, 'r', encoding='utf-8') as f:
+                remerciements_data = yaml.safe_load(f)
+        else:
+            remerciements_data = {
+                'title': 'Remerciements',
+                'content': 'Le Comité d\'organisation remercie tous les participants.',
+                'signature': 'Le Comité d\'organisation'
+            }
+        
+        # Remplacer les variables
+        content = remerciements_data['content']
+        signature = remerciements_data['signature']
+        
+        variables = {
+            'CONFERENCE_NAME': config.get('conference', {}).get('name', ''),
+            'CONFERENCE_SHORT_NAME': config.get('conference', {}).get('short_name', ''),
+            'ORGANIZATION_NAME': config.get('conference', {}).get('organizer', {}).get('name', '')
+        }
+        
+        for var, value in variables.items():
+            content = content.replace('{' + var + '}', value)
+            signature = signature.replace('{' + var + '}', value)
+        
+        # Convertir en LaTeX (remplacer • par \item, etc.)
+        content_latex = content.replace('•', '\\item').replace('\n\n', '\n\n')
+        
+        remerciements_content = f"""\\chapter*{{{remerciements_data['title']}}}
+
+{content_latex}
+
+\\begin{{flushright}}
+{signature}
+\\end{{flushright}}
+"""
+        
+        with open(os.path.join(temp_dir, "remerciements.tex"), 'w', encoding='utf-8') as f:
+            f.write(remerciements_content)
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération remerciements.tex: {e}")
+        # Créer un fichier par défaut
+        with open(os.path.join(temp_dir, "remerciements.tex"), 'w', encoding='utf-8') as f:
+            f.write("\\chapter*{Remerciements}\nRemerciements en cours de rédaction.\n")
+
+
+
+def generate_comite_organisation_tex(temp_dir, config):
+    """Génère comite-organisation.tex depuis les données CSV existantes."""
+    try:
+        import csv
+        import os
+        
+        def load_csv_data(filename):
+            csv_path = os.path.join(current_app.root_path, 'static', 'content', filename)
+            if not os.path.exists(csv_path):
+                return []
+            
+            data = []
+            try:
+                with open(csv_path, 'r', encoding='utf-8') as file:
+                    reader = csv.DictReader(file, delimiter=';')
+                    for row in reader:
+                        cleaned_row = {k.strip(): v.strip() for k, v in row.items()}
+                        data.append(cleaned_row)
+            except Exception as e:
+                current_app.logger.error(f"Erreur chargement {filename}: {e}")
+                return []
+            return data
+        
+        organizing_members = load_csv_data('comite_local.csv')
+        
+        # Séparer présidents et membres
+        presidents = []
+        members = []
+        
+        for member in organizing_members:
+            member_data = {
+                'name': member.get('nom', ''),
+                'role': member.get('role', ''),
+                'institution': member.get('institution', '')
+            }
+            
+            if member.get('role', '').lower() in ['président', 'president', 'présidente']:
+                presidents.append(member_data)
+            else:
+                members.append(member_data)
+        
+        # Générer le contenu LaTeX
+        congress_name = config.get('conference', {}).get('name', 'Congrès')
+        lab_name = config.get('conference', {}).get('organizing_lab', {}).get('name', 'Laboratoire')
+        
+        comite_content = f"""\\chapter{{Comité d'organisation}}
+
+\\phantomsection\\section*{{Équipe locale}}
+
+Le congrès {congress_name} s'est organisé par l'équipe locale du {lab_name}.
+
+\\vspace{{1cm}}
+\\noindent
+\\begin{{tabular}}{{lll}}
+"""
+        
+        if presidents:
+            comite_content += "\t\\textbf{Président :} &"
+            for i, president in enumerate(presidents):
+                if i > 0:
+                    comite_content += " \\\\\n\t &"
+                comite_content += f" {president['name']}"
+                if president['institution']:
+                    comite_content += f" - {president['institution']}"
+                comite_content += "\\\\\n"
+        
+        if members:
+            comite_content += "\t\\textbf{Membres :} &"
+            for i, member in enumerate(members):
+                if i > 0:
+                    comite_content += " \\\\\n\t &"
+                comite_content += f" {member['name']}"
+                if member['role']:
+                    comite_content += f" - {member['role']}"
+                if member['institution']:
+                    comite_content += f" ({member['institution']})"
+                comite_content += "\\\\\n"
+        
+        comite_content += "\\end{tabular}\n"
+        
+        with open(os.path.join(temp_dir, "comite-organisation.tex"), 'w', encoding='utf-8') as f:
+            f.write(comite_content)
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération comite-organisation.tex: {e}")
+        with open(os.path.join(temp_dir, "comite-organisation.tex"), 'w', encoding='utf-8') as f:
+            f.write("\\chapter{Comité d'organisation}\nComité en cours de constitution.\n")
+
+
+
+def generate_tableau_reviewer_tex(temp_dir):
+    """Génère Tableau_Reviewer.tex depuis la base de données des reviewers."""
+    try:
+        from .models import User, CommunicationReview
+        
+        # Récupérer tous les reviewers
+        reviewers = db.session.query(User).join(CommunicationReview).distinct().all()
+        
+        # Trier par nom de famille
+        reviewers_sorted = sorted(reviewers, key=lambda x: x.last_name or x.email)
+        
+        tableau_content = """\\chapter{Tableau des reviewers}
+
+Le comité d'organisation adresse de très vifs remerciements aux relecteurs qui ont pris le temps de lire et d'expertiser les articles soumis au congrès.
+
+\\vspace{1cm}
+
+"""
+        
+        if reviewers_sorted:
+            # Organiser en 3 colonnes
+            tableau_content += "\\begin{multicols}{3}\n\\small\n"
+            
+            for reviewer in reviewers_sorted:
+                name = f"{reviewer.first_name or ''} {reviewer.last_name or ''}".strip()
+                if not name:
+                    name = reviewer.email
+                
+                institution = reviewer.institution or ""
+                
+                tableau_content += f"\\textbf{{{name}}}"
+                if institution:
+                    tableau_content += f"\\\\\n\\textit{{{institution}}}"
+                tableau_content += "\\\\\n\\vspace{0.3em}\n"
+            
+            tableau_content += "\\end{multicols}\n"
+        else:
+            tableau_content += "\\textit{Liste des reviewers en cours de constitution.}\n"
+        
+        with open(os.path.join(temp_dir, "Tableau_Reviewer.tex"), 'w', encoding='utf-8') as f:
+            f.write(tableau_content)
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération Tableau_Reviewer.tex: {e}")
+        with open(os.path.join(temp_dir, "Tableau_Reviewer.tex"), 'w', encoding='utf-8') as f:
+            f.write("\\chapter{Tableau des reviewers}\nListe des reviewers en cours de constitution.\n")
+
+
+
+
+def generate_introduction_tex(temp_dir, config):
+    """Génère introduction.tex depuis static/content/introduction.yml."""
+    try:
+        from pathlib import Path
+        import yaml
+        from .models import Communication, CommunicationStatus
+        
+        # Charger depuis introduction.yml
+        content_dir = Path(current_app.root_path) / "static" / "content"
+        introduction_file = content_dir / "introduction.yml"
+        
+        if introduction_file.exists():
+            with open(introduction_file, 'r', encoding='utf-8') as f:
+                intro_data = yaml.safe_load(f)
+        else:
+            intro_data = {
+                'title': 'Introduction',
+                'content': 'Bienvenue au congrès.',
+                'signature': 'Le Comité d\'organisation'
+            }
+        
+        # Compter les communications pour les statistiques
+        total_communications = Communication.query.filter_by(status=CommunicationStatus.ACCEPTED).count()
+        
+        # Variables de remplacement
+        content = intro_data['content']
+        signature = intro_data['signature']
+        
+        variables = {
+            'CONFERENCE_NAME': config.get('conference', {}).get('name', ''),
+            'CONFERENCE_SHORT_NAME': config.get('conference', {}).get('short_name', ''),
+            'CONFERENCE_EDITION': config.get('conference', {}).get('edition', ''),
+            'CONFERENCE_THEME': config.get('conference', {}).get('theme', ''),
+            'CONFERENCE_LOCATION': config.get('location', {}).get('city', ''),
+            'CONFERENCE_DATES': config.get('dates', {}).get('dates', ''),
+            'ORGANIZATION_NAME': config.get('conference', {}).get('organizer', {}).get('name', ''),
+            'TOTAL_COMMUNICATIONS': str(total_communications)
+        }
+        
+        for var, value in variables.items():
+            content = content.replace('{' + var + '}', value)
+            signature = signature.replace('{' + var + '}', value)
+        
+        introduction_content = f"""\\chapter*{{{intro_data['title']}}}
+
+{content}
+
+\\begin{{flushright}}
+{signature}
+\\end{{flushright}}
+"""
+        
+        with open(os.path.join(temp_dir, "introduction.tex"), 'w', encoding='utf-8') as f:
+            f.write(introduction_content)
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération introduction.tex: {e}")
+        with open(os.path.join(temp_dir, "introduction.tex"), 'w', encoding='utf-8') as f:
+            f.write("\\chapter*{Introduction}\nIntroduction en cours de rédaction.\n")
+
+
+def generate_prix_biot_fourier_tex(temp_dir):
+    """Génère prix-biot-fourier.tex depuis la base de données."""
+    try:
+        from .models import Communication, Review
+        
+        # Récupérer les communications sélectionnées pour l'audition
+        audition_candidates = Communication.query.filter_by(
+            biot_fourier_audition_selected=True
+        ).all()
+        
+        prix_content = "\\chapter{Prix Biot-Fourier}\n\n"
+        
+        if audition_candidates:
+            nb_candidates = len(audition_candidates)
+            
+            # Utiliser la concaténation au lieu de f-string pour éviter les antislashs
+            prix_content += str(nb_candidates) + " contributions ont été présélectionnées pour le Prix Biot-Fourier. Les auteurs présenteront leurs travaux à l'occasion de sessions orales.\n\n"
+            prix_content += "Le Prix Biot-Fourier sera attribué en fonction des rapports d'expertise et de la qualité des présentations orales.\n\n"
+            prix_content += "\\vspace{\\stretch{1}}\n"
+            prix_content += "\\hrule\n\n"
+            
+            for candidate in audition_candidates:
+                # Auteurs avec soulignement pour le premier auteur
+                authors_list = []
+                for i, author in enumerate(candidate.authors):
+                    author_name = f"{author.first_name} {author.last_name}"
+                    if i == 0:  # Premier auteur souligné
+                        authors_list.append("\\underline{" + author_name + "}")
+                    else:
+                        authors_list.append(author_name)
+                
+                authors_str = ", ".join(authors_list)
+                
+                # Récupérer les affiliations
+                affiliations = []
+                for author in candidate.authors:
+                    if author.institution and author.institution not in affiliations:
+                        affiliations.append(author.institution)
+                
+                # Construction avec concaténation
+                prix_content += "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                prix_content += "%% Communication " + str(candidate.id) + "\n"
+                prix_content += "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+                prix_content += "% Titre\n"
+                prix_content += "\\begin{flushleft}\n"
+                prix_content += "\\phantomsection\\addtocounter{section}{1}\n"
+                prix_content += "\\addcontentsline{toc}{section}{" + candidate.title + "}\n"
+                prix_content += "{\\Large \\textbf{" + candidate.title + "}}\\label{ref:" + str(candidate.id) + "}\n"
+                prix_content += "\\end{flushleft}\n"
+                prix_content += "%\n"
+                prix_content += "% Auteurs\n"
+                prix_content += authors_str + "\\\\[2mm]\n"
+                
+                if affiliations:
+                    for i, aff in enumerate(affiliations):
+                        prix_content += "{\\footnotesize $^{" + str(i+1) + "}$ " + aff + "}\\\\\\n"
+                
+                prix_content += "[4mm]\n"
+                prix_content += "%\n"
+                prix_content += "% Mots clés\n"
+                tags_str = ', '.join(candidate.tags or [])
+                prix_content += "\\noindent \\textbf{Mots clés : } " + tags_str + "\\\\[4mm]\n\n"
+                prix_content += "\\noindent(Cf. page \\pageref{ref:" + str(candidate.id) + "})\n"
+                prix_content += "\\vspace{\\stretch{1}}\n"
+                prix_content += "\\hrule\n\n"
+        else:
+            prix_content += "Les communications sélectionnées pour le Prix Biot-Fourier seront annoncées prochainement.\n"
+        
+        with open(os.path.join(temp_dir, "prix-biot-fourier.tex"), 'w', encoding='utf-8') as f:
+            f.write(prix_content)
+            
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération prix-biot-fourier.tex: {e}")
+        with open(os.path.join(temp_dir, "prix-biot-fourier.tex"), 'w', encoding='utf-8') as f:
+            f.write("\\chapter{Prix Biot-Fourier}\nLes communications sélectionnées seront annoncées prochainement.\n")
+
+def generate_page_garde_tex(temp_dir, config):
+    """Génère page-garde.tex dynamiquement."""
+    theme = config.get('conference', {}).get('theme', 'Thermique')
+    presidents = get_presidents_names_for_latex(config)
+    congress_name = config.get('conference', {}).get('series', 'Congrès')
+    short_name = config.get('conference', {}).get('short_name', 'CONF')
+    dates = config.get('dates', {}).get('dates', 'Date à définir')
+    city = config.get('location', {}).get('city', 'Ville')
+    
+    organizing_lab = config.get('conference', {}).get('organizing_lab', {})
+    lab_name = organizing_lab.get('short_name', 'LAB')
+    lab_umr = organizing_lab.get('umr', '')
+    lab_university = organizing_lab.get('university', 'Université')
+    
+    if lab_umr and lab_university:
+        organizer_text = lab_name + " (UMR " + lab_umr + " - " + lab_university + ")"
+    else:
+        organizer_text = lab_name
+    
+    # Construction avec concaténation pour éviter les problèmes d'antislashs
+    page_garde_content = "\\begin{titlepage}\n"
+    page_garde_content += "\\center\\scshape\n\n"
+    page_garde_content += "\\LARGE\n\n"
+    page_garde_content += theme + "\\\\\n"
+    page_garde_content += "%\n"
+    page_garde_content += "\\vspace{\\stretch{1}}\n"
+    page_garde_content += "%\n"
+    
+    if presidents:
+        page_garde_content += presidents + "\n"
+        page_garde_content += "%\n"
+        page_garde_content += "\\vspace{\\stretch{1}}\n"
+        page_garde_content += "%\n"
+    
+    page_garde_content += "{\\Huge\\bfseries\n"
+    page_garde_content += "Recueil des résumés\\\\\n"
+    page_garde_content += "%\n"
+    page_garde_content += "}\n"
+    page_garde_content += "\\vspace{1em}\n"
+    page_garde_content += "%\n"
+    page_garde_content += "du\\\\\n"
+    page_garde_content += "%\n"
+    page_garde_content += "\\vspace{1em}\n"
+    page_garde_content += "%\n"
+    page_garde_content += "{\\Huge\n"
+    page_garde_content += congress_name + "\\\\\n"
+    page_garde_content += "}\n"
+    page_garde_content += "%\n"
+    page_garde_content += "\\vspace{\\stretch{1}}\n"
+    page_garde_content += "%\n"
+    page_garde_content += "{\\Huge\\bfseries " + short_name + "}\\\\\n"
+    page_garde_content += "%\n"
+    page_garde_content += "\\vspace{\\stretch{1}}\n"
+    page_garde_content += "%\n"
+    page_garde_content += dates + "\\\\" + city + "\\\\\n"
+    page_garde_content += "%\n"
+    page_garde_content += "\\vspace{\\stretch{1}}\n"
+    page_garde_content += "%\n"
+    page_garde_content += "\\large\n"
+    page_garde_content += "Organisé par\\\\\n"
+    page_garde_content += "%\n"
+    page_garde_content += "\\vspace{1em}\n"
+    page_garde_content += "%\n"
+    page_garde_content += "\\normalsize\n"
+    page_garde_content += organizer_text + "\n"
+    page_garde_content += "%\n"
+    page_garde_content += "\\end{titlepage}"
+    
+    with open(os.path.join(temp_dir, "page-garde.tex"), 'w', encoding='utf-8') as f:
+        f.write(page_garde_content)
+
+def get_presidents_names_for_latex(config):
+    """Récupère les noms des présidents formatés pour LaTeX."""
+    presidents_list = config.get('conference', {}).get('presidents', [])
+    
+    if not presidents_list:
+        organizing = config.get('organizing', {})
+        presidents_list = organizing.get('presidents', [])
+    
+    names = []
+    for president in presidents_list:
+        if isinstance(president, dict):
+            name = president.get('name', '')
+            if not name:
+                first = president.get('first_name', '')
+                last = president.get('last_name', '')
+                name = (first + " " + last).strip()
+            if name:
+                names.append(name)
+        elif isinstance(president, str):
+            names.append(president)
+    
+    if names:
+        return "\\\\".join(names) + "\\\\"
+    else:
+        return ""
+
+
+def compile_latex_book(title, communications_by_theme, book_type):
+    """Compile un livre LaTeX et retourne le chemin du PDF."""
+    import tempfile
+    import subprocess
+    import os
+    import shutil
+    import time
+    
+    # Créer un répertoire temporaire
+    with tempfile.TemporaryDirectory() as temp_dir:
+        current_app.logger.info(f"Compilation LaTeX dans {temp_dir}")
+        
+        try:
+            # 1. Générer tous les fichiers LaTeX nécessaires
+            copy_latex_templates(temp_dir)
+            
+            # 2. Générer le fichier .tex principal
+            tex_content = generate_latex_content(title, communications_by_theme, book_type)
+            
+            tex_file = os.path.join(temp_dir, "livre.tex")
+            with open(tex_file, 'w', encoding='utf-8') as f:
+                f.write(tex_content)
+            
+            # 3. Copier les PDFs des communications
+            copy_communication_pdfs(communications_by_theme, temp_dir, book_type)
+            
+            # 4. Créer les fichiers auxiliaires nécessaires
+            create_auxiliary_files(temp_dir)
+            
+            # 5. Première compilation LaTeX
+            cmd = ['pdflatex', '-interaction=nonstopmode', 'livre.tex']
+            current_app.logger.info(f"Exécution: {' '.join(cmd)}")
+            
+            result = subprocess.run(cmd, cwd=temp_dir, capture_output=True, text=True, 
+                                  timeout=60, encoding='utf-8', errors='replace')
+            
+            # Lire le log LaTeX pour diagnostiquer (avec gestion des erreurs d'encodage)
+            log_file = os.path.join(temp_dir, "livre.log")
+            if os.path.exists(log_file):
+                try:
+                    # Essayer plusieurs encodages
+                    for encoding in ['utf-8', 'latin1', 'cp1252']:
+                        try:
+                            with open(log_file, 'r', encoding=encoding) as f:
+                                log_content = f.read()
+                                break
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        # Si aucun encodage ne fonctionne, lire en binaire
+                        with open(log_file, 'rb') as f:
+                            log_content = f.read().decode('utf-8', errors='replace')
+                except Exception as e:
+                    current_app.logger.warning(f"Impossible de lire le log: {e}")
+                    log_content = "Log illisible"
+                
+                # Analyser les erreurs
+                if result.returncode != 0:
+                    current_app.logger.error(f"pdflatex code retour: {result.returncode}")
+                    current_app.logger.error(f"pdflatex stderr: {result.stderr}")
+                    
+                    # Extraire les lignes d'erreur du log
+                    error_lines = []
+                    if log_content:
+                        for line in log_content.split('\n'):
+                            line_lower = line.lower()
+                            if ('!' in line or 'error:' in line_lower or 
+                                'undefined' in line_lower or 'missing' in line_lower):
+                                error_lines.append(line.strip())
+                    
+                    # Copier les fichiers pour debug
+                    debug_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'debug_latex')
+                    os.makedirs(debug_dir, exist_ok=True)
+                    
+                    debug_files = ['livre.tex', 'livre.log', 'config.tex', 'page-garde.tex', 
+                                 'remerciements.tex', 'comite-organisation.tex']
+                    for file in debug_files:
+                        src = os.path.join(temp_dir, file)
+                        if os.path.exists(src):
+                            shutil.copy2(src, debug_dir)
+                    
+                    # Afficher les premières erreurs
+                    if error_lines:
+                        current_app.logger.error(f"Erreurs LaTeX: {error_lines[:3]}")
+                        error_summary = " | ".join(error_lines[:3])
+                        raise Exception(f"Erreur LaTeX: {error_summary}")
+                    else:
+                        raise Exception(f"Erreur pdflatex (code {result.returncode}). Fichiers debug copiés.")
+            
+            # Vérifier que le PDF a été généré
+            pdf_source = os.path.join(temp_dir, "livre.pdf")
+            if not os.path.exists(pdf_source):
+                raise Exception("Le fichier PDF n'a pas été généré")
+            
+            # 6. Copier le PDF final
+            os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
+            pdf_dest = os.path.join(current_app.config['UPLOAD_FOLDER'], f"latex_book_{book_type}_{int(time.time())}.pdf")
+            shutil.copy2(pdf_source, pdf_dest)
+            
+            current_app.logger.info(f"PDF généré avec succès: {pdf_dest}")
+            return pdf_dest
+            
+        except subprocess.TimeoutExpired:
+            raise Exception("Timeout lors de la compilation LaTeX")
+        except Exception as e:
+            raise Exception(f"Erreur compilation LaTeX: {e}")
+    
+
+
+def create_auxiliary_files(temp_dir):
+    """Crée les fichiers auxiliaires nécessaires pour LaTeX."""
+    
+    # Créer index_style.ist pour l'index des auteurs
+    index_style = """headings_flag 1
+heading_prefix "\\\\textbf{"
+heading_suffix "}\\\\nopagebreak\\n"
+delim_0 " \\\\dotfill "
+delim_1 " \\\\dotfill "
+delim_2 " \\\\dotfill "
+"""
+    
+    with open(os.path.join(temp_dir, "index_style.ist"), 'w', encoding='utf-8') as f:
+        f.write(index_style)
+
+def copy_latex_templates(temp_dir):
+    """Génère tous les fichiers LaTeX nécessaires dans le répertoire temporaire."""
+    config = get_conference_config()
+    
+    # Générer tous les fichiers .tex depuis les données de l'appli
+    generate_config_tex(temp_dir, config)
+    generate_page_garde_tex(temp_dir, config)
+    generate_remerciements_tex(temp_dir, config)
+    generate_comite_organisation_tex(temp_dir, config)
+    generate_tableau_reviewer_tex(temp_dir)
+    generate_introduction_tex(temp_dir, config)
+    generate_prix_biot_fourier_tex(temp_dir)
+    
+    current_app.logger.info("Tous les fichiers LaTeX ont été générés")
+
+
 

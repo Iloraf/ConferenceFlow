@@ -68,7 +68,6 @@ def prepare_email_context(base_context, communication=None, user=None, reviewer=
     try:
         # Conversion des thématiques de communication
         if communication:
-            # CORRECTION : Gérer les deux cas possibles
             if hasattr(communication, 'thematiques_codes') and communication.thematiques_codes:
                 # Cas 1: codes stockés en string (ex: "COND,MULTI")
                 context['COMMUNICATION_THEMES'] = _convert_codes_to_names(communication.thematiques_codes)
@@ -122,6 +121,33 @@ def prepare_email_context(base_context, communication=None, user=None, reviewer=
         return context
 
 
+def send_reviewer_welcome_email(user, token):
+    """Envoie l'email de bienvenue à un reviewer."""
+    try:
+        base_context = {
+            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+            'USER_LAST_NAME': user.last_name or '',
+            'USER_EMAIL': user.email,
+            'REVIEWER_NAME': user.full_name or f"{user.first_name} {user.last_name}".strip() or user.email.split('@')[0],
+            'REVIEWER_SPECIALTIES': getattr(user, 'specialites_codes', 'Non spécifiées'),
+            'REVIEWER_AFFILIATIONS': 'Non spécifiées',  # À adapter selon votre modèle
+            'ACTIVATION_TOKEN': token,
+            'call_to_action_url': url_for('main.activate_account', token=token, _external=True)
+        }
+        
+        send_any_email_with_themes(
+            template_name='reviewer_welcome',  # Template spécifique reviewers
+            recipient_email=user.email,
+            base_context=base_context,
+            user=user,
+            color_scheme='blue'
+        )
+        
+    except Exception as e:
+        logger.error(f"Erreur envoi bienvenue reviewer à {user.email}: {e}")
+        raise
+
+    
 def _build_info_section_with_icons(context, primary_color):
     """Construit une section d'informations contextuelles avec émojis universels."""
     info_parts = []
@@ -342,13 +368,11 @@ def send_submission_confirmation_email(communication, submission_type='résumé'
         
         color_scheme = color_mapping.get(submission_type.lower(), 'blue')
         
-        # CORRECTION : Gestion sécurisée de la date
         from datetime import datetime
         submission_date = datetime.utcnow().strftime('%d/%m/%Y à %H:%M')
         if hasattr(communication, 'updated_at') and communication.updated_at:
             submission_date = communication.updated_at.strftime('%d/%m/%Y à %H:%M')
         
-        # CORRECTION : Gestion sécurisée de la version du fichier
         file_version = "1"
         if submission_file and hasattr(submission_file, 'version'):
             file_version = str(submission_file.version)
@@ -412,7 +436,6 @@ def send_activation_email_to_user(user, token):
 def send_coauthor_notification_email(user, communication, token):
     """Envoie un email de notification à un nouveau co-auteur."""
     try:
-        # CORRECTION : Utiliser communication.authors[0] pour l'auteur principal
         main_author = communication.authors[0] if communication.authors else None
         if main_author:
             main_author_name = main_author.full_name if main_author.full_name else main_author.email
@@ -421,11 +444,14 @@ def send_coauthor_notification_email(user, communication, token):
         
         base_context = {
             'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+            'AUTHOR_NAME': user.full_name or user.email,
             'USER_LAST_NAME': user.last_name or '',
             'USER_EMAIL': user.email,
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
-            'MAIN_AUTHOR_NAME': main_author_name,  # CORRIGÉ : utiliser le premier auteur
+            'COMMUNICATION_TYPE': communication.type.title() if communication.type else 'Communication',
+    'MAIN_AUTHOR_NAME': main_author_name,
+            'MAIN_AUTHOR_NAME': main_author_name,  
             'ACTIVATION_TOKEN': token if token else '',
             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True) if not token else url_for('main.activate_account', token=token, _external=True)
         }
@@ -518,7 +544,6 @@ def send_review_reminder_email(reviewer, assignments):
 def send_decision_email(communication, decision_type, additional_info=''):
     """Envoie un email de notification de décision à l'auteur principal."""
     try:
-        # CORRECTION : Récupérer l'auteur principal (premier auteur)
         main_author = communication.authors[0] if communication.authors else None
         if not main_author:
             logger.error(f"Aucun auteur trouvé pour la communication {communication.id}")
@@ -576,7 +601,6 @@ def send_decision_email(communication, decision_type, additional_info=''):
 def send_biot_fourier_audition_notification(communication):
     """Envoie une notification pour une audition Biot-Fourier."""
     try:
-        # CORRECTION : Récupérer l'auteur principal (premier auteur)
         main_author = communication.authors[0] if communication.authors else None
         if not main_author:
             logger.error(f"Aucun auteur trouvé pour la communication {communication.id}")
@@ -612,6 +636,7 @@ def send_qr_code_reminder_email(user, communication, qr_code_url):
     try:
         base_context = {
             'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+            'AUTHOR_NAME': user.full_name or user.email,
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
             'QR_CODE_URL': qr_code_url,
@@ -663,6 +688,7 @@ def send_reviewer_welcome_email(reviewer):
     try:
         base_context = {
             'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
+            'AUTHOR_NAME': user.full_name or user.email,
             'USER_EMAIL': reviewer.email,
             'call_to_action_url': url_for('reviewer.dashboard', _external=True)
         }
@@ -727,7 +753,6 @@ def send_admin_alert_email(admin_email, alert_type, alert_message):
 def send_existing_coauthor_notification_email(user, communication):
     """Envoie un email de notification à un co-auteur existant (déjà activé)."""
     try:
-        # CORRECTION : Utiliser communication.authors[0] pour l'auteur principal
         main_author = communication.authors[0] if communication.authors else None
         if main_author:
             main_author_name = main_author.full_name if main_author.full_name else main_author.email
@@ -736,11 +761,13 @@ def send_existing_coauthor_notification_email(user, communication):
         
         base_context = {
             'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+            'AUTHOR_NAME': user.full_name or user.email,
             'USER_LAST_NAME': user.last_name or '',
             'USER_EMAIL': user.email,
             'COMMUNICATION_TITLE': communication.title,
+            'COMMUNICATION_TYPE': communication.type.title() if communication.type else 'Communication',
             'COMMUNICATION_ID': communication.id,
-            'MAIN_AUTHOR_NAME': main_author_name,  # CORRIGÉ : utiliser le nom de l'auteur principal
+            'MAIN_AUTHOR_NAME': main_author_name,  
             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
         }
         

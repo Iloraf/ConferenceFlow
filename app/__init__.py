@@ -252,6 +252,7 @@ def create_app():
         send_email,
         send_submission_confirmation_email,
         send_activation_email_to_user,
+        send_reviewer_welcome_email,
         send_coauthor_notification_email,
         send_existing_coauthor_notification_email,
         send_review_reminder_email,
@@ -278,6 +279,7 @@ def create_app():
     app.send_biot_fourier_audition_notification = send_biot_fourier_audition_notification
     app.send_reviewer_assignment_email = send_reviewer_assignment_email
     app.send_hal_collection_request = send_hal_collection_request
+    app.send_reviewer_welcome_email = send_reviewer_welcome_email
     
     app.register_blueprint(main)
     app.register_blueprint(conference)
