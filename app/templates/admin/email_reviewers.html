@@ -126,7 +126,9 @@ L\'équipe d\'organisation' }}</textarea>
                         
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            L'email sera envoyé aux <span id="selectedCount">{{ communication.reviews|length }}</span> reviewer(s) sélectionné(s) avec le design {{ conference.short_name }}.
+
+
+			    L'email sera envoyé aux <span id="selectedCount">{{ assigned_reviewers|length }}</span> reviewer(s) sélectionné(s) avec le design {{ conference.short_name }}.
                         </div>
                         
                         <div class="d-flex justify-content-between">

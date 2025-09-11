@@ -824,64 +824,6 @@ def send_existing_coauthor_notification_email(user, communication):
         logger.error(f"Erreur notification co-auteur existant à {user.email}: {e}")
         raise
 
-# def send_reviewer_assignment_email(reviewer, communication, assignment):
-#     """Envoie un email de notification d'assignation à un reviewer."""
-#     try:
-#         # Utiliser le template reviewer_assignment qui existe déjà
-#         base_context = {
-#             'REVIEWER_NAME': reviewer.full_name or reviewer.email,
-#             'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
-#             'COMMUNICATION_TITLE': communication.title,
-#             'COMMUNICATION_ID': communication.id,
-#             'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
-#         }
-        
-#         # Ne passer que les paramètres acceptés par send_any_email_with_themes
-#         send_any_email_with_themes(
-#             template_name='reviewer_assignment',
-#             recipient_email=reviewer.email,
-#             base_context=base_context,
-#             communication=communication,
-#             user=reviewer,
-#             reviewer=reviewer,
-#             color_scheme='blue'
-#         )
-        
-#         logger.info(f"Email d'assignation envoyé à {reviewer.email} pour communication {communication.id}")
-        
-#     except Exception as e:
-#         logger.error(f"Erreur envoi email assignation reviewer {reviewer.email}: {e}")
-#         raise
-
-# def get_admin_email_templates():
-#     """Retourne les templates d'emails pour l'interface admin depuis emails.yml"""
-#     try:
-#         from flask import current_app
-        
-#         # Utiliser le config_loader existant
-#         config_loader = current_app.config_loader
-        
-#         # Récupérer les templates prédéfinis depuis emails.yml
-#         return config_loader.get_admin_email_templates()
-        
-#     except Exception as e:
-#         current_app.logger.error(f"Erreur récupération templates admin: {e}")
-        
-#         # Fallback en cas d'erreur
-#         return {
-#             'rappel_review': {
-#                 'subject': 'Rappel - Review en attente',
-#                 'content': '''Bonjour [PRENOM] [NOM],
-
-# Vous avez une review en attente.
-
-# Communication : [TITRE_COMMUNICATION] (ID: [ID_COMMUNICATION])
-
-# Cordialement,
-# L'équipe d'organisation'''
-#             }
-#         }V
-
 def get_admin_email_templates():
     """Retourne les templates d'emails pour l'interface admin depuis emails.yml"""
     try:
@@ -891,3 +833,96 @@ def get_admin_email_templates():
     except Exception as e:
         current_app.logger.error(f"Erreur récupération templates admin: {e}")
         return {}
+
+
+
+def send_grouped_review_notifications():
+    """
+    Envoie des notifications groupées aux reviewers pour leurs assignations en attente.
+    Chaque reviewer reçoit UN email avec toutes ses reviews à effectuer.
+    """
+    from app.models import ReviewAssignment, User
+    from flask import current_app
+    from datetime import datetime
+    
+    try:
+        # Récupérer les assignations en attente (pas encore notifiées)
+        pending_assignments = ReviewAssignment.query.filter_by(
+            status='assigned',
+            notification_sent_at=None
+        ).all()
+        
+        if not pending_assignments:
+            return {
+                'sent': 0,
+                'total_assignments': 0,
+                'errors': [],
+                'message': 'Aucune assignation en attente'
+            }
+        
+        # Grouper par reviewer
+        reviewers_assignments = {}
+        for assignment in pending_assignments:
+            reviewer_id = assignment.reviewer_id
+            if reviewer_id not in reviewers_assignments:
+                reviewers_assignments[reviewer_id] = []
+            reviewers_assignments[reviewer_id].append(assignment)
+        
+        sent_count = 0
+        errors = []
+        total_assignments = len(pending_assignments)
+        
+        # Envoyer un email groupé à chaque reviewer
+        for reviewer_id, assignments in reviewers_assignments.items():
+            try:
+                reviewer = User.query.get(reviewer_id)
+                if not reviewer or not reviewer.email:
+                    errors.append(f"Reviewer {reviewer_id}: email introuvable")
+                    continue
+                
+                # Préparer le contexte pour l'email groupé
+                base_context = {
+                    'REVIEWER_NAME': reviewer.full_name or reviewer.email,
+                    'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
+                    'REVIEWS_COUNT': len(assignments),
+                    'REVIEWER_SPECIALTIES': reviewer.specialites_codes or 'Non spécifiées',
+                    'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
+                }
+                
+                # Envoyer l'email avec le template review_assigned pour les notifications groupées
+                send_any_email_with_themes(
+                    template_name='review_assigned',
+                    recipient_email=reviewer.email,
+                    base_context=base_context,
+                    user=reviewer,
+                    reviewer=reviewer,
+                    color_scheme='blue'
+                )
+                
+                # Marquer toutes les assignations de ce reviewer comme notifiées
+                for assignment in assignments:
+                    assignment.notification_sent_at = datetime.utcnow()
+                
+                sent_count += 1
+                current_app.logger.info(f"Notification groupée envoyée à {reviewer.email} pour {len(assignments)} review(s)")
+                
+            except Exception as e:
+                error_msg = f"Reviewer {reviewer.email if reviewer else reviewer_id}: {str(e)}"
+                errors.append(error_msg)
+                current_app.logger.error(f"Erreur notification groupée: {error_msg}")
+        
+        return {
+            'sent': sent_count,
+            'total_assignments': total_assignments,
+            'errors': errors,
+            'message': f'{sent_count} notification(s) envoyée(s) pour {total_assignments} assignation(s)'
+        }
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur globale notifications groupées: {e}")
+        return {
+            'sent': 0,
+            'total_assignments': 0,
+            'errors': [f"Erreur globale: {str(e)}"],
+            'message': 'Échec de l\'envoi des notifications'
+        }
