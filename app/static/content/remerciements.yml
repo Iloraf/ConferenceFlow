@@ -1,0 +1,20 @@
+# Remerciements pour le livre des résumés/actes
+
+title: "Remerciements"
+
+content: |
+  Le Comité d'organisation du {CONFERENCE_NAME} adresse ses plus vifs remerciements :
+  
+  • Au Conseil d'Administration et au Conseil Scientifique de la {ORGANIZATION_NAME} pour leur soutien et leur confiance.
+  
+  • À tous les membres du comité scientifique qui ont contribué à l'évaluation des communications.
+  
+  • Aux relecteurs qui ont pris le temps de lire et d'expertiser les articles soumis au congrès.
+  
+  • À nos partenaires institutionnels et industriels pour leur soutien.
+  
+  • À tous les participants qui font de ce congrès un moment d'échange scientifique privilégié.
+
+signature: |
+  Le Comité d'organisation
+  {CONFERENCE_SHORT_NAME}

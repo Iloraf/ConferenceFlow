@@ -1,0 +1,20 @@
+# Introduction pour le livre des résumés/actes
+
+title: "Introduction"
+
+content: |
+  Chers congressistes,
+  
+  C'est avec un grand plaisir que nous vous accueillons au {CONFERENCE_NAME} qui se déroule à {CONFERENCE_LOCATION} du {CONFERENCE_DATES}.
+  
+  Cette {CONFERENCE_EDITION}ème édition du congrès français de thermique rassemble la communauté scientifique autour du thème "{CONFERENCE_THEME}".
+  
+  Au programme de ce congrès : {TOTAL_COMMUNICATIONS} communications réparties en sessions orales et posters, couvrant l'ensemble des domaines de la thermique et de ses applications.
+  
+  Le Comité d'Organisation du congrès remercie très sincèrement le Conseil d'Administration et le Conseil Scientifique de la {ORGANIZATION_NAME} pour leur soutien renouvelé et leur confiance dans l'organisation de ce congrès.
+  
+  À toutes et à tous, nous vous souhaitons un excellent congrès !
+
+signature: |
+  Le Comité d'Organisation
+  {CONFERENCE_SHORT_NAME}

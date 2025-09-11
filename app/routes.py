@@ -1159,7 +1159,6 @@ def save_photo_file(file, user_id, description=None, category='generale'):
     random_hex = secrets.token_hex(8)
     filename = f"photo_{user_id}_{random_hex}.{file_extension}"
     
-    # Chemin de sauvegarde - CORRIGÉ
     photos_dir = os.path.join('app', 'static', 'uploads', 'photos')
     os.makedirs(photos_dir, exist_ok=True)
     file_path = os.path.join(photos_dir, filename)
@@ -1316,14 +1315,6 @@ def voir_message(message_id):
     
     message = Message.query.get_or_404(message_id)
     
-    # DEBUG: Afficher les infos du message
-    #####################################################
-    # print(f"🔍 DEBUG - Message {message_id}:")        #
-    # print(f"   Titre: {message.title}")               #
-    # print(f"   Statut: {message.status}")             #
-    # print(f"   Statut value: {message.status.value}") #
-    # print(f"   Public: {message.is_public}")          #
-    #####################################################
     
     # Vérifier si le message est visible
     if not message.is_public or message.status.value != 'active':
@@ -1340,8 +1331,6 @@ def voir_message(message_id):
     except:
         db.session.rollback()
     
-    # CORRIGÉ: Récupérer les réponses avec syntaxe correcte
-    print(f"🔍 DEBUG - Recherche réponses pour message {message_id}:")
     
     # Toutes les réponses (pour debug)
     all_replies = Message.query.filter_by(parent_id=message.id).all()
