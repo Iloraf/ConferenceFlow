@@ -4609,6 +4609,64 @@ def email_authors(comm_id):
                          default_template=default_template)  # ← LIGNE AJOUTÉE
 
 
+# @admin.route('/email-reviewers/<int:comm_id>')
+# @login_required
+# def email_reviewers(comm_id):
+#     """Page pour composer et envoyer un email aux reviewers d'une communication."""
+#     if not current_user.is_admin:
+#         abort(403)
+    
+#     communication = Communication.query.get_or_404(comm_id)
+
+#     assigned_reviewers = ReviewAssignment.query.filter_by(
+#     communication_id=comm_id,
+#     status='assigned'
+#     ).all()
+
+#     if not assigned_reviewers:
+#         flash('Cette communication n\'a pas de reviewers assignés.', 'warning')
+#         return redirect(url_for('admin.communications_dashboard'))
+    
+    
+#     # UTILISER LE MÊME SYSTÈME QUE email_authors
+#     from app.emails import get_admin_email_templates
+    
+#     # Récupérer les templates depuis emails.yml
+#     email_templates = get_admin_email_templates()
+    
+#     # Variables spécifiques
+#     context_variables = {
+#         'COMMUNICATION_TITLE': communication.title,
+#         'COMMUNICATION_ID': communication.id,
+#         'COMMUNICATION_TYPE': communication.type.title()
+#     }
+    
+#     # Traiter les templates comme email_authors
+#     processed_templates = {}
+#     for template_key, template_data in email_templates.items():
+#         processed_templates[template_key] = {
+#             'subject': template_data['subject'],
+#             'content': template_data['content']
+#         }
+        
+#         # Remplacer les variables
+#         for var_name, var_value in context_variables.items():
+#             placeholder = f'[{var_name}]'
+#             if placeholder in processed_templates[template_key]['subject']:
+#                 processed_templates[template_key]['subject'] = processed_templates[template_key]['subject'].replace(placeholder, str(var_value))
+#             if placeholder in processed_templates[template_key]['content']:
+#                 processed_templates[template_key]['content'] = processed_templates[template_key]['content'].replace(placeholder, str(var_value))
+    
+#     # Template par défaut
+#     default_template = None
+#     if processed_templates and 'rappel_review' in processed_templates:
+#         default_template = processed_templates['rappel_review']
+    
+#     return render_template('admin/email_reviewers.html', 
+#                          communication=communication,
+#                          email_templates=processed_templates,
+#                          default_template=default_template)
+
 @admin.route('/email-reviewers/<int:comm_id>')
 @login_required
 def email_reviewers(comm_id):
@@ -4618,24 +4676,27 @@ def email_reviewers(comm_id):
     
     communication = Communication.query.get_or_404(comm_id)
     
-    if not communication.reviews:
+    # Vérifier s'il y a des reviewers assignés  
+    assigned_reviewers = ReviewAssignment.query.filter_by(
+        communication_id=comm_id,
+        status='assigned'
+    ).all()
+    
+    if not assigned_reviewers:
         flash('Cette communication n\'a pas de reviewers assignés.', 'warning')
         return redirect(url_for('admin.communications_dashboard'))
     
-    # UTILISER LE MÊME SYSTÈME QUE email_authors
+    # COPIER EXACTEMENT email_authors
     from app.emails import get_admin_email_templates
     
-    # Récupérer les templates depuis emails.yml
     email_templates = get_admin_email_templates()
     
-    # Variables spécifiques
     context_variables = {
         'COMMUNICATION_TITLE': communication.title,
         'COMMUNICATION_ID': communication.id,
         'COMMUNICATION_TYPE': communication.type.title()
     }
     
-    # Traiter les templates comme email_authors
     processed_templates = {}
     for template_key, template_data in email_templates.items():
         processed_templates[template_key] = {
@@ -4643,7 +4704,6 @@ def email_reviewers(comm_id):
             'content': template_data['content']
         }
         
-        # Remplacer les variables
         for var_name, var_value in context_variables.items():
             placeholder = f'[{var_name}]'
             if placeholder in processed_templates[template_key]['subject']:
@@ -4651,15 +4711,136 @@ def email_reviewers(comm_id):
             if placeholder in processed_templates[template_key]['content']:
                 processed_templates[template_key]['content'] = processed_templates[template_key]['content'].replace(placeholder, str(var_value))
     
-    # Template par défaut
     default_template = None
-    if processed_templates and 'rappel_review' in processed_templates:
-        default_template = processed_templates['rappel_review']
+    if processed_templates and 'information_generale' in processed_templates:
+        default_template = processed_templates['information_generale']
     
     return render_template('admin/email_reviewers.html', 
                          communication=communication,
+                         assigned_reviewers=assigned_reviewers,
                          email_templates=processed_templates,
                          default_template=default_template)
+
+# @admin.route('/email-reviewers/<int:comm_id>')
+# @login_required
+# def email_reviewers(comm_id):
+#     """Page pour composer et envoyer un email aux reviewers d'une communication."""
+#     if not current_user.is_admin:
+#         abort(403)
+    
+#     communication = Communication.query.get_or_404(comm_id)
+    
+#     # Vérifier s'il y a des reviewers assignés (et pas refusés)
+#     assigned_reviewers = ReviewAssignment.query.filter_by(
+#         communication_id=comm_id,
+#         status='assigned'
+#     ).all()
+    
+#     if not assigned_reviewers:
+#         flash('Cette communication n\'a pas de reviewers assignés.', 'warning')
+#         return redirect(url_for('admin.communications_dashboard'))
+    
+#     # UTILISER LE MÊME SYSTÈME QUE email_authors
+#     from app.emails import get_admin_email_templates
+    
+#     # Récupérer les templates depuis emails.yml
+#     email_templates = get_admin_email_templates()
+    
+#     # Variables spécifiques à cette communication
+#     context_variables = {
+#         'COMMUNICATION_TITLE': communication.title,
+#         'COMMUNICATION_ID': communication.id,
+#         'COMMUNICATION_TYPE': communication.type.title(),
+#         'COMMUNICATION_THEMES': ', '.join([t['nom'] for t in communication.thematiques]) if communication.thematiques else 'Non spécifiées'
+#     }
+    
+#     # Traiter les templates comme email_authors
+#     processed_templates = {}
+#     for template_key, template_data in email_templates.items():
+#         processed_templates[template_key] = {
+#             'subject': template_data['subject'],
+#             'content': template_data['content']
+#         }
+        
+#         # Remplacer les variables spécifiques à cette communication
+#         for var_name, var_value in context_variables.items():
+#             placeholder = f'[{var_name}]'
+#             if placeholder in processed_templates[template_key]['subject']:
+#                 processed_templates[template_key]['subject'] = processed_templates[template_key]['subject'].replace(placeholder, str(var_value))
+#             if placeholder in processed_templates[template_key]['content']:
+#                 processed_templates[template_key]['content'] = processed_templates[template_key]['content'].replace(placeholder, str(var_value))
+    
+#     # Template par défaut
+#     default_template = None
+#     if processed_templates and 'rappel_review' in processed_templates:
+#         default_template = processed_templates['rappel_review']
+    
+#     return render_template('admin/email_reviewers.html', 
+#                          communication=communication,
+#                          assigned_reviewers=assigned_reviewers,  # Passer les assignations
+#                          email_templates=processed_templates,
+#                          default_template=default_template)
+
+@admin.route('/email-reviewers/<int:comm_id>', methods=['POST'])
+@login_required  
+def send_email_to_reviewers(comm_id):
+    """Envoie l'email aux reviewers sélectionnés."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    communication = Communication.query.get_or_404(comm_id)
+    subject = request.form.get('subject')
+    content = request.form.get('content')
+    selected_reviewers = request.form.get('selected_reviewers', '').split(',')
+    
+    if not subject or not content:
+        flash('Sujet et contenu requis.', 'danger')
+        return redirect(url_for('admin.email_reviewers', comm_id=comm_id))
+    
+    sent_count = 0
+    
+    for reviewer_id in selected_reviewers:
+        if not reviewer_id.strip():
+            continue
+            
+        reviewer = User.query.get(int(reviewer_id))
+        if not reviewer:
+            continue
+            
+        try:
+            # UTILISER LE MÊME SYSTÈME QUE TOUS LES AUTRES EMAILS
+            from app.emails import send_any_email_with_themes
+            
+            base_context = {
+                'REVIEWER_NAME': reviewer.full_name or reviewer.email,
+                'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
+                'COMMUNICATION_TITLE': communication.title,
+                'COMMUNICATION_ID': communication.id,
+                'ADMIN_MESSAGE': content,  # Le message personnalisé
+                'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
+            }
+            
+            send_any_email_with_themes(
+                template_name='review_assigned',  # Le template qui existe déjà !
+                recipient_email=reviewer.email,
+                base_context=base_context,
+                communication=communication,
+                user=reviewer,
+                reviewer=reviewer,
+                color_scheme='blue'
+            )
+            
+            sent_count += 1
+            
+        except Exception as e:
+            current_app.logger.error(f"Erreur envoi à {reviewer.email}: {e}")
+    
+    if sent_count > 0:
+        flash(f'Email envoyé à {sent_count} reviewer(s).', 'success')
+    else:
+        flash('Aucun email envoyé.', 'warning')
+    
+    return redirect(url_for('admin.communications_dashboard'))
 
 
 @admin.route('/reviewers/send-activation/<int:user_id>')

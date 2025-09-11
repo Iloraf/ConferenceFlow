@@ -729,6 +729,43 @@ def send_admin_weekly_summary(admin_email, stats):
         logger.error(f"Erreur envoi résumé hebdomadaire: {e}")
         raise
 
+def send_reviewer_assignment_email(reviewer, communication, assignment=None):
+    """Envoie un email de notification d'assignation à un reviewer."""
+    try:
+        # Utiliser le template review_assigned qui existe déjà
+        base_context = {
+            'REVIEWER_NAME': reviewer.full_name or reviewer.email,
+            'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
+            'COMMUNICATION_TITLE': communication.title,
+            'COMMUNICATION_ID': communication.id,
+            'COMMUNICATION_TYPE': communication.type.title(),
+            'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
+        }
+        
+        # Ajouter les infos de l'assignation si disponible
+        if assignment:
+            if assignment.due_date:
+                base_context['REVIEW_DEADLINE'] = assignment.due_date.strftime('%d/%m/%Y')
+            base_context['ASSIGNMENT_ID'] = assignment.id
+        
+        # Utiliser le template review_assigned qui existe dans emails.yml
+        send_any_email_with_themes(
+            template_name='review_assigned',
+            recipient_email=reviewer.email,
+            base_context=base_context,
+            communication=communication,
+            user=reviewer,
+            reviewer=reviewer,
+            color_scheme='blue'
+        )
+        
+        logger.info(f"Email d'assignation envoyé à {reviewer.email} pour communication {communication.id}")
+        
+    except Exception as e:
+        logger.error(f"Erreur envoi email assignation reviewer {reviewer.email}: {e}")
+        raise
+
+    
 def send_admin_alert_email(admin_email, alert_type, alert_message):
     """Envoie une alerte aux administrateurs."""
     try:
@@ -787,32 +824,70 @@ def send_existing_coauthor_notification_email(user, communication):
         logger.error(f"Erreur notification co-auteur existant à {user.email}: {e}")
         raise
 
-def send_reviewer_assignment_email(reviewer, communication, assignment):
-    """Envoie un email de notification d'assignation à un reviewer."""
-    try:
-        # Utiliser le template reviewer_assignment qui existe déjà
-        base_context = {
-            'REVIEWER_NAME': reviewer.full_name or reviewer.email,
-            'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
-            'COMMUNICATION_TITLE': communication.title,
-            'COMMUNICATION_ID': communication.id,
-            'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
-        }
+# def send_reviewer_assignment_email(reviewer, communication, assignment):
+#     """Envoie un email de notification d'assignation à un reviewer."""
+#     try:
+#         # Utiliser le template reviewer_assignment qui existe déjà
+#         base_context = {
+#             'REVIEWER_NAME': reviewer.full_name or reviewer.email,
+#             'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
+#             'COMMUNICATION_TITLE': communication.title,
+#             'COMMUNICATION_ID': communication.id,
+#             'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
+#         }
         
-        # Ne passer que les paramètres acceptés par send_any_email_with_themes
-        send_any_email_with_themes(
-            template_name='reviewer_assignment',
-            recipient_email=reviewer.email,
-            base_context=base_context,
-            communication=communication,
-            user=reviewer,
-            reviewer=reviewer,
-            color_scheme='blue'
-        )
+#         # Ne passer que les paramètres acceptés par send_any_email_with_themes
+#         send_any_email_with_themes(
+#             template_name='reviewer_assignment',
+#             recipient_email=reviewer.email,
+#             base_context=base_context,
+#             communication=communication,
+#             user=reviewer,
+#             reviewer=reviewer,
+#             color_scheme='blue'
+#         )
         
-        logger.info(f"Email d'assignation envoyé à {reviewer.email} pour communication {communication.id}")
+#         logger.info(f"Email d'assignation envoyé à {reviewer.email} pour communication {communication.id}")
         
-    except Exception as e:
-        logger.error(f"Erreur envoi email assignation reviewer {reviewer.email}: {e}")
-        raise
+#     except Exception as e:
+#         logger.error(f"Erreur envoi email assignation reviewer {reviewer.email}: {e}")
+#         raise
 
+# def get_admin_email_templates():
+#     """Retourne les templates d'emails pour l'interface admin depuis emails.yml"""
+#     try:
+#         from flask import current_app
+        
+#         # Utiliser le config_loader existant
+#         config_loader = current_app.config_loader
+        
+#         # Récupérer les templates prédéfinis depuis emails.yml
+#         return config_loader.get_admin_email_templates()
+        
+#     except Exception as e:
+#         current_app.logger.error(f"Erreur récupération templates admin: {e}")
+        
+#         # Fallback en cas d'erreur
+#         return {
+#             'rappel_review': {
+#                 'subject': 'Rappel - Review en attente',
+#                 'content': '''Bonjour [PRENOM] [NOM],
+
+# Vous avez une review en attente.
+
+# Communication : [TITRE_COMMUNICATION] (ID: [ID_COMMUNICATION])
+
+# Cordialement,
+# L'équipe d'organisation'''
+#             }
+#         }V
+
+def get_admin_email_templates():
+    """Retourne les templates d'emails pour l'interface admin depuis emails.yml"""
+    try:
+        from flask import current_app
+        config_loader = current_app.config_loader
+        return config_loader.get_admin_email_templates()
+    except Exception as e:
+        current_app.logger.error(f"Erreur récupération templates admin: {e}")
+        return {}
