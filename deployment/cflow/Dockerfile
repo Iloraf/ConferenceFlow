@@ -29,12 +29,13 @@ ENV PATH="/home/appuser/.local/bin:${PATH}"
 WORKDIR /home/appuser/
 COPY requirements.txt .
 RUN pip install --user -r requirements.txt
+USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-base texlive-latex-recommended texlive-latex-extra \
     texlive-fonts-recommended texlive-fonts-extra lmodern \
     texlive-lang-french latexmk ghostscript \
     && rm -rf /var/lib/apt/lists/*
-    
+USER appuser    
 COPY --chown=appuser:appuser app ./app
 
 COPY --chown=appuser:appuser init_app.py ./init_app.py
