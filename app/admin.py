@@ -69,8 +69,8 @@ def admin_dashboard():
         Communication.doi.isnot(None)
     ).count()
 
-    # Données pour les templates
-    users = User.query.order_by(User.created_at.desc()).limit(10).all()
+    # Données pour les templates - utilisateurs récents (pour affichage)
+    users = User.query.order_by(User.created_at.desc()).all()
     recent_communications = Communication.query.order_by(
         Communication.created_at.desc()
     ).limit(5).all()
@@ -1582,7 +1582,7 @@ def generate_test_data():
         
         # 1 utilisateur avec votre email actif
         real_user = User(
-            email="farges.olivier@toto.com",  # Remplacez par votre vrai email
+            email="farges.olivier@gmail.com",  # Remplacez par votre vrai email
             first_name="Test",
             last_name="Actif",
             idhal="test-actif-123",

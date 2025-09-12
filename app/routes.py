@@ -21,10 +21,13 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
+import csv
 import re
 import uuid
 from .forms import UserSpecialitesForm, CreateAffiliationForm
 from .models import db, Communication, SubmissionFile, User, Affiliation, ThematiqueHelper, CommunicationStatus, ReviewAssignment, Review, ReviewRecommendation, Photo, PhotoCategory, Message, MessageCategory, MessageStatus, MessageReaction
+
+
 
 main = Blueprint("main", __name__)
 
@@ -108,7 +111,58 @@ def save_file(file, file_type, communication_id):
 
 @main.route("/")
 def index():
-    return render_template("index.html")
+
+    def load_csv_data(filename):
+        """Charge les données depuis un fichier CSV."""
+        csv_path = os.path.join(current_app.root_path, 'static', 'content', filename)
+        if not os.path.exists(csv_path):
+            current_app.logger.warning(f"Fichier CSV non trouvé : {csv_path}")
+            return []
+            
+        data = []
+        try:
+            with open(csv_path, 'r', encoding='utf-8') as file:
+                reader = csv.DictReader(file, delimiter=';')
+                for row in reader:
+                    # Nettoie les espaces en début/fin
+                    cleaned_row = {k.strip(): v.strip() for k, v in row.items()}
+                    data.append(cleaned_row)
+        except Exception as e:
+            current_app.logger.error(f"Erreur lors du chargement de {filename}: {e}")
+            return []
+            
+        return data
+    
+    # Chargement des données CSV
+    sponsors_data = load_csv_data('sponsors.csv')
+    
+    # Construction de la structure de données
+    committees = {
+        'sponsors': []
+    }
+    
+    # Traitement des sponsors
+    for sponsor in sponsors_data:
+        sponsor_data = {
+            'name': sponsor.get('nom', ''),
+            'level': sponsor.get('niveau', 'bronze').lower(),
+            'logo': sponsor.get('logo', 'default.png'),
+            'url': sponsor.get('url', ''),  # Site web du sponsor
+            'description': sponsor.get('description', '')
+        }
+        committees['sponsors'].append(sponsor_data)
+    
+    # Tri des sponsors par niveau (or > argent > bronze)
+    level_order = {'or': 1, 'gold': 1, 'argent': 2, 'silver': 2, 'bronze': 3}
+    committees['sponsors'].sort(key=lambda x: level_order.get(x['level'], 4))
+    
+    # Statistiques pour affichage (optionnel)
+    stats = {
+        'sponsors_count': len(committees['sponsors'])
+    }
+
+    return render_template("index.html",
+                           committees=committees)
 
 
 @main.route("/profile", methods=["GET", "POST"])

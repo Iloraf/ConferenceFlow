@@ -797,6 +797,89 @@ class Communication(db.Model):
         self.decision_comments = None
         
         return True
+
+    def debug_suggest_reviewers(self, nb_reviewers=2):
+        """Version debug de suggest_reviewers pour voir où ça bloque."""
+    
+        print(f"\n=== DEBUG SUGGESTION REVIEWERS pour communication {self.id} ===")
+        print(f"Thématiques demandées: {self.thematiques_codes}")
+    
+        if not self.thematiques_codes:
+            print("❌ PROBLÈME: Aucune thématique définie pour cette communication")
+            return {'success': False, 'message': 'Aucune thématique définie'}
+    
+        comm_codes = [code.strip() for code in self.thematiques_codes.split(',') if code.strip()]
+        print(f"Codes thématiques: {comm_codes}")
+    
+        # Récupérer tous les reviewers actifs
+        all_reviewers = User.query.filter_by(
+            is_reviewer=True, 
+            is_active=True,
+            is_activated=True
+        ).all()
+    
+        print(f"Total reviewers actifs: {len(all_reviewers)}")
+    
+        potential_reviewers = []
+    
+        for reviewer in all_reviewers:
+            print(f"\n--- Reviewer: {reviewer.email} ---")
+        
+            # Vérifier les spécialités
+            if not reviewer.specialites_codes:
+                print(f"  ❌ Pas de spécialités définies")
+                continue
+            
+            reviewer_codes = reviewer.specialites_codes.split(',')
+            print(f"  Spécialités: {reviewer_codes}")
+        
+            common_themes = set(comm_codes) & set(reviewer_codes)
+            print(f"  Thématiques communes: {common_themes}")
+        
+            if not common_themes:
+                print(f"  ❌ Aucune thématique commune")
+                continue
+        
+            # Vérifier s'il est déjà assigné
+            already_assigned = ReviewAssignment.query.filter_by(
+                communication_id=self.id,
+                reviewer_id=reviewer.id
+            ).first()
+            
+            if already_assigned:
+                print(f"  ❌ Déjà assigné à cette communication")
+                continue
+            
+            # Vérifier les conflits
+            conflict_detected = False
+            if reviewer in self.authors:
+                conflict_detected = True
+                print(f"  ⚠️ Conflit: est auteur")
+        
+            if self.has_affiliation_conflict_with_reviewer(reviewer):
+                conflict_detected = True
+                print(f"  ⚠️ Conflit: même affiliation")
+        
+                print(f"  ✅ Reviewer valide, conflit: {conflict_detected}")
+                potential_reviewers.append({
+                    'reviewer': reviewer,
+                    'common_themes': list(common_themes),
+                    'conflict_detected': conflict_detected
+                })
+    
+            print(f"\n=== RÉSULTAT ===")
+            print(f"Reviewers potentiels trouvés: {len(potential_reviewers)}")
+    
+            no_conflict = [r for r in potential_reviewers if not r['conflict_detected']]
+            with_conflict = [r for r in potential_reviewers if r['conflict_detected']]
+    
+            print(f"Sans conflit: {len(no_conflict)}")
+            print(f"Avec conflit: {len(with_conflict)}")
+            
+            return potential_reviewers
+
+
+
     
 
 ###################  Review  ####################

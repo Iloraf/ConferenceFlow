@@ -1,3 +1,10 @@
-email;nom;prenom;thematiques;affiliation;
-Farges.olivier@gmail.com;Dupont;Marie;COND;LEMTA;CRAN
-olivier@olivier-farges.xyz;Martin;Jean;SIMUL;PROMES;
+email;nom;prenom;thematiques;affiliation
+farges.olivier@gmail.com;Olivier2;Farges2;COND;LTEN
+user1@faux-email-test.com;Sylvie;Masson;COND;IUSTI
+user2@faux-email-test.com;Grégoire;Delahaye;COND;IUSTI
+user3@faux-email-test.com;Michel;Mary;COND;ITHEMM
+user4@faux-email-test.com;Nathalie;Bazin;COND;LTEN
+user5@faux-email-test.com;Renée;Lombard;COND;LAMIH
+user6@faux-email-test.com;Virginie;Clément;COND;IUSTI
+user7@faux-email-test.com;Christiane;Perrin;COND;IUSTI
+user8@faux-email-test.com;Céline;Benard;COND;ITHEMM

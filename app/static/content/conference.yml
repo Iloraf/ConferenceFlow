@@ -40,7 +40,7 @@ dates:
   # Dates de la conférence
   start: "2026-06-02"
   end: "2026-06-05"
-  dates: "du 2 au 5 juin 2026"
+  dates: "2-5 juin 2026"
 
   # Dates limites de soumission
   deadlines:
@@ -150,7 +150,7 @@ city_info:
       description: "21 hectares de verdure en centre-ville"
       
   services:
-    restaurants: "Nombreux restaurants dans un rayon de 500m"
+    restaurants: "Nombreux bons restaurants dans un rayon de 500m"
     cafes: "Cafés et brasseries sur la Place Stanislas"
     shopping: "Centre commercial Saint-Sébastien"
     medical: "Pharmacies et services médicaux"

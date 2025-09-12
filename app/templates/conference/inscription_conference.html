@@ -121,23 +121,6 @@
             </div>
         </div>
         
-        <!-- Modalités de paiement -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h4 class="mb-0"><i class="fas fa-credit-card me-2"></i>Modalités de paiement</h4>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    {% for method in fees.payment_methods %}
-                    <div class="col-md-{{ 12 // fees.payment_methods|length }} text-center mb-3">
-                        <i class="{{ method.icon }} fa-3x mb-2 {{ method.color }}"></i>
-                        <h5>{{ method.name }}</h5>
-                        <p class="text-muted">{{ method.description }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
         
         <!-- Conditions -->
         <div class="card mb-4">
