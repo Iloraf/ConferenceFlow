@@ -322,16 +322,18 @@ class Communication(db.Model):
     """Modèle pour les communications soumises."""
     
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    #abstract = db.Column(db.Text, nullable=True)
-    keywords = db.Column(db.String(500), nullable=True)
+    title = db.Column(db.String(200, collation='utf8mb4_unicode_ci'), nullable=False)
+    keywords = db.Column(db.String(500, collation='utf8mb4_unicode_ci'), nullable=True)
     
     # Statut du workflow
     status = db.Column(db.Enum(CommunicationStatus), nullable=False)   
     type = db.Column(db.String(50), nullable=False)
 
-    abstract = db.Column(db.Text, nullable=True)
+    #abstract = db.Column(db.Text, nullable=True)
+    abstract_fr = db.Column(db.Text(collation='utf8mb4_unicode_ci'), nullable=True) 
+    abstract_en = db.Column(db.Text(collation='utf8mb4_unicode_ci'), nullable=True)
 
+    
     # Champs DOI
     doi = db.Column(db.String(100), nullable=True)  # Format: 10.25855/SFT2026-XXX
     doi_generated_at = db.Column(db.DateTime, nullable=True)
@@ -361,6 +363,8 @@ class Communication(db.Model):
     decision_notification_sent_at = db.Column(db.DateTime, nullable=True)
     decision_notification_error = db.Column(db.Text, nullable=True)
     decision_by = db.relationship('User', foreign_keys=[decision_by_id])
+
+    prix = db.Column(db.Boolean, default=False, nullable=False)
     
     hal_authorization = db.Column(db.Boolean, default=True, nullable=False)
     hal_deposited_at = db.Column(db.DateTime, nullable=True)
@@ -397,6 +401,21 @@ class Communication(db.Model):
             file_type=file_type
         ).order_by(SubmissionFile.version.desc()).first()
 
+    def get_safe_abstract_fr(self):
+        """Retourne le résumé français nettoyé pour export."""
+        if not self.abstract_fr:
+            return ""
+        from .utils.text_cleaner import clean_text
+        cleaned, _ = clean_text(self.abstract_fr, mode='strict')
+        return cleaned
+
+    def get_safe_abstract_en(self):
+        """Retourne le résumé anglais nettoyé pour export."""
+        if not self.abstract_en:
+            return ""
+        from .utils.text_cleaner import clean_text
+        cleaned, _ = clean_text(self.abstract_en, mode='strict')
+        return cleaned
     
     def advance_to_next_status(self):
         """Fait avancer la communication vers le statut suivant."""
@@ -424,21 +443,21 @@ class Communication(db.Model):
         
         return self.status  # Pas de changement
 
+
     def can_upload_file_type(self, file_type):
-        """Vérifie si on peut uploader un type de fichier selon l'état actuel."""
+        """Détermine si on peut uploader un type de fichier donné selon l'état."""
         if self.type == 'article':
-            if file_type == 'résumé':
-                return True  # Toujours possible de remplacer le résumé
-            elif file_type == 'article':
+            if file_type == 'article':
+                # Article PDF uploadable après soumission du résumé textuel
                 return self.status in [CommunicationStatus.RESUME_SOUMIS, CommunicationStatus.ARTICLE_SOUMIS]
             elif file_type == 'poster':
+                # Poster uploadable après acceptation
                 return self.status == CommunicationStatus.ACCEPTE
         elif self.type == 'wip':
-            if file_type == 'wip':
-                return True  # Toujours possible de remplacer le WIP
-            elif file_type == 'poster':
+            if file_type == 'poster':
+                # Poster uploadable après soumission du WIP textuel
                 return self.status == CommunicationStatus.WIP_SOUMIS
-        
+    
         return False
     
     

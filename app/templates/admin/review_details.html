@@ -79,6 +79,207 @@
             </div>
         </div>
 
+<!-- AJOUTER cette section après les actions de décision existantes dans admin/review_details.html -->
+
+<!-- Actions spéciales administratives -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-info">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-tools"></i> Actions spéciales</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    
+                    <!-- Conversion Article → WIP -->
+                    {% if communication.type == 'article' and communication.status != 'accepté' %}
+                    <div class="col-md-6">
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0"><i class="fas fa-exchange-alt"></i> Convertir en WIP</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="small text-muted mb-3">
+                                    Convertit cet article en Work in Progress. Cette action :
+                                    <br>• Change le type de la communication
+                                    <br>• Supprime le résumé anglais
+                                    <br>• Peut conserver ou supprimer les reviews
+                                    <br>• Notifie les auteurs
+                                </p>
+                                
+                                <button type="button" class="btn btn-warning btn-sm w-100" 
+                                        data-bs-toggle="modal" data-bs-target="#convertToWipModal">
+                                    <i class="fas fa-exchange-alt"></i> Convertir en WIP
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Marquage pour le prix -->
+                    {% if communication.status.value == 'accepté' %}
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="fas fa-award"></i> Prix de la conférence</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="small text-muted mb-3">
+                                    {% if communication.prix %}
+                                        <span class="badge bg-success">✓ Marquée pour le prix</span>
+                                        <br>Cette communication est marquée comme candidate au prix de la conférence.
+                                    {% else %}
+                                        Marquer cette communication comme candidate au prix de la conférence.
+                                    {% endif %}
+                                </p>
+                                
+                                <form method="POST" action="{{ url_for('admin.toggle_communication_prix', comm_id=communication.id) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm w-100 
+                                        {{ 'btn-outline-success' if communication.prix else 'btn-success' }}"
+                                        onclick="return confirm('{{ 'Retirer cette communication du concours pour le prix ?' if communication.prix else 'Marquer cette communication pour le prix de la conférence ?' }}')">
+                                        <i class="fas fa-{{ 'minus' if communication.prix else 'award' }}"></i>
+                                        {{ 'Retirer du prix' if communication.prix else 'Marquer pour le prix' }}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                </div>
+                
+                <!-- Actions générales -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ url_for('admin.communication_details', comm_id=communication.id) }}" 
+                               class="btn btn-outline-primary">
+                                <i class="fas fa-eye"></i> Voir détails complets
+                            </a>
+                            
+                            <a href="{{ url_for('admin.communications_list') }}" 
+                               class="btn btn-outline-secondary">
+                                <i class="fas fa-list"></i> Retour à la liste
+                            </a>
+                            
+                            {% if communication.abstract_fr or communication.abstract_en %}
+                            <button type="button" class="btn btn-outline-info" 
+                                    data-bs-toggle="modal" data-bs-target="#viewAbstractModal">
+                                <i class="fas fa-file-text"></i> Voir résumés
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour la conversion Article → WIP -->
+{% if communication.type == 'article' and communication.status != 'accepté' %}
+<div class="modal fade" id="convertToWipModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">
+                    <i class="fas fa-exchange-alt"></i> Convertir l'article en Work in Progress
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.convert_article_to_wip', comm_id=communication.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <strong>Attention :</strong> Cette action est irréversible et va :
+                        <ul class="mb-0 mt-2">
+                            <li>Changer le type de "Article" vers "Work in Progress"</li>
+                            <li>Supprimer le résumé anglais (les WIP n'en ont pas)</li>
+                            <li>Remettre le statut à "WIP soumis"</li>
+                            <li>Annuler toute décision prise</li>
+                            <li>Notifier les auteurs du changement</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Raison de la conversion <span class="text-muted">(optionnel)</span></label>
+                        <textarea class="form-control" id="reason" name="reason" rows="3" 
+                                  placeholder="Ex: Travaux encore préliminaires, pas assez de résultats pour un article complet..."></textarea>
+                        <div class="form-text">Cette raison sera communiquée aux auteurs dans l'email de notification.</div>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="keep_reviews" name="keep_reviews" value="1">
+                        <label class="form-check-label" for="keep_reviews">
+                            Conserver les reviews existantes
+                        </label>
+                        <div class="form-text">
+                            Si décoché, toutes les reviews et assignations seront supprimées.
+                            Si coché, les reviews resteront visibles dans l'historique.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-exchange-alt"></i> Confirmer la conversion
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal pour voir les résumés -->
+{% if communication.abstract_fr or communication.abstract_en %}
+<div class="modal fade" id="viewAbstractModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-text"></i> Résumés - {{ communication.title }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if communication.abstract_fr %}
+                <div class="mb-4">
+                    <h6><i class="fas fa-flag"></i> Résumé en français</h6>
+                    <div class="border rounded p-3 bg-light">
+                        {{ communication.abstract_fr|nl2br }}
+                    </div>
+                    <small class="text-muted">{{ communication.abstract_fr|length }} caractères</small>
+                </div>
+                {% endif %}
+                
+                {% if communication.abstract_en %}
+                <div class="mb-4">
+                    <h6><i class="fas fa-flag"></i> Résumé en anglais</h6>
+                    <div class="border rounded p-3 bg-light">
+                        {{ communication.abstract_en|nl2br }}
+                    </div>
+                    <small class="text-muted">{{ communication.abstract_en|length }} caractères</small>
+                </div>
+                {% endif %}
+                
+                {% if communication.keywords %}
+                <div class="mb-3">
+                    <h6><i class="fas fa-tags"></i> Mots-clés</h6>
+                    <div class="border rounded p-2 bg-light">
+                        {{ communication.keywords }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+	
         <!-- Reviews détaillées -->
         <div class="col-md-8">
             <div class="card">

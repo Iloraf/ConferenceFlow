@@ -135,7 +135,94 @@
 </div>
 
 
+<!-- Section Résumés -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h6 class="mb-0"><i class="fas fa-file-text"></i> Résumés</h6>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('main.update_abstracts', comm_id=comm.id) }}">
+            
+            <!-- Résumé français -->
+            <div class="mb-3">
+                <label for="abstract_fr" class="form-label fw-bold">
+                    {{ 'Résumé en français' if comm.type == 'article' else 'Work in Progress - Résumé' }} *
+                </label>
+                <textarea class="form-control" id="abstract_fr" name="abstract_fr" rows="6" 
+                          maxlength="{{ 3000 if comm.type == 'article' else 2000 }}" required>{{ comm.abstract_fr or '' }}</textarea>
+                <div class="form-text">
+                    Maximum {{ 3000 if comm.type == 'article' else 2000 }} caractères.
+                    <span id="count-fr" class="float-end text-muted">{{ (comm.abstract_fr|length) if comm.abstract_fr else 0 }}/{{ 3000 if comm.type == 'article' else 2000 }}</span>
+                </div>
+            </div>
+            
+            {% if comm.type == 'article' %}
+            <!-- Résumé anglais pour les articles -->
+            <div class="mb-3">
+                <label for="abstract_en" class="form-label fw-bold">
+                    Résumé en anglais <span class="text-muted">(optionnel)</span>
+                </label>
+                <textarea class="form-control" id="abstract_en" name="abstract_en" rows="6" 
+                          maxlength="3000">{{ comm.abstract_en or '' }}</textarea>
+                <div class="form-text">
+                    Optionnel. Maximum 3000 caractères.
+                    <span id="count-en" class="float-end text-muted">{{ (comm.abstract_en|length) if comm.abstract_en else 0 }}/3000</span>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Mots-clés -->
+            <div class="mb-3">
+                <label for="keywords" class="form-label fw-bold">Mots-clés</label>
+                <input type="text" class="form-control" id="keywords" name="keywords" 
+                       value="{{ comm.keywords or '' }}" maxlength="500">
+                <div class="form-text">
+                    Séparez par des virgules. Maximum 500 caractères.
+                    <span id="count-keywords" class="float-end text-muted">{{ (comm.keywords|length) if comm.keywords else 0 }}/500</span>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Sauvegarder les résumés
+            </button>
+        </form>
+    </div>
+</div>
 
+<script>
+// Compteurs de caractères
+document.addEventListener('DOMContentLoaded', function() {
+    const abstractFr = document.getElementById('abstract_fr');
+    const countFr = document.getElementById('count-fr');
+    const maxFr = {{ 3000 if comm.type == 'article' else 2000 }};
+    
+    abstractFr.addEventListener('input', function() {
+        const count = this.value.length;
+        countFr.textContent = count + '/' + maxFr;
+        countFr.className = count > maxFr ? 'float-end text-danger' : 'float-end text-muted';
+    });
+    
+    {% if comm.type == 'article' %}
+    const abstractEn = document.getElementById('abstract_en');
+    const countEn = document.getElementById('count-en');
+    
+    abstractEn.addEventListener('input', function() {
+        const count = this.value.length;
+        countEn.textContent = count + '/3000';
+        countEn.className = count > 3000 ? 'float-end text-danger' : 'float-end text-muted';
+    });
+    {% endif %}
+    
+    const keywords = document.getElementById('keywords');
+    const countKeywords = document.getElementById('count-keywords');
+    
+    keywords.addEventListener('input', function() {
+        const count = this.value.length;
+        countKeywords.textContent = count + '/500';
+        countKeywords.className = count > 500 ? 'float-end text-danger' : 'float-end text-muted';
+    });
+});
+</script>
 
 		
                 <!-- Upload nouveau fichier -->
@@ -152,9 +239,6 @@
                                         <option value="">Choisir...</option>
                                         
                                         {% if comm.type == 'article' %}
-                                            <option value="résumé" {% if not allowed_uploads.get('résumé') %}disabled{% endif %}>
-                                                Résumé {% if not allowed_uploads.get('résumé') %}(non autorisé){% endif %}
-                                            </option>
                                             <option value="article" {% if not allowed_uploads.get('article') %}disabled{% endif %}>
                                                 Article complet {% if not allowed_uploads.get('article') %}(non autorisé){% endif %}
                                             </option>
@@ -162,9 +246,6 @@
                                                 Poster {% if not allowed_uploads.get('poster') %}(non autorisé){% endif %}
                                             </option>
                                         {% elif comm.type == 'wip' %}
-                                            <option value="wip" {% if not allowed_uploads.get('wip') %}disabled{% endif %}>
-                                                Work in Progress {% if not allowed_uploads.get('wip') %}(non autorisé){% endif %}
-                                            </option>
                                             <option value="poster" {% if not allowed_uploads.get('poster') %}disabled{% endif %}>
                                                 Poster {% if not allowed_uploads.get('poster') %}(non autorisé){% endif %}
                                             </option>

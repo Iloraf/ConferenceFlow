@@ -82,15 +82,25 @@ class CreateAffiliationForm(FlaskForm):
         if existing:
             raise ValidationError('Ce sigle existe déjà.')
 
-
-
-
-
-
 class SubmitResumeForm(FlaskForm):
     """Formulaire pour soumettre un résumé."""
     title = StringField('Titre', validators=[DataRequired(), Length(max=200)])
-    abstract = TextAreaField('Résumé', validators=[DataRequired()])
+    
+    # NOUVEAUX CHAMPS - Résumés textuels
+    abstract_fr = TextAreaField(
+        'Résumé en français', 
+        validators=[DataRequired(message="Le résumé en français est obligatoire")],
+        description="Saisissez votre résumé en français (maximum 3000 caractères)",
+        render_kw={"rows": 8, "maxlength": 3000, "placeholder": "Objectifs, méthodes, résultats principaux..."}
+    )
+    
+    abstract_en = TextAreaField(
+        'Résumé en anglais', 
+        validators=[Optional(), Length(max=3000)],
+        description="Saisissez votre résumé en anglais (optionnel, maximum 3000 caractères)",
+        render_kw={"rows": 8, "maxlength": 3000, "placeholder": "Objectives, methods, main results..."}
+    )
+    
     keywords = StringField('Mots-clés', validators=[Optional(), Length(max=500)])
     
     def __init__(self, *args, **kwargs):
@@ -107,15 +117,40 @@ class SubmitResumeForm(FlaskForm):
         coerce=str
     )
     
-    resume_file = FileField(
-        'Fichier résumé (PDF)',
-        validators=[
-            FileRequired(),
-            FileAllowed(['pdf'], 'Seuls les fichiers PDF sont autorisés')
-        ]
+    submit = SubmitField('Soumettre le résumé')
+
+
+class SubmitWipForm(FlaskForm):
+    """Formulaire pour soumettre un Work in Progress."""
+    title = StringField('Titre', validators=[DataRequired(), Length(max=200)])
+    
+    # Pour les WIP : résumé français uniquement
+    abstract_fr = TextAreaField(
+        'Résumé du Work in Progress', 
+        validators=[DataRequired(message="Le résumé en français est obligatoire")],
+        description="Décrivez votre travail en cours (maximum 2000 caractères)",
+        render_kw={"rows": 6, "maxlength": 2000, "placeholder": "Contexte, objectifs, premiers résultats ou hypothèses..."}
     )
     
-    submit = SubmitField('Soumettre le résumé')
+    keywords = StringField('Mots-clés', validators=[Optional(), Length(max=500)])
+    
+    def __init__(self, *args, **kwargs):
+        super(SubmitWipForm, self).__init__(*args, **kwargs)
+        # Choix dynamiques pour les thématiques
+        self.thematiques.choices = [
+            (them['code'], f"{them['code']} - {them['nom']}") 
+            for them in ThematiqueHelper.get_all()
+        ]
+    
+    thematiques = MultiCheckboxField(
+        'Thématiques',
+        validators=[DataRequired(message="Sélectionnez au moins une thématique")],
+        coerce=str
+    )
+    
+    submit = SubmitField('Soumettre le Work in Progress')
+
+    
 
 class SubmitArticleForm(FlaskForm):
     """Formulaire pour soumettre un article."""

@@ -2252,60 +2252,104 @@ def generate_tome2():
         except:
             pass
 
-
 @books.route('/resumes-wip.pdf')
 @login_required
 def generate_resumes_wip():
-    """Génère le livre des résumés et WIP par agrégation PDF avec filigrane."""
+    """Génère le livre des résumés et WIP à partir des champs abstract_fr/abstract_en avec LuaLaTeX."""
     if not current_user.is_admin:
         abort(403)
-    
-    if not PDF_TOOLS_AVAILABLE:
-        return "PyPDF2 et reportlab requis pour l'agrégation PDF", 500
     
     try:
         communications = get_communications_by_type_and_status()
         
-        # Combiner résumés et WIP
-        all_communications = communications['resumes'] + communications['wips']
-        all_by_theme = group_communications_by_thematique(all_communications)
+        # Récupérer les communications avec résumés
+        all_communications = []
         
-        # Générer l'index des auteurs
-        authors_index = generate_author_index(all_communications, {})
+        # Articles avec résumé (abstract_fr non vide)
+        for comm in communications.get('resumes', []):
+            if comm.abstract_fr and comm.abstract_fr.strip():
+                all_communications.append(comm)
         
-        # Générer le PDF complet (avec filigrane WIP automatique)
-        pdf_content = generate_complete_book_pdf(
-            "Résumés et Work in Progress",
-            all_by_theme,
-            authors_index,
-            'resume'  # Ce type déclenchera le filigrane pour les WIP
-        )
+        # WIP avec résumé
+        for comm in communications.get('wips', []):
+            if comm.abstract_fr and comm.abstract_fr.strip():
+                all_communications.append(comm)
         
-        # Créer la réponse
+        if not all_communications:
+            flash("Aucune communication avec résumé trouvée.", "warning")
+            return redirect(url_for('admin.admin_dashboard'))
+        
+        # Grouper par thématique
+        communications_by_theme = group_communications_by_thematique(all_communications)
+        
+        # Utiliser le système LaTeX existant
+        pdf_path = compile_latex_book("Résumés et Work in Progress", communications_by_theme, 'resumes-wip')
+        
+        # Nom du fichier
         config = get_conference_config()
         filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_Resumes_WorkInProgress.pdf"
         
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-            tmp_file.write(pdf_content)
-            tmp_file_path = tmp_file.name
-        
-        return send_file(
-            tmp_file_path,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='application/pdf'
-        )
+        return send_file(pdf_path, as_attachment=True, download_name=filename, mimetype='application/pdf')
         
     except Exception as e:
-        current_app.logger.error(f"Erreur génération Résumés/WIP: {e}")
-        return f"Erreur lors de la génération du PDF: {str(e)}", 500
+        current_app.logger.error(f"Erreur génération résumés/WIP: {e}")
+        flash(f"Erreur lors de la génération: {str(e)}", "danger")
+        return redirect(url_for('admin.admin_dashboard'))
+
+        
+# @books.route('/resumes-wip.pdf')
+# @login_required
+# def generate_resumes_wip():
+#     """Génère le livre des résumés et WIP par agrégation PDF avec filigrane."""
+#     if not current_user.is_admin:
+#         abort(403)
     
-    finally:
-        try:
-            if 'tmp_file_path' in locals():
-                os.unlink(tmp_file_path)
-        except:
-            pass
+#     if not PDF_TOOLS_AVAILABLE:
+#         return "PyPDF2 et reportlab requis pour l'agrégation PDF", 500
+    
+#     try:
+#         communications = get_communications_by_type_and_status()
+        
+#         # Combiner résumés et WIP
+#         all_communications = communications['resumes'] + communications['wips']
+#         all_by_theme = group_communications_by_thematique(all_communications)
+        
+#         # Générer l'index des auteurs
+#         authors_index = generate_author_index(all_communications, {})
+        
+#         # Générer le PDF complet (avec filigrane WIP automatique)
+#         pdf_content = generate_complete_book_pdf(
+#             "Résumés et Work in Progress",
+#             all_by_theme,
+#             authors_index,
+#             'resume'  # Ce type déclenchera le filigrane pour les WIP
+#         )
+        
+#         # Créer la réponse
+#         config = get_conference_config()
+#         filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_Resumes_WorkInProgress.pdf"
+        
+#         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+#             tmp_file.write(pdf_content)
+#             tmp_file_path = tmp_file.name
+        
+#         return send_file(
+#             tmp_file_path,
+#             as_attachment=True,
+#             download_name=filename,
+#             mimetype='application/pdf'
+#         )
+        
+#     except Exception as e:
+#         current_app.logger.error(f"Erreur génération Résumés/WIP: {e}")
+#         return f"Erreur lors de la génération du PDF: {str(e)}", 500
+    
+#     finally:
+#         try:
+#             if 'tmp_file_path' in locals():
+#                 os.unlink(tmp_file_path)
+#         except:
+#             pass
 
 
 @books.route('/preview/<book_type>')
@@ -2946,57 +2990,272 @@ def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
 #                 # Créer un placeholder
 #                 create_placeholder_tex(comm, temp_dir)
 
-def generate_communication_tex(comm, temp_dir):
-    """Génère un fichier .tex minimal pour une communication."""
-    current_app.logger.info(f"Génération fichier .tex pour communication {comm.id}")
+# def generate_communication_tex(communication, temp_dir):
+#     """Génère un fichier LaTeX pour une communication à partir de ses champs textuels."""
+#     from .utils.text_cleaner import clean_text
     
-    # Échapper le titre pour les références techniques
-    escaped_title = escape_latex(comm.title)
-    index_entries = []
+#     # Nettoyage des textes pour LaTeX
+#     title = escape_latex(communication.title or "Titre non spécifié")
+#     abstract_fr_clean, _ = clean_text(communication.abstract_fr or "", mode='strict')
+#     abstract_fr_latex = escape_latex(abstract_fr_clean)
     
-    # Générer les entrées d'index pour les auteurs
-    for author in comm.authors:
+#     # Génération du contenu LaTeX basique
+#     latex_content = f"""% Communication {communication.id} - {communication.title}
+# \\newpage
+
+# {'\\SetBgContents{Work In Progress}\\BgThispage' if communication.type == 'wip' else ''}
+
+# \\phantomsection\\addtocounter{{section}}{{1}}
+# \\subsection*{{{title}}}
+# \\label{{comm_{communication.id}}}
+
+# % TODO: Ajouter auteurs et affiliations ici
+
+# \\textbf{{Résumé :}}\\\\[2mm]
+# {{\\normalsize
+# {abstract_fr_latex}
+# }}\\\\[4mm]
+
+# """
+    
+#     # Écrire le fichier
+#     comm_filename = f"comm_{communication.id}.tex"
+#     with open(os.path.join(temp_dir, comm_filename), 'w', encoding='utf-8') as f:
+#         f.write(latex_content)
+    
+#     return comm_filename
+
+# def escape_latex(text):
+#     """Échappe les caractères spéciaux LaTeX."""
+#     if not text:
+#         return ""
+    
+#     latex_chars = {
+#         '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#',
+#         '_': '\\_', '{': '\\{', '}': '\\}',
+#     }
+    
+#     for char, replacement in latex_chars.items():
+#         text = text.replace(char, replacement)
+    
+#     return text
+
+
+# def generate_communication_tex(comm, temp_dir):
+#     """Génère un fichier .tex minimal pour une communication."""
+#     current_app.logger.info(f"Génération fichier .tex pour communication {comm.id}")
+    
+#     # Échapper le titre pour les références techniques
+#     escaped_title = escape_latex(comm.title)
+#     index_entries = []
+    
+#     # Générer les entrées d'index pour les auteurs
+#     for author in comm.authors:
+#         first_name = author.first_name or ""
+#         last_name = author.last_name or ""
+        
+#         if first_name or last_name:
+#             # Créer l'entrée d'index : \index{nomprenom@Prenom, Nom}
+#             clean_last = last_name.replace(' ', '').replace('-', '')
+#             clean_first = first_name.replace(' ', '').replace('-', '')
+#             index_key = f"{clean_last}{clean_first}"
+#             index_display = f"{first_name}, {last_name}" if last_name else first_name
+            
+#             index_entries.append(f"\\index{{{index_key}@{escape_latex(index_display)}}}")
+    
+#     # Contenu technique uniquement (pas d'affichage visuel)
+#     tex_content = f"""
+# % Communication {comm.id} - Références techniques uniquement
+# % Index des auteurs
+# """
+    
+#     # Ajouter toutes les entrées d'index
+#     for entry in index_entries:
+#         tex_content += f"{entry}\n"
+    
+#     # Références pour la table des matières et les liens croisés
+#     tex_content += f"""
+# % Références pour TOC et liens croisés (pas d'affichage visuel)
+# \\phantomsection\\addtocounter{{section}}{{1}}
+# \\addcontentsline{{toc}}{{section}}{{{escaped_title}}}
+# \\label{{ref:{comm.id}}}
+
+# % Le titre et les auteurs sont déjà dans le PDF intégré
+
+# """
+    
+#     tex_filename = f"comm_{comm.id}.tex"
+#     tex_path = os.path.join(temp_dir, tex_filename)
+    
+#     with open(tex_path, 'w', encoding='utf-8') as f:
+#         f.write(tex_content)
+    
+#     current_app.logger.info(f"✅ Fichier {tex_filename} créé avec {len(index_entries)} entrées d'index (mode technique)")
+
+
+def generate_communication_tex(communication, temp_dir):
+    """Génère un fichier LaTeX pour une communication à partir de ses champs textuels.
+    Reproduit exactement le template de make_recueils.py"""
+    from .utils.text_cleaner import clean_text
+    
+    # Nettoyage des textes pour LaTeX
+    title = communication.title or "Titre non spécifié"
+    abstract_fr_clean, _ = clean_text(communication.abstract_fr or "", mode='strict')
+    keywords = communication.keywords or ""
+    
+    # Échapper pour LaTeX
+    title_latex = escape_latex(title)
+    abstract_latex = escape_latex(abstract_fr_clean)
+    keywords_latex = escape_latex(keywords)
+    
+    # Générer les auteurs et affiliations selon le template existant
+    authors_data = []
+    affiliations_list = []
+    
+    for author in communication.authors:
         first_name = author.first_name or ""
         last_name = author.last_name or ""
+        email = author.email or ""
         
-        if first_name or last_name:
-            # Créer l'entrée d'index : \index{nomprenom@Prenom, Nom}
-            clean_last = last_name.replace(' ', '').replace('-', '')
-            clean_first = first_name.replace(' ', '').replace('-', '')
-            index_key = f"{clean_last}{clean_first}"
-            index_display = f"{first_name}, {last_name}" if last_name else first_name
-            
-            index_entries.append(f"\\index{{{index_key}@{escape_latex(index_display)}}}")
+        # Collecter les affiliations
+        author_affiliations = []
+        for affiliation in author.affiliations:
+            # Utiliser le champ citation s'il existe, sinon nom_complet
+            aff_text = affiliation.citation or affiliation.nom_complet or affiliation.sigle
+            if aff_text not in affiliations_list:
+                affiliations_list.append(aff_text)
+            author_affiliations.append(affiliations_list.index(aff_text) + 1)
+        
+        authors_data.append({
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email,
+            'affiliations': author_affiliations,
+            'is_contact': len(authors_data) == 0  # Premier auteur = contact par défaut
+        })
     
-    # Contenu technique uniquement (pas d'affichage visuel)
-    tex_content = f"""
-% Communication {comm.id} - Références techniques uniquement
-% Index des auteurs
+    # Construire la chaîne des auteurs selon le template
+    ch_authors = ''
+    contact_email = ''
+    
+    for author in authors_data:
+        name = author['first_name']
+        surname = author['last_name']
+        
+        if author['is_contact']:
+            mark = ',\\star'
+            contact_email = author['email']
+        else:
+            mark = ''
+        
+        # Affiliations de l'auteur
+        if author['affiliations']:
+            aff_nums = ','.join(map(str, author['affiliations']))
+            ch_authors += f"{surname} {name}$^{{{aff_nums}{mark}}}$, "
+        else:
+            ch_authors += f"{surname} {name}{mark}, "
+    
+    ch_authors = ch_authors[:-2]  # Supprimer la dernière virgule
+    ch_authors += "\\\\[2mm]\n"
+    
+    # Contenu LaTeX reproduisant exactement le template
+    latex_content = f"""% Communication {communication.id} - {title}
+% Générée automatiquement depuis les champs textuels
+
+\\newpage
+
 """
     
-    # Ajouter toutes les entrées d'index
-    for entry in index_entries:
-        tex_content += f"{entry}\n"
+    # Filigrane WIP si nécessaire
+    if communication.type == 'wip':
+        latex_content += """\\backgroundsetup{contents={Work In Progress},scale=7}
+\\BgThispage
+
+"""
     
-    # Références pour la table des matières et les liens croisés
-    tex_content += f"""
-% Références pour TOC et liens croisés (pas d'affichage visuel)
+    latex_content += f"""%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Communication {communication.id}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Indexations
+"""
+    
+    # Indexations des auteurs (exactement comme le template)
+    for author in authors_data:
+        name = author['first_name']
+        surname = author['last_name']
+        if name and surname:
+            name_clean = clean_string(name)
+            surname_clean = clean_string(surname)
+            latex_content += f"\\index{{{name_clean + surname_clean}@{name}, {surname}}}\n"
+    
+    latex_content += f"""
+% Titre
+\\begin{{flushleft}}
 \\phantomsection\\addtocounter{{section}}{{1}}
-\\addcontentsline{{toc}}{{section}}{{{escaped_title}}}
-\\label{{ref:{comm.id}}}
+\\addcontentsline{{toc}}{{section}}{{{title_latex}}}
+{{\\Large \\textbf{{{title_latex}}}}}\\label{{ref:{communication.id}}}
+\\end{{flushleft}}
 
-% Le titre et les auteurs sont déjà dans le PDF intégré
+% Auteurs
+{ch_authors}"""
+    
+    # Email de contact
+    if contact_email:
+        latex_content += f"$^{{\\star}}$ \\Letter : \\url{{{contact_email}}}\\\\[2mm]\n"
+    
+    # Affiliations
+    for i, aff in enumerate(affiliations_list, start=1):
+        aff_latex = escape_latex(aff)
+        latex_content += f"{{\\footnotesize $^{{{i}}}$ {aff_latex}}}\\\\\n"
+    
+    latex_content += f"""[4mm]
+
+% Mots clés
+\\noindent \\textbf{{Mots clés : }} {keywords_latex}\\\\[4mm]
+
+% Résumé
+\\noindent \\textbf{{Résumé : }} 
+
+{{\\normalsize
+{abstract_latex}"""
+    
+    # Footer avec DOI ou WIP
+    if communication.type == 'wip':
+        latex_content += "\n\n \\vfill Work In Progress\n"
+    else:
+        if hasattr(communication, 'doi') and communication.doi:
+            latex_content += f"\n\n \\vfill doi : \\url{{https://doi.org/{communication.doi}}}\n"
+    
+    latex_content += """
+}
 
 """
     
-    tex_filename = f"comm_{comm.id}.tex"
-    tex_path = os.path.join(temp_dir, tex_filename)
+    # Écrire le fichier
+    comm_filename = f"comm_{communication.id}.tex"
+    comm_filepath = os.path.join(temp_dir, comm_filename)
     
-    with open(tex_path, 'w', encoding='utf-8') as f:
-        f.write(tex_content)
+    with open(comm_filepath, 'w', encoding='utf-8') as f:
+        f.write(latex_content)
     
-    current_app.logger.info(f"✅ Fichier {tex_filename} créé avec {len(index_entries)} entrées d'index (mode technique)")
+    return comm_filename
 
+
+def clean_string(text):
+    """Nettoie une chaîne pour les index LaTeX (reproduction exacte de make_recueils.py)."""
+    if not text:
+        return ""
+    
+    # Supprimer les accents et caractères spéciaux
+    import unicodedata
+    normalized = unicodedata.normalize('NFD', text)
+    ascii_text = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
+    
+    # Supprimer les espaces et caractères non alphanumériques
+    clean_text = ''.join(c for c in ascii_text if c.isalnum())
+    
+    return clean_text
 
 def create_placeholder_tex(comm, temp_dir):
     """Crée un fichier .tex placeholder pour une communication sans PDF."""

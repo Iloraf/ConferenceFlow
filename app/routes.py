@@ -24,9 +24,9 @@ import os
 import csv
 import re
 import uuid
-from .forms import UserSpecialitesForm, CreateAffiliationForm
+from .forms import UserSpecialitesForm, CreateAffiliationForm, SubmitResumeForm, SubmitWipForm
 from .models import db, Communication, SubmissionFile, User, Affiliation, ThematiqueHelper, CommunicationStatus, ReviewAssignment, Review, ReviewRecommendation, Photo, PhotoCategory, Message, MessageCategory, MessageStatus, MessageReaction
-
+from .utils.text_cleaner import clean_text, validate_for_hal, suggest_latex_equivalent
 
 
 main = Blueprint("main", __name__)
@@ -320,8 +320,42 @@ def start_submission(type):
         title = request.form.get("title", "").strip()
         thematiques = request.form.getlist("thematique")
         coauthors = request.form.getlist("coauthors")
-        file = request.files.get("file")
+        keywords = request.form.get("keywords", "").strip()
         hal_authorization = bool(request.form.get("hal_authorization"))
+
+        # NOUVEAUX CHAMPS - Résumés textuels
+        abstract_fr_raw = request.form.get("abstract_fr", "").strip()
+        abstract_en_raw = request.form.get("abstract_en", "").strip() if type == 'article' else None
+
+        # Nettoyage et validation des résumés
+        from .utils.text_cleaner import clean_text, validate_for_hal, suggest_latex_equivalent
+        
+        abstract_fr, warnings_fr = clean_text(abstract_fr_raw, mode='soft')
+        abstract_en, warnings_en = clean_text(abstract_en_raw, mode='soft') if abstract_en_raw else (None, [])
+
+        # Afficher les avertissements de nettoyage
+        all_warnings = warnings_fr + (warnings_en or [])
+        if all_warnings:
+            for warning in all_warnings[:3]:  # Limiter à 3 avertissements
+                flash(f"⚠️ {warning}", "info")
+
+        # Validation pour HAL si autorisé
+        if hal_authorization:
+            hal_valid_fr, hal_errors_fr = validate_for_hal(abstract_fr)
+            hal_valid_en, hal_errors_en = validate_for_hal(abstract_en) if abstract_en else (True, [])
+            
+            if not hal_valid_fr or not hal_valid_en:
+                all_errors = hal_errors_fr + hal_errors_en
+                for error in all_errors:
+                    flash(f"❌ HAL: {error}", "warning")
+                flash("Le dépôt HAL pourrait échouer avec ces caractères. Modifiez le texte ou décochez HAL.", "warning")
+
+        # Suggestions LaTeX
+        latex_suggestions_fr = suggest_latex_equivalent(abstract_fr)
+        latex_suggestions_en = suggest_latex_equivalent(abstract_en) if abstract_en else ""
+        if latex_suggestions_fr or latex_suggestions_en:
+            suggestions = latex_suggestions_fr + (" | " + latex_suggestions_en if latex_suggestions_en else "")
+            flash(f"💡 Conseil: {suggestions}", "info")
 
         # Validations
         if not title:
@@ -332,10 +366,20 @@ def start_submission(type):
             flash("Sélectionnez une thématique.", "danger")
             return redirect(url_for("main.start_submission", type=type))
         
-        # Vérification du fichier obligatoire
-        if not file or not file.filename:
-            file_type_name = 'résumé' if type == 'article' else 'work in progress'
-            flash(f"Le fichier {file_type_name} est obligatoire.", "danger")
+        # Validation résumé français obligatoire
+        if not abstract_fr:
+            resume_type = "résumé" if type == 'article' else "Work in Progress"
+            flash(f"Le {resume_type} en français est obligatoire.", "danger")
+            return redirect(url_for("main.start_submission", type=type))
+        
+        # Validation longueur résumés
+        max_length_fr = 3000 if type == 'article' else 2000
+        if len(abstract_fr) > max_length_fr:
+            flash(f"Résumé français trop long ({len(abstract_fr)} caractères, maximum {max_length_fr}).", "danger")
+            return redirect(url_for("main.start_submission", type=type))
+        
+        if abstract_en and len(abstract_en) > 3000:
+            flash(f"Résumé anglais trop long ({len(abstract_en)} caractères, maximum 3000).", "danger")
             return redirect(url_for("main.start_submission", type=type))
         
         try:
@@ -344,7 +388,9 @@ def start_submission(type):
             
             comm = Communication(
                 title=title,
-                #abstract=None,
+                abstract_fr=abstract_fr,  # Utiliser le texte nettoyé
+                abstract_en=abstract_en,  # Utiliser le texte nettoyé
+                keywords=keywords,
                 type=type,
                 status=initial_status,
                 hal_authorization=hal_authorization,
@@ -369,68 +415,52 @@ def start_submission(type):
                     # Vérifier si l'utilisateur existe déjà
                     existing_user = User.query.filter_by(email=email).first()
                     if existing_user:
-                        # L'utilisateur existe déjà
-                        comm.authors.append(existing_user)
-                        user_to_notify = existing_user
-                        is_new_user = False
+                        if existing_user not in comm.authors:
+                            comm.authors.append(existing_user)
                     else:
-                        # Vraiment nouveau utilisateur
+                        # Créer le nouvel utilisateur
                         new_user = User(
                             email=email,
-                            first_name=first_name if first_name else None,
-                            last_name=last_name if last_name else None,
-                            is_active=True,
-                            is_activated=False,
-                            created_at=datetime.utcnow()
+                            first_name=first_name.strip(),
+                            last_name=last_name.strip(),
+                            is_active=True
                         )
-                        new_user.password_hash = 'PENDING_ACTIVATION'
-                        token = new_user.generate_activation_token()
-                        
                         db.session.add(new_user)
                         db.session.flush()
                         comm.authors.append(new_user)
-                        user_to_notify = new_user
-                        is_new_user = True
                 else:
-                    # Auteur existant sélectionné dans la liste
-                    existing_user = User.query.get(int(coauthor_value))
-                    if existing_user:
-                        comm.authors.append(existing_user)
-                        user_to_notify = existing_user
-                        is_new_user = False
-                    else:
-                        continue  # Skip si utilisateur non trouvé
-    
-                # Envoyer l'email approprié
-                try:
-                    if is_new_user:
-                        current_app.send_coauthor_notification_email(user_to_notify, comm, token)
-                        print(f"✅ Email activation envoyé à {user_to_notify.email}")
-                    else:
-                        current_app.send_existing_coauthor_notification_email(user_to_notify, comm)
-                        print(f"✅ Email notification envoyé à {user_to_notify.email}")
-                except Exception as e:
-                    print(f"❌ Erreur envoi email à {user_to_notify.email}: {e}")
-            # Traiter le fichier (maintenant obligatoire)
-            file_type = 'résumé' if type == 'article' else 'wip'
-            submission_file = save_file(file, file_type, comm.id)
+                    # Utilisateur existant sélectionné
+                    coauthor = User.query.get(int(coauthor_value))
+                    if coauthor and coauthor != current_user:
+                        comm.authors.append(coauthor)
+            
+            # Mettre à jour les dates de soumission
+            if type == 'article':
+                comm.resume_submitted_at = datetime.utcnow()
+            else:  # WIP
+                comm.resume_submitted_at = datetime.utcnow()  # On garde le même champ pour la logique
+            
             db.session.commit()
             
+            # Envoi email de confirmation
             try:
-                current_app.send_submission_confirmation_email(comm, file_type, submission_file)
-                flash(f"Communication créée avec fichier {file_type}. Email de confirmation envoyé.", "success")
+                email_type = 'résumé' if type == 'article' else 'wip'
+                current_app.send_submission_confirmation_email(comm, email_type, None)
+                flash(f"Communication créée. Email de confirmation envoyé.", "success")
             except Exception as e:
                 # Ne pas faire échouer la soumission si l'email échoue
                 current_app.logger.error(f"Erreur envoi email confirmation: {e}")
-                flash(f"Communication créée avec fichier {file_type}. Erreur envoi email.", "warning")
+                flash(f"Communication créée. Erreur envoi email.", "warning")
             
             return redirect(url_for("main.update_submission", comm_id=comm.id))
 
-
-            
         except ValueError as e:
             db.session.rollback()
             flash(str(e), "danger")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Erreur lors de la création de la communication: {e}")
+            flash(f"Erreur lors de la création: {str(e)}", "danger")
     
     # GET : Récupérer tous les utilisateurs pour la sélection
     users = User.query.filter(User.id != current_user.id).order_by(User.last_name, User.first_name).all()
@@ -439,6 +469,8 @@ def start_submission(type):
                          type=type, 
                          all_thematiques=ThematiqueHelper.get_all(),
                          users=users)
+
+
 
 @main.route("/soumission/<int:comm_id>", methods=["GET", "POST"])
 @login_required
@@ -455,9 +487,9 @@ def update_submission(comm_id):
         
         # Déterminer les types de fichiers autorisés selon le type de communication
         if comm.type == 'article':
-            allowed_types = ['résumé', 'article', 'poster']
+            allowed_types = ['article', 'poster']
         elif comm.type == 'wip':
-            allowed_types = ['wip', 'poster']
+            allowed_types = ['poster']
         else:
             allowed_types = []
         
@@ -518,9 +550,9 @@ def update_submission(comm_id):
     
     # Déterminer les types de fichiers selon le type de communication
     if comm.type == 'article':
-        file_types = ['résumé', 'article', 'poster']
+        file_types = ['article', 'poster']
     elif comm.type == 'wip':
-        file_types = ['wip', 'poster']
+        file_types = ['poster']
     else:
         file_types = []
     

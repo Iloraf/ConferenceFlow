@@ -65,7 +65,7 @@ def admin_dashboard():
     ).count()
     
     stats['ready_for_export'] = Communication.query.filter(
-        Communication.abstract.isnot(None),
+        Communication.abstract_fr.isnot(None),
         Communication.doi.isnot(None)
     ).count()
 
@@ -196,6 +196,128 @@ def manage_reviews():
     
     return render_template('admin/manage_reviews.html', 
                          reviewers=reviewers)
+
+@admin.route('/communications/<int:comm_id>/convert-to-wip', methods=['POST'])
+@login_required
+def convert_article_to_wip(comm_id):
+    """Convertit un article en Work in Progress (admin uniquement)."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    # Vérifications
+    if communication.type != 'article':
+        flash('Seuls les articles peuvent être convertis en WIP.', 'warning')
+        return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+    
+    if communication.status == CommunicationStatus.ACCEPTE:
+        flash('Impossible de convertir un article déjà accepté.', 'warning')
+        return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+    
+    # Récupérer les données du formulaire
+    reason = request.form.get('reason', '').strip()
+    keep_reviews = bool(request.form.get('keep_reviews', False))
+    
+    try:
+        # Sauvegarder l'ancien statut pour les logs
+        old_status = communication.status.value
+        
+        # Convertir en WIP
+        communication.type = 'wip'
+        communication.status = CommunicationStatus.WIP_SOUMIS
+        
+        # Garder seulement le résumé français (les WIP n'ont pas de résumé anglais)
+        if communication.abstract_en:
+            # Log pour l'admin si on perd le résumé anglais
+            current_app.logger.info(f"Conversion article {comm_id} → WIP: résumé anglais supprimé")
+            communication.abstract_en = None
+        
+        # Réinitialiser la décision si elle existait
+        if communication.decision_made:
+            communication.final_decision = None
+            communication.decision_date = None
+            communication.decision_by_id = None
+            communication.decision_comments = None
+            communication.decision_notification_sent = False
+            communication.decision_notification_sent_at = None
+            communication.decision_notification_error = None
+        
+        # Gérer les reviews
+        if not keep_reviews:
+            # Supprimer les reviews existantes
+            Review.query.filter_by(communication_id=comm_id).delete()
+            ReviewAssignment.query.filter_by(communication_id=comm_id).delete()
+        
+        # Log de la conversion
+        communication.updated_at = datetime.utcnow()
+        
+        # Ajouter un commentaire dans les logs pour traçabilité
+        conversion_note = f"Conversion article → WIP par {current_user.email}"
+        if reason:
+            conversion_note += f". Raison: {reason}"
+        if keep_reviews:
+            conversion_note += ". Reviews conservées."
+        
+        current_app.logger.info(f"Communication {comm_id}: {conversion_note}")
+        
+        db.session.commit()
+        
+        flash(f'Article #{comm_id} converti en Work in Progress avec succès.', 'success')
+        
+        # Envoyer un email aux auteurs pour les informer
+        try:
+            current_app.send_conversion_notification_email(communication, reason)
+            flash('Notification envoyée aux auteurs.', 'info')
+        except Exception as e:
+            current_app.logger.error(f"Erreur envoi email conversion: {e}")
+            flash('Conversion réussie mais erreur envoi email de notification.', 'warning')
+            
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur conversion article→WIP: {e}")
+        flash(f'Erreur lors de la conversion: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+
+
+@admin.route('/communications/<int:comm_id>/toggle-prix', methods=['POST'])
+@login_required
+def toggle_communication_prix(comm_id):
+    """Active/désactive le marquage pour le prix de la conférence."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    # Vérifier que c'est une communication acceptée
+    if communication.status != CommunicationStatus.ACCEPTE:
+        flash('Seules les communications acceptées peuvent être marquées pour le prix.', 'warning')
+        return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+    
+    try:
+        # Basculer l'état
+        communication.prix = not communication.prix
+        communication.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        action = "marquée" if communication.prix else "démarquée"
+        flash(f'Communication {action} pour le prix de la conférence.', 'success')
+        
+        # Log pour suivi
+        current_app.logger.info(f"Communication {comm_id} {action} pour le prix par {current_user.email}")
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur toggle prix: {e}")
+        flash(f'Erreur lors de la modification: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+
+
 
 @admin.route('/admin/reviews/notify-reviewers', methods=['GET', 'POST'])
 @login_required
