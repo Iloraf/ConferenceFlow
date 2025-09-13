@@ -25,6 +25,9 @@ import os
 from collections import defaultdict
 from io import BytesIO
 import tempfile
+import yaml
+from pathlib import Path
+
 
 try:
     from weasyprint import HTML, CSS
@@ -923,6 +926,26 @@ def inscription_conference():
 @conference.route("/communication-info")
 def communication_info():
     """Affiche les informations générales sur les communications."""
+
+    from flask import current_app as app
+    try:
+        zones_file = Path(app.root_path) / 'static' / 'content' / 'zones.yml'
+        if zones_file.exists():
+            with open(zones_file, 'r', encoding='utf-8') as f:
+                zones = yaml.safe_load(f)['zones']
+                submission_zone = zones.get('submission', {})
+                if not submission_zone.get('is_open', False):
+                    # Flash avec le message configuré dans zones.yml
+                    message = submission_zone.get('message', 'Le dépôt de communications sera bientôt ouvert.')
+                    flash(message, 'info')
+    except Exception as e:
+        current_app.logger.error(f"Erreur lecture zones.yml dans communication_info: {e}")
+        # En cas d'erreur, pas de flash (on laisse la page normale)
+        pass
+
+
+
+
     from flask import current_app
     import os
     

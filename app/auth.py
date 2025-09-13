@@ -21,6 +21,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 from .models import db, User, Affiliation
 import secrets
 from datetime import datetime, timedelta
+import yaml
+from pathlib import Path
 
 auth = Blueprint("auth", __name__)
 
@@ -50,6 +52,27 @@ def login():
 
 @auth.route("/register", methods=["GET", "POST"])
 def register():
+    print(f"DEBUG: zones.yml content check")
+    if not (current_user.is_authenticated and current_user.is_admin):
+        try:
+            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+            if zones_file.exists():
+                with open(zones_file, 'r', encoding='utf-8') as f:
+                    zones = yaml.safe_load(f)['zones']
+                    if not zones['registration']['is_open']:
+                        return render_template('simple_closed.html', 
+                                             zone_name='registration',
+                                             message=zones['registration']['message'],
+                                             display_name=zones['registration']['display_name'])
+        except Exception as e:
+            current_app.logger.error(f"Erreur lecture zones.yml: {e}")
+            # En cas d'erreur, on bloque par sécurité (sauf admins)
+            return render_template('simple_closed.html', 
+                                 zone_name='registration',
+                                 message="Les inscriptions ne sont pas encore ouvertes.",
+                                 display_name="Inscription")
+    
+
     if current_user.is_authenticated:
         return redirect(url_for("main.index"))
     
@@ -109,47 +132,6 @@ def register():
             return render_template("auth/register.html")
     
     return render_template("auth/register.html")
-
-#####################################################################################
-# @auth.route("/register", methods=["GET", "POST"])                                 #
-# def register():                                                                   #
-#     if current_user.is_authenticated:                                             #
-#         return redirect(url_for("main.index"))                                    #
-#                                                                                   #
-#     if request.method == "POST":                                                  #
-#         first_name = request.form.get("first_name", "").strip()                   #
-#         last_name = request.form.get("last_name", "").strip()                     #
-#         email = request.form.get("email", "").strip().lower()                     #
-#         password = request.form.get("password", "")                               #
-#                                                                                   #
-#         # Validation                                                              #
-#         if not all([first_name, last_name, email, password]):                     #
-#             flash("Tous les champs sont obligatoires.", "danger")                 #
-#             return render_template("auth/register.html")                          #
-#                                                                                   #
-#         if User.query.filter_by(email=email).first():                             #
-#             flash("Cette adresse email est déjà utilisée.", "danger")             #
-#             return render_template("auth/register.html")                          #
-#                                                                                   #
-#         try:                                                                      #
-#             user = User(                                                          #
-#                 first_name=first_name,                                            #
-#                 last_name=last_name,                                              #
-#                 email=email,                                                      #
-#             )                                                                     #
-#             user.set_password(password)                                           #
-#             db.session.add(user)                                                  #
-#             db.session.commit()                                                   #
-#                                                                                   #
-#             flash("Inscription réussie ! Vous pouvez vous connecter.", "success") #
-#             return redirect(url_for("auth.login"))                                #
-#                                                                                   #
-#         except Exception as e:                                                    #
-#             db.session.rollback()                                                 #
-#             flash("Erreur lors de l'inscription.", "danger")                      #
-#                                                                                   #
-#     return render_template("auth/register.html")                                  #
-#####################################################################################
 
 @auth.route("/forgot-password", methods=["GET", "POST"])
 def forgot_password():

@@ -299,6 +299,24 @@ def mes_communications():
 @main.route("/soumettre", methods=["GET", "POST"])
 @login_required
 def choose_type():
+    if not current_user.is_admin:
+        try:
+            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+            if zones_file.exists():
+                with open(zones_file, 'r', encoding='utf-8') as f:
+                    zones = yaml.safe_load(f)['zones']
+                    if not zones['submission']['is_open']:
+                        return render_template('simple_closed.html', 
+                                             zone_name='submission',
+                                             message=zones['submission']['message'],
+                                             display_name=zones['submission']['display_name'])
+        except Exception as e:
+            current_app.logger.error(f"Erreur lecture zones.yml: {e}")
+            return render_template('simple_closed.html', 
+                                 zone_name='submission',
+                                 message="Le dépôt de communications n'est pas encore ouvert.",
+                                 display_name="Dépôt de communications")
+
     if request.method == "POST":
         type_choice = request.form.get("type")
         if type_choice not in ['article', 'wip']:
@@ -312,6 +330,25 @@ def choose_type():
 @main.route("/soumettre/<type>", methods=["GET", "POST"])
 @login_required
 def start_submission(type):
+    if not current_user.is_admin:
+        try:
+            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+            if zones_file.exists():
+                with open(zones_file, 'r', encoding='utf-8') as f:
+                    zones = yaml.safe_load(f)['zones']
+                    if not zones['submission']['is_open']:
+                        return render_template('simple_closed.html', 
+                                             zone_name='submission',
+                                             message=zones['submission']['message'],
+                                             display_name=zones['submission']['display_name'])
+        except Exception as e:
+            current_app.logger.error(f"Erreur lecture zones.yml: {e}")
+            return render_template('simple_closed.html', 
+                                 zone_name='submission',
+                                 message="Le dépôt de communications n'est pas encore ouvert.",
+                                 display_name="Dépôt de communications")
+
+
     if type not in ['article', 'wip']:
         flash("Type invalide.", "danger")
         return redirect(url_for("main.choose_type"))
@@ -470,6 +507,59 @@ def start_submission(type):
                          all_thematiques=ThematiqueHelper.get_all(),
                          users=users)
 
+@main.route("/soumission/<int:comm_id>/abstracts", methods=["POST"])
+@login_required
+def update_abstracts(comm_id):
+    """Route pour mettre à jour les résumés d'une communication."""
+    comm = Communication.query.get_or_404(comm_id)
+    
+    # Vérifier les permissions
+    if current_user not in comm.authors:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.mes_communications"))
+    
+    # Récupérer les données du formulaire
+    abstract_fr = request.form.get("abstract_fr", "").strip()
+    abstract_en = request.form.get("abstract_en", "").strip() if comm.type == 'article' else None
+    keywords = request.form.get("keywords", "").strip()
+    
+    # Validation des résumés
+    if not abstract_fr:
+        flash("Le résumé français est obligatoire.", "danger")
+        return redirect(url_for("main.update_submission", comm_id=comm.id))
+    
+    # Validation longueur selon le type
+    max_length_fr = 3000 if comm.type == 'article' else 2000
+    if len(abstract_fr) > max_length_fr:
+        flash(f"Résumé français trop long ({len(abstract_fr)} caractères, maximum {max_length_fr}).", "danger")
+        return redirect(url_for("main.update_submission", comm_id=comm.id))
+    
+    if abstract_en and len(abstract_en) > 3000:
+        flash("Résumé anglais trop long (maximum 3000 caractères).", "danger")
+        return redirect(url_for("main.update_submission", comm_id=comm.id))
+    
+    if keywords and len(keywords) > 500:
+        flash("Mots-clés trop longs (maximum 500 caractères).", "danger")
+        return redirect(url_for("main.update_submission", comm_id=comm.id))
+    
+    try:
+        # Mettre à jour les données
+        comm.abstract_fr = abstract_fr
+        if comm.type == 'article':
+            comm.abstract_en = abstract_en
+        comm.keywords = keywords
+        comm.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        flash("Résumés mis à jour avec succès.", "success")
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur mise à jour résumés: {e}")
+        flash("Erreur lors de la mise à jour.", "danger")
+    
+    return redirect(url_for("main.update_submission", comm_id=comm.id))
+
 
 
 @main.route("/soumission/<int:comm_id>", methods=["GET", "POST"])
@@ -593,8 +683,6 @@ def delete_communication(comm_id):
         if os.path.exists(file.file_path):
             os.remove(file.file_path)
     
-    if comm.qr_code_path and os.path.exists(comm.qr_code_path):
-        os.remove(comm.qr_code_path)
     
     db.session.delete(comm)
     db.session.commit()

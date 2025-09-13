@@ -1,0 +1,9 @@
+zones:
+  registration:
+    display_name: Création de compte et inscription
+    is_open: false
+    message: Les inscriptions seront bientôt ouvertes.
+  submission:
+    display_name: Dépôt de communications
+    is_open: false
+    message: Le dépôt de communications sera bientôt ouvert.

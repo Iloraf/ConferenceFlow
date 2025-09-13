@@ -317,7 +317,136 @@ def toggle_communication_prix(comm_id):
     
     return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
 
+# À ajouter dans app/admin.py (à la fin du fichier, avant les autres routes)
 
+@admin.route("/zones/status")
+@login_required
+def get_zones_status():
+    """Récupère l'état de toutes les zones."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    try:
+        zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+        
+        if not zones_file.exists():
+            # Créer le fichier par défaut
+            default_zones = {
+                'zones': {
+                    'registration': {
+                        'is_open': False,
+                        'message': 'Les inscriptions seront bientôt ouvertes.',
+                        'display_name': 'Création de compte et inscription'
+                    },
+                    'submission': {
+                        'is_open': False,
+                        'message': 'Le dépôt de communications sera bientôt ouvert.',
+                        'display_name': 'Dépôt de communications'
+                    }
+                }
+            }
+            zones_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(zones_file, 'w', encoding='utf-8') as f:
+                yaml.dump(default_zones, f, default_flow_style=False, allow_unicode=True, indent=2)
+        
+        with open(zones_file, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+            zones = config.get('zones', {})
+        
+        return jsonify({'success': True, 'zones': zones})
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur lecture zones: {e}")
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+
+
+@admin.route("/zones/toggle/<zone_name>", methods=["POST"])
+@login_required
+def toggle_zone(zone_name):
+    """Bascule l'état d'une zone."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    try:
+        zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+        
+        if not zones_file.exists():
+            return jsonify({'success': False, 'message': 'Fichier zones.yml non trouvé'}), 404
+        
+        with open(zones_file, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        zones = config.get('zones', {})
+        
+        if zone_name not in zones:
+            return jsonify({'success': False, 'message': f'Zone {zone_name} non trouvée'}), 404
+        
+        # Basculer l'état
+        zones[zone_name]['is_open'] = not zones[zone_name].get('is_open', False)
+        
+        # Sauvegarder
+        with open(zones_file, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, default_flow_style=False, allow_unicode=True, indent=2)
+        
+        status = "ouverte" if zones[zone_name]['is_open'] else "fermée"
+        current_app.logger.info(f"Zone {zone_name} {status} par {current_user.email}")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Zone {zones[zone_name]["display_name"]} {status}',
+            'zone': zones[zone_name]
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur toggle zone {zone_name}: {e}")
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+
+
+@admin.route("/zones/update-message/<zone_name>", methods=["POST"])
+@login_required
+def update_zone_message(zone_name):
+    """Met à jour le message d'une zone."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    try:
+        data = request.get_json()
+        new_message = data.get('message', '').strip()
+        
+        if not new_message:
+            return jsonify({'success': False, 'message': 'Message vide'}), 400
+        
+        zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+        
+        if not zones_file.exists():
+            return jsonify({'success': False, 'message': 'Fichier zones.yml non trouvé'}), 404
+        
+        with open(zones_file, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        zones = config.get('zones', {})
+        
+        if zone_name not in zones:
+            return jsonify({'success': False, 'message': f'Zone {zone_name} non trouvée'}), 404
+        
+        # Mettre à jour le message
+        zones[zone_name]['message'] = new_message
+        
+        # Sauvegarder
+        with open(zones_file, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, default_flow_style=False, allow_unicode=True, indent=2)
+        
+        current_app.logger.info(f"Message zone {zone_name} modifié par {current_user.email}")
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Message mis à jour avec succès',
+            'zone': zones[zone_name]
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur update message zone {zone_name}: {e}")
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
 
 @admin.route('/admin/reviews/notify-reviewers', methods=['GET', 'POST'])
 @login_required
@@ -5842,3 +5971,146 @@ def test_event_notification(event_id):
     except Exception as e:
         current_app.logger.error(f"Erreur test notification: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+
+# À ajouter dans app/admin.py après les autres routes zones
+
+@admin.route("/zones/get-yaml")
+@login_required
+def get_zones_yaml_content():
+    """Récupérer le contenu du fichier zones.yml pour l'édition."""
+    if not current_user.is_admin:
+        return "Accès refusé", 403
+    
+    zones_file = Path(current_app.root_path) / "static" / "content" / "zones.yml"
+    
+    if not zones_file.exists():
+        # Créer le fichier par défaut s'il n'existe pas
+        default_content = """# Configuration des zones d'accès de Conference Flow
+# Modifiable via l'interface d'administration
+
+zones:
+  registration:
+    is_open: false
+    message: "Les inscriptions seront bientôt ouvertes."
+    display_name: "Création de compte et inscription"
+    description: "Permet aux utilisateurs de créer un compte et de s'inscrire à la conférence"
+  
+  submission:
+    is_open: false
+    message: "Le dépôt de communications sera bientôt ouvert."
+    display_name: "Dépôt de communications"
+    description: "Permet aux utilisateurs de soumettre leurs communications"
+"""
+        zones_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(zones_file, 'w', encoding='utf-8') as f:
+            f.write(default_content)
+        return default_content
+    
+    try:
+        with open(zones_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return content
+    except Exception as e:
+        current_app.logger.error(f"Erreur lecture zones.yml: {e}")
+        return "Erreur de lecture", 500
+
+
+@admin.route("/zones/save-yaml", methods=["POST"])
+@login_required
+def save_zones_yaml():
+    """Sauvegarder le contenu du fichier zones.yml après édition."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+    
+    try:
+        data = request.get_json()
+        content = data.get('content', '')
+        
+        if not content:
+            return jsonify({'success': False, 'message': 'Contenu vide'}), 400
+        
+        # Valider la syntaxe YAML
+        try:
+            parsed = yaml.safe_load(content)
+            
+            # Validation spécifique zones.yml
+            if not isinstance(parsed, dict) or 'zones' not in parsed:
+                return jsonify({
+                    'success': False, 
+                    'message': 'Structure invalide: la racine doit contenir une clé "zones"'
+                }), 400
+                
+            zones = parsed['zones']
+            if not isinstance(zones, dict):
+                return jsonify({
+                    'success': False, 
+                    'message': 'La section "zones" doit être un objet'
+                }), 400
+                
+            # Vérifier que chaque zone a les champs requis
+            required_fields = ['is_open', 'message', 'display_name']
+            for zone_name, zone_data in zones.items():
+                if not isinstance(zone_data, dict):
+                    return jsonify({
+                        'success': False, 
+                        'message': f'Zone "{zone_name}" doit être un objet'
+                    }), 400
+                    
+                missing_fields = [field for field in required_fields if field not in zone_data]
+                if missing_fields:
+                    return jsonify({
+                        'success': False, 
+                        'message': f'Zone "{zone_name}" manque les champs: {", ".join(missing_fields)}'
+                    }), 400
+                    
+        except yaml.YAMLError as e:
+            return jsonify({
+                'success': False, 
+                'message': f'Erreur de syntaxe YAML: {str(e)}'
+            }), 400
+        
+        zones_file = Path(current_app.root_path) / "static" / "content" / "zones.yml"
+        zones_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Sauvegarder l'ancien fichier s'il existe
+        if zones_file.exists():
+            backup_path = zones_file.parent / f"zones.yml.backup.{int(datetime.now().timestamp())}"
+            import shutil
+            shutil.copy2(zones_file, backup_path)
+        
+        # Écrire le nouveau contenu
+        with open(zones_file, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        current_app.logger.info(f"Fichier zones.yml modifié par {current_user.email}")
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Fichier zones.yml sauvegardé avec succès'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur sauvegarde zones.yml: {e}")
+        return jsonify({
+            'success': False, 
+            'message': f'Erreur lors de la sauvegarde: {str(e)}'
+        }), 500
+
+
+@admin.route("/zones/download-yaml")
+@login_required
+def download_zones_yaml():
+    """Télécharger le fichier zones.yml."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    zones_file = Path(current_app.root_path) / "static" / "content" / "zones.yml"
+    
+    if not zones_file.exists():
+        flash("Fichier zones.yml non trouvé.", "danger")
+        return redirect(url_for("admin.manage_content"))
+    
+    return send_file(zones_file, as_attachment=True, download_name="zones.yml")

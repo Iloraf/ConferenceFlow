@@ -90,6 +90,26 @@
                 </div>
             </div>
 
+  <!-- Gestion des zones d'accès -->
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-lock me-2"></i>Zones d'accès</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">Contrôlez l'ouverture et la fermeture des zones principales de l'application.</p>
+                    
+                    <div id="zones-container">
+                        <!-- Les zones seront chargées ici via JavaScript -->
+                        <div class="text-center">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Chargement des zones...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+	    
             <!-- Section Images -->
             <div class="card">
                 <div class="card-header bg-info text-white">
@@ -626,6 +646,126 @@ function reloadConfig() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Interface de gestion du contenu chargée');
 });
+
+function loadZones() {
+    fetch('/admin/zones/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayZones(data.zones);
+            } else {
+                document.getElementById('zones-container').innerHTML = 
+                    '<div class="alert alert-danger">Erreur: ' + data.message + '</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            document.getElementById('zones-container').innerHTML = 
+                '<div class="alert alert-danger">Erreur de chargement</div>';
+        });
+}
+
+function displayZones(zones) {
+    let html = '';
+    
+    for (const [zoneName, zoneData] of Object.entries(zones)) {
+        const isOpen = zoneData.is_open;
+        const statusClass = isOpen ? 'success' : 'secondary';
+        const statusIcon = isOpen ? 'unlock' : 'lock';
+        const statusText = isOpen ? 'Ouverte' : 'Fermée';
+        
+        html += `
+            <div class="border rounded p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">${zoneData.display_name}</h6>
+                        <span class="badge bg-${statusClass}">
+                            <i class="fas fa-${statusIcon} me-1"></i>${statusText}
+                        </span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="toggleZone('${zoneName}')">
+                        ${isOpen ? 'Fermer' : 'Ouvrir'}
+                    </button>
+                </div>
+                
+                <div class="mt-2">
+                    <small class="text-muted">Message affiché :</small>
+                    <div class="input-group input-group-sm mt-1">
+                        <input type="text" class="form-control" 
+                               id="message-${zoneName}" 
+                               value="${zoneData.message || ''}"
+                               placeholder="Message à afficher quand la zone est fermée">
+                        <button class="btn btn-outline-secondary" onclick="updateMessage('${zoneName}')">
+                            <i class="fas fa-save"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    document.getElementById('zones-container').innerHTML = html;
+}
+
+function toggleZone(zoneName) {
+    fetch(`/admin/zones/toggle/${zoneName}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            loadZones(); // Recharger l'affichage
+        } else {
+            showToast('Erreur: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showToast('Erreur de communication', 'error');
+    });
+}
+
+function updateMessage(zoneName) {
+    const messageInput = document.getElementById(`message-${zoneName}`);
+    const newMessage = messageInput.value.trim();
+    
+    if (!newMessage) {
+        showToast('Le message ne peut pas être vide', 'error');
+        return;
+    }
+    
+    fetch(`/admin/zones/update-message/${zoneName}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message: newMessage
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+        } else {
+            showToast('Erreur: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        showToast('Erreur de communication', 'error');
+    });
+}
+
+// Charger les zones au chargement de la page
+document.addEventListener('DOMContentLoaded', function() {
+    loadZones();
+});
+
 </script>
 
 <style>
@@ -680,6 +820,10 @@ document.addEventListener('DOMContentLoaded', function() {
         margin-bottom: 2rem;
     }
 }
+
+
+
+
 </style>
 {% endblock %}
 

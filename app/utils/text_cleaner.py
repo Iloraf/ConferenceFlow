@@ -83,9 +83,9 @@ def clean_text(text: str, mode: str = 'soft') -> Tuple[str, List[str]]:
         # Mode strict : supprimer les caractères non ASCII
         text = ''.join(char for char in text if ord(char) < 128 or char in MATH_SYMBOLS_MAP.values())
         warnings.append(f"Caractères supprimés: {', '.join(problematic_chars[:10])}")
-    elif problematic_chars:
+    #elif problematic_chars:
         # Mode soft : avertir seulement
-        warnings.append(f"Caractères détectés: {', '.join(problematic_chars[:10])} - Vérifiez la compatibilité")
+    #    warnings.append(f"Caractères détectés: {', '.join(problematic_chars[:10])} - Vérifiez la compatibilité")
     
     # 4. Nettoyer les espaces multiples
     text = re.sub(r'\s+', ' ', text).strip()
