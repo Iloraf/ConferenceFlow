@@ -322,18 +322,15 @@ class Communication(db.Model):
     """Modèle pour les communications soumises."""
     
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200, collation='utf8mb4_unicode_ci'), nullable=False)
-    keywords = db.Column(db.String(500, collation='utf8mb4_unicode_ci'), nullable=True)
+    title = db.Column(db.String(200), nullable=False)
+    keywords = db.Column(db.String(500), nullable=True)
+    abstract_fr = db.Column(db.Text, nullable=True) 
+    abstract_en = db.Column(db.Text, nullable=True)
     
     # Statut du workflow
     status = db.Column(db.Enum(CommunicationStatus), nullable=False)   
     type = db.Column(db.String(50), nullable=False)
 
-    #abstract = db.Column(db.Text, nullable=True)
-    abstract_fr = db.Column(db.Text(collation='utf8mb4_unicode_ci'), nullable=True) 
-    abstract_en = db.Column(db.Text(collation='utf8mb4_unicode_ci'), nullable=True)
-
-    
     # Champs DOI
     doi = db.Column(db.String(100), nullable=True)  # Format: 10.25855/SFT2026-XXX
     doi_generated_at = db.Column(db.DateTime, nullable=True)

@@ -316,20 +316,35 @@ def choose_type():
                                  zone_name='submission',
                                  message="Le dépôt de communications n'est pas encore ouvert.",
                                  display_name="Dépôt de communications")
+    
+    # Vérifier les affiliations pour l'affichage
+    has_affiliations = bool(current_user.affiliations)
 
     if request.method == "POST":
         type_choice = request.form.get("type")
         if type_choice not in ['article', 'wip']:
             flash("Type invalide.", "danger")
             return redirect(url_for("main.choose_type"))
+        
         return redirect(url_for("main.start_submission", type=type_choice))
     
-    return render_template("choose_type.html")
-
+    return render_template("choose_type.html", has_affiliations=has_affiliations)
 
 @main.route("/soumettre/<type>", methods=["GET", "POST"])
 @login_required
 def start_submission(type):
+    if type not in ['article', 'wip']:
+        flash("Type invalide.", "danger")
+        return redirect(url_for("main.choose_type"))
+    
+    # ========= VÉRIFICATION AFFILIATION OBLIGATOIRE =========
+    if not current_user.affiliations:
+        flash("Vous devez avoir au moins une affiliation pour soumettre une communication. "
+              "Veuillez compléter votre profil avant de continuer.", "warning")
+        return redirect(url_for("main.profile"))
+    # ========================================================
+    
+    # Vérifier si la zone de soumission est ouverte (sauf pour les admins)
     if not current_user.is_admin:
         try:
             zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
@@ -347,11 +362,6 @@ def start_submission(type):
                                  zone_name='submission',
                                  message="Le dépôt de communications n'est pas encore ouvert.",
                                  display_name="Dépôt de communications")
-
-
-    if type not in ['article', 'wip']:
-        flash("Type invalide.", "danger")
-        return redirect(url_for("main.choose_type"))
         
     if request.method == "POST":
         title = request.form.get("title", "").strip()
@@ -506,6 +516,198 @@ def start_submission(type):
                          type=type, 
                          all_thematiques=ThematiqueHelper.get_all(),
                          users=users)
+
+
+
+# @main.route("/soumettre/<type>", methods=["GET", "POST"])
+# @login_required
+# def start_submission(type):
+#     if not current_user.is_admin:
+#         try:
+#             zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+#             if zones_file.exists():
+#                 with open(zones_file, 'r', encoding='utf-8') as f:
+#                     zones = yaml.safe_load(f)['zones']
+#                     if not zones['submission']['is_open']:
+#                         return render_template('simple_closed.html', 
+#                                              zone_name='submission',
+#                                              message=zones['submission']['message'],
+#                                              display_name=zones['submission']['display_name'])
+#         except Exception as e:
+#             current_app.logger.error(f"Erreur lecture zones.yml: {e}")
+#             return render_template('simple_closed.html', 
+#                                  zone_name='submission',
+#                                  message="Le dépôt de communications n'est pas encore ouvert.",
+#                                  display_name="Dépôt de communications")
+#     has_affiliations = bool(current_user.affiliations)
+
+#     if request.method == "POST":
+#         type_choice = request.form.get("type")
+#         if type_choice not in ['article', 'wip']:
+#             flash("Type invalide.", "danger")
+#             return redirect(url_for("main.choose_type"))
+        
+#         return redirect(url_for("main.start_submission", type=type_choice))
+    
+#     return render_template("choose_type.html", has_affiliations=has_affiliations)
+
+#     if type not in ['article', 'wip']:
+#         flash("Type invalide.", "danger")
+#         return redirect(url_for("main.choose_type"))
+        
+#     if request.method == "POST":
+#         title = request.form.get("title", "").strip()
+#         thematiques = request.form.getlist("thematique")
+#         coauthors = request.form.getlist("coauthors")
+#         keywords = request.form.get("keywords", "").strip()
+#         hal_authorization = bool(request.form.get("hal_authorization"))
+
+#         # NOUVEAUX CHAMPS - Résumés textuels
+#         abstract_fr_raw = request.form.get("abstract_fr", "").strip()
+#         abstract_en_raw = request.form.get("abstract_en", "").strip() if type == 'article' else None
+
+#         # Nettoyage et validation des résumés
+#         from .utils.text_cleaner import clean_text, validate_for_hal, suggest_latex_equivalent
+        
+#         abstract_fr, warnings_fr = clean_text(abstract_fr_raw, mode='soft')
+#         abstract_en, warnings_en = clean_text(abstract_en_raw, mode='soft') if abstract_en_raw else (None, [])
+
+#         # Afficher les avertissements de nettoyage
+#         all_warnings = warnings_fr + (warnings_en or [])
+#         if all_warnings:
+#             for warning in all_warnings[:3]:  # Limiter à 3 avertissements
+#                 flash(f"⚠️ {warning}", "info")
+
+#         # Validation pour HAL si autorisé
+#         if hal_authorization:
+#             hal_valid_fr, hal_errors_fr = validate_for_hal(abstract_fr)
+#             hal_valid_en, hal_errors_en = validate_for_hal(abstract_en) if abstract_en else (True, [])
+            
+#             if not hal_valid_fr or not hal_valid_en:
+#                 all_errors = hal_errors_fr + hal_errors_en
+#                 for error in all_errors:
+#                     flash(f"❌ HAL: {error}", "warning")
+#                 flash("Le dépôt HAL pourrait échouer avec ces caractères. Modifiez le texte ou décochez HAL.", "warning")
+
+#         # Suggestions LaTeX
+#         latex_suggestions_fr = suggest_latex_equivalent(abstract_fr)
+#         latex_suggestions_en = suggest_latex_equivalent(abstract_en) if abstract_en else ""
+#         if latex_suggestions_fr or latex_suggestions_en:
+#             suggestions = latex_suggestions_fr + (" | " + latex_suggestions_en if latex_suggestions_en else "")
+#             flash(f"💡 Conseil: {suggestions}", "info")
+
+#         # Validations
+#         if not title:
+#             flash("Titre obligatoire.", "danger")
+#             return redirect(url_for("main.start_submission", type=type))
+        
+#         if not thematiques:
+#             flash("Sélectionnez une thématique.", "danger")
+#             return redirect(url_for("main.start_submission", type=type))
+        
+#         # Validation résumé français obligatoire
+#         if not abstract_fr:
+#             resume_type = "résumé" if type == 'article' else "Work in Progress"
+#             flash(f"Le {resume_type} en français est obligatoire.", "danger")
+#             return redirect(url_for("main.start_submission", type=type))
+        
+#         # Validation longueur résumés
+#         max_length_fr = 3000 if type == 'article' else 2000
+#         if len(abstract_fr) > max_length_fr:
+#             flash(f"Résumé français trop long ({len(abstract_fr)} caractères, maximum {max_length_fr}).", "danger")
+#             return redirect(url_for("main.start_submission", type=type))
+        
+#         if abstract_en and len(abstract_en) > 3000:
+#             flash(f"Résumé anglais trop long ({len(abstract_en)} caractères, maximum 3000).", "danger")
+#             return redirect(url_for("main.start_submission", type=type))
+        
+#         try:
+#             # Déterminer le statut initial selon le type
+#             initial_status = CommunicationStatus.RESUME_SOUMIS if type == 'article' else CommunicationStatus.WIP_SOUMIS
+            
+#             comm = Communication(
+#                 title=title,
+#                 abstract_fr=abstract_fr,  # Utiliser le texte nettoyé
+#                 abstract_en=abstract_en,  # Utiliser le texte nettoyé
+#                 keywords=keywords,
+#                 type=type,
+#                 status=initial_status,
+#                 hal_authorization=hal_authorization,
+#                 created_at=datetime.utcnow(),
+#                 updated_at=datetime.utcnow(),
+#             )
+            
+#             # Assigner les thématiques
+#             comm.set_thematiques(thematiques)
+            
+#             db.session.add(comm)
+#             db.session.flush()
+#             # Ajouter l'auteur principal
+#             comm.authors.append(current_user)
+            
+#             # Traiter les co-auteurs
+#             for coauthor_value in coauthors:
+#                 if coauthor_value.startswith('new:'):
+#                     # Nouvel auteur ajouté via le modal
+#                     _, email, first_name, last_name = coauthor_value.split(':')
+                    
+#                     # Vérifier si l'utilisateur existe déjà
+#                     existing_user = User.query.filter_by(email=email).first()
+#                     if existing_user:
+#                         if existing_user not in comm.authors:
+#                             comm.authors.append(existing_user)
+#                     else:
+#                         # Créer le nouvel utilisateur
+#                         new_user = User(
+#                             email=email,
+#                             first_name=first_name.strip(),
+#                             last_name=last_name.strip(),
+#                             is_active=True
+#                         )
+#                         db.session.add(new_user)
+#                         db.session.flush()
+#                         comm.authors.append(new_user)
+#                 else:
+#                     # Utilisateur existant sélectionné
+#                     coauthor = User.query.get(int(coauthor_value))
+#                     if coauthor and coauthor != current_user:
+#                         comm.authors.append(coauthor)
+            
+#             # Mettre à jour les dates de soumission
+#             if type == 'article':
+#                 comm.resume_submitted_at = datetime.utcnow()
+#             else:  # WIP
+#                 comm.resume_submitted_at = datetime.utcnow()  # On garde le même champ pour la logique
+            
+#             db.session.commit()
+            
+#             # Envoi email de confirmation
+#             try:
+#                 email_type = 'résumé' if type == 'article' else 'wip'
+#                 current_app.send_submission_confirmation_email(comm, email_type, None)
+#                 flash(f"Communication créée. Email de confirmation envoyé.", "success")
+#             except Exception as e:
+#                 # Ne pas faire échouer la soumission si l'email échoue
+#                 current_app.logger.error(f"Erreur envoi email confirmation: {e}")
+#                 flash(f"Communication créée. Erreur envoi email.", "warning")
+            
+#             return redirect(url_for("main.update_submission", comm_id=comm.id))
+
+#         except ValueError as e:
+#             db.session.rollback()
+#             flash(str(e), "danger")
+#         except Exception as e:
+#             db.session.rollback()
+#             current_app.logger.error(f"Erreur lors de la création de la communication: {e}")
+#             flash(f"Erreur lors de la création: {str(e)}", "danger")
+    
+#     # GET : Récupérer tous les utilisateurs pour la sélection
+#     users = User.query.filter(User.id != current_user.id).order_by(User.last_name, User.first_name).all()
+    
+#     return render_template("submit_abstract.html", 
+#                          type=type, 
+#                          all_thematiques=ThematiqueHelper.get_all(),
+#                          users=users)
 
 @main.route("/soumission/<int:comm_id>/abstracts", methods=["POST"])
 @login_required

@@ -2494,6 +2494,8 @@ def generate_book_latex(book_type):
 #         return f"Erreur lors de la génération du PDF: {str(e)}", 500
 
 
+
+
 def compile_latex_book(title, communications_by_theme, book_type):
     """Compile un livre LaTeX et retourne l'URL relative du PDF généré (ex: static/uploads/...)."""
     import tempfile
@@ -2558,7 +2560,8 @@ def compile_latex_book(title, communications_by_theme, book_type):
         debug_dir = os.path.join(current_app.root_path, "static", "uploads", "debug_latex")
         os.makedirs(debug_dir, exist_ok=True)
 
-        debug_files = ['livre.tex', 'config.tex', 'page-garde.tex', 'Tableau_Reviewer.tex', 
+        debug_files = ['livre.tex', 'livre_latest.log', 'config.tex', 'page-garde.tex', "introduction.tex",
+                       'Tableau_Reviewer.tex', "prix-biot-fourier.tex", "comm_1.tex", 
                        'remerciements.tex', 'comite-organisation.tex', 'index_style.ist']
         for file in debug_files:
             src = os.path.join(temp_dir, file)
@@ -2568,22 +2571,149 @@ def compile_latex_book(title, communications_by_theme, book_type):
                     
         current_app.logger.info(f"Fichiers debug copiés vers: {debug_dir}")
         # === FIN AJOUT DEBUG ===
-            
+        # ========= GÉNÉRATION DES FICHIERS comm_X.tex =========
+        print("=== GÉNÉRATION DES FICHIERS COMM_X.TEX ===")
+        current_app.logger.info("Génération des fichiers comm_X.tex...")
+        
+        for theme, communications in communications_by_theme.items():
+            if communications:
+                print(f"Thème: {theme} - {len(communications)} communications")
+                for comm in communications:
+                    print(f"  Génération comm_{comm.id}.tex...")
+                    try:
+                        if book_type == 'resumes-wip':
+                            # Pour les résumés, générer à partir du texte
+                            generate_communication_tex(comm, temp_dir)
+                            print(f"  ✅ comm_{comm.id}.tex généré (texte)")
+                        else:
+                            # Pour les articles, créer un placeholder ou gérer le PDF
+                            if hasattr(comm, 'pdf_path') and comm.pdf_path and os.path.exists(comm.pdf_path):
+                                # Copier le PDF et créer le .tex technique
+                                pdf_dest = os.path.join(temp_dir, f"comm_{comm.id}.pdf")
+                                shutil.copy2(comm.pdf_path, pdf_dest)
+                                generate_communication_tex(comm, temp_dir)
+                                print(f"  ✅ comm_{comm.id}.tex généré (PDF)")
+                            else:
+                                # Créer un placeholder
+                                create_placeholder_tex(comm, temp_dir)
+                                print(f"  ✅ comm_{comm.id}.tex généré (placeholder)")
+                    except Exception as e:
+                        print(f"  ❌ Erreur génération comm_{comm.id}.tex: {e}")
+                        # Créer un placeholder d'urgence
+                        placeholder_content = f"""% Communication {comm.id} - Erreur
+\\section*{{Communication {comm.id} - Erreur}}
+\\textit{{Erreur lors de la génération: {str(e)}}}
+"""
+                        with open(os.path.join(temp_dir, f"comm_{comm.id}.tex"), 'w', encoding='utf-8') as f:
+                            f.write(placeholder_content)
+        
+        # Vérifier que tous les fichiers comm_X.tex ont été créés
+        expected_files = []
+        for theme, communications in communications_by_theme.items():
+            for comm in communications:
+                expected_files.append(f"comm_{comm.id}.tex")
+        
+        existing_files = [f for f in os.listdir(temp_dir) if f.startswith('comm_') and f.endswith('.tex')]
+        missing_files = [f for f in expected_files if f not in existing_files]
+        
+        print(f"Fichiers attendus: {expected_files}")
+        print(f"Fichiers existants: {existing_files}")
+        print(f"Fichiers manquants: {missing_files}")
+        
+        if missing_files:
+            print(f"❌ Fichiers manquants: {missing_files}")
+        else:
+            print("✅ Tous les fichiers comm_X.tex ont été créés")
+        # =========================================================
+        
+        
         # Copier les PDFs des communications
-        copy_communication_pdfs(communications_by_theme, temp_dir, book_type)
+        if book_type in ['tome1', 'tome2']:
+            copy_communication_pdfs(communications_by_theme, temp_dir, book_type)
+        else:
+            print("Pas de copy_communication_pdfs pour resumes-wip (fichiers .tex déjà générés)")
+            current_app.logger.info("copy_communication_pdfs ignoré pour resumes-wip")
 
         try:
             print("=== COMPILATION LATEX AVEC INDEX ===")
+            print("=== VÉRIFICATION FINALE DU RÉPERTOIRE TEMPORAIRE ===")
+            all_files = os.listdir(temp_dir)
+            print(f"Tous les fichiers dans {temp_dir}:")
+            for f in sorted(all_files):
+                size = os.path.getsize(os.path.join(temp_dir, f))
+                print(f"  {f} ({size} bytes)")
+
+            # Vérifier spécifiquement comm_1.tex
+            comm_1_path = os.path.join(temp_dir, "comm_1.tex")
+            if os.path.exists(comm_1_path):
+                with open(comm_1_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    print(f"Contenu de comm_1.tex ({len(content)} chars):")
+                    print(content[:200] + "..." if len(content) > 200 else content)
+            else:
+                print("ERREUR: comm_1.tex n'existe pas!")
+
+
+
             
-            # 1. Première compilation LaTeX
-            print("1. Première compilation LaTeX...")
-            subprocess.run(
-                ["pdflatex", "-interaction=nonstopmode", "livre.tex"],
+# Dans votre fonction compile_latex_book, APRÈS chaque compilation LuaLaTeX, ajoutez :
+
+            # 1. Première compilation LuaLaTeX
+            print("1. Première compilation LuaLaTeX...")
+            result1 = subprocess.run(
+                ["lualatex", "-halt-on-error", "livre.tex"],
                 cwd=temp_dir,
-                check=True,
                 capture_output=True,
                 text=True,
             )
+            
+            # === COPIE DU LOG TEMPORAIRE ===
+            log_file = os.path.join(temp_dir, "livre.log")
+            if os.path.exists(log_file):
+                # Créer le dossier debug s'il n'existe pas
+                debug_dir = os.path.join(current_app.root_path, "static", "uploads", "debug_latex")
+                os.makedirs(debug_dir, exist_ok=True)
+                
+                # Copier le log avec un nom unique
+                import time
+                timestamp = int(time.time())
+                debug_log_path = os.path.join(debug_dir, f"livre_compile1_{timestamp}.log")
+                shutil.copy2(log_file, debug_log_path)
+                print(f"Log compilation 1 copié vers: {debug_log_path}")
+                
+                # Aussi copier vers un nom fixe pour faciliter l'accès
+                fixed_log_path = os.path.join(debug_dir, "livre_latest.log")
+                shutil.copy2(log_file, fixed_log_path)
+                print(f"Log aussi copié vers: {fixed_log_path}")
+            
+            print(f"Code de retour: {result1.returncode}")
+            if result1.returncode != 0:
+                print("Erreur première compilation, voir le log copié ci-dessus")
+                raise subprocess.CalledProcessError(result1.returncode, result1.args, result1.stdout, result1.stderr)
+            
+            # 2. Index...
+            # 3. Deuxième compilation + copie du log final
+            print("3. Deuxième compilation LuaLaTeX...")
+            result2 = subprocess.run(
+                ["lualatex", "livre.tex"],
+                cwd=temp_dir,
+                capture_output=True,
+                text=True,
+            )
+            
+            # === COPIE DU LOG FINAL ===
+            if os.path.exists(log_file):
+                debug_log_final = os.path.join(debug_dir, f"livre_compile2_{timestamp}.log")
+                shutil.copy2(log_file, debug_log_final)
+                print(f"Log compilation finale copié vers: {debug_log_final}")
+                
+                # Mettre à jour le log "latest"
+                shutil.copy2(log_file, fixed_log_path)
+                print(f"Log final aussi dans: {fixed_log_path}")
+            
+            print(f"Code de retour final: {result2.returncode}")
+
+
             
             # 2. Génération de l'index avec makeindex
             print("2. Génération de l'index avec makeindex...")
@@ -2603,7 +2733,7 @@ def compile_latex_book(title, communications_by_theme, book_type):
             # 3. Deuxième compilation LaTeX pour intégrer l'index
             print("3. Deuxième compilation LaTeX...")
             subprocess.run(
-                ["pdflatex", "-interaction=nonstopmode", "livre.tex"],
+                ["lualatex", "livre.tex"],
                 cwd=temp_dir,
                 check=True,
                 capture_output=True,
@@ -2645,127 +2775,137 @@ def compile_latex_book(title, communications_by_theme, book_type):
 
             raise Exception("Erreur compilation LaTeX — voir logs.")
     
-# def compile_latex_book(title, communications_by_theme, book_type):
-#     """Compile un livre LaTeX et retourne l'URL relative du PDF généré (ex: static/uploads/...)."""
-#     import tempfile
-#     import subprocess
-#     import os
-#     import shutil
-#     import time
-#     from flask import current_app
+def generate_config_tex(temp_dir, config):
+    """Génère config.tex avec la configuration LuaLaTeX pour UTF-8."""
     
-#     with tempfile.TemporaryDirectory() as temp_dir:
-#         # Copier les fichiers de template LaTeX
-#         copy_latex_templates(temp_dir, title, book_type)
-#         # Générer le fichier .tex principal
-#         tex_content = generate_latex_content(title, communications_by_theme, book_type)
-#         tex_file = os.path.join(temp_dir, "livre.tex")
-#         with open(tex_file, "w", encoding="utf-8") as f:
-#             f.write(tex_content)
-
-#         # === DEBUT AJOUT ===
-#         print("=== EXAMEN DU FICHIER LIVRE.TEX ===")
-#         print(f"Chemin du fichier: {tex_file}")
-
-#         # Lire et afficher les premières lignes du fichier livre.tex
-#         try:
-#             with open(tex_file, "r", encoding="utf-8") as f:
-#                 content = f.read()
+    # Extraire les infos depuis conference.yml
+    congress_name = config.get('conference', {}).get('name', 'Congrès')
+    short_name = config.get('conference', {}).get('short_name', 'CONF')
+    city = config.get('location', {}).get('city', 'Ville')
+    dates = config.get('dates', {}).get('dates', 'Dates à définir')
     
-#             print("--- DÉBUT DU FICHIER livre.tex ---")
-#             lines = content.split('\n')
+    # Configuration LuaLaTeX avec gestion native UTF-8
+    config_content = f"""% Configuration LuaLaTeX pour Conference Flow
+% Gestion native des caractères UTF-8
+
+% Note: avec LuaLaTeX, plus besoin de inputenc et fontenc
+% LuaLaTeX gère nativement l'UTF-8 et les polices TrueType/OpenType
+
+\\usepackage{{polyglossia}}
+\\setdefaultlanguage{{french}}
+\\setotherlanguage{{english}}
+
     
-#             # Afficher les 20 premières lignes
-#             for i, line in enumerate(lines[:20]):
-#                 print(f"{i+1:2d}: {line}")
+\\usepackage{{xspace}}
+
+% Inclusion de PDFs et symboles
+\\usepackage[]{{pdfpages}}
+\\usepackage{{marvosym}}
+\\usepackage{{url}}
+
+% Configuration des polices avec fontspec (LuaLaTeX)
+\\usepackage{{fontspec}}
+\\setmainfont{{texgyreheros}}[
+    Extension = .otf,
+    UprightFont = *-regular,
+    ItalicFont = *-italic,
+    BoldFont = *-bold,
+    BoldItalicFont = *-bolditalic
+]
+\\setsansfont{{texgyreheros}}[
+    Extension = .otf,
+    UprightFont = *-regular,
+    ItalicFont = *-italic,
+    BoldFont = *-bold,
+    BoldItalicFont = *-bolditalic
+]
+
+% Police par défaut en sans-serif (comme Helvetica)
+\\renewcommand{{\\familydefault}}{{\\sfdefault}}
+
+% Configuration de la césure et PDF
+\\hyphenpenalty=0
+
+\\usepackage{{amsmath}}
+\\usepackage{{amssymb}}
+\\usepackage{{amsfonts}}
+\\usepackage{{mathtools}} 
+\\usepackage{{multicol}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Configuration minitoc
+\\usepackage[nohints]{{minitoc}}
+\\setcounter{{minitocdepth}}{{2}}
+\\setlength{{\\mtcindent}}{{0pt}}
+\\renewcommand{{\\mtcfont}}{{\\small}}
+\\renewcommand{{\\mtcSfont}}{{\\small}}
+\\mtcsettitle{{minitoc}}{{}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Configuration table des matières
+\\setcounter{{tocdepth}}{{1}}
+\\setcounter{{secnumdepth}}{{1}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Listes et index
+\\usepackage{{enumitem}}
+\\usepackage[makeindex]{{imakeidx}}
+\\makeindex[options= -s index_style.ist, title=Liste des auteurs]
+
+% Géométrie de la page
+\\usepackage[a4paper,top=1.5cm,bottom=1.5cm,left=1.8cm,right=1.8cm]{{geometry}}
+
+% Graphiques
+\\usepackage{{graphicx}}
+\\DeclareGraphicsExtensions{{.jpg,.eps,.pdf,.png}}
+
+% Tableaux
+\\usepackage{{supertabular}}
+
+% Espacement des paragraphes
+\\setlength{{\\parindent}}{{10mm}}
+\\setlength{{\\parskip}}{{2mm}}
+
+% Boîtes colorées
+\\usepackage{{tcolorbox}}
+\\tcbuselibrary{{breakable}}
+
+% Filigrane pour WIP
+\\usepackage[pages=some,contents={{Work In Progress}},color=gray!50]{{background}}
+
+% Espacement compact des titres
+\\usepackage[compact]{{titlesec}}
+
+% En-têtes et pieds de page
+\\usepackage{{fancyhdr}}
+\\pagestyle{{fancy}}
+\\fancyhf{{}} % Nettoie les en-têtes et pieds de page
+\\fancyhead[C]{{{congress_name}, {city} -- {dates}}}
+\\fancyfoot[C]{{\\thepage}}
+\\renewcommand{{\\headrulewidth}}{{0.5pt}}
+\\renewcommand{{\\footrulewidth}}{{0pt}}
+
+% Style pour la première page (sans en-tête)
+\\fancypagestyle{{plain}}{{
+    \\fancyhf{{}}
+    \\fancyfoot[C]{{\\thepage}}
+    \\renewcommand{{\\headrulewidth}}{{0pt}}
+}}
+
+% Hyperlinks avec couleurs
+\\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{{hyperref}}
+
+% Configuration spécifique pour le livre
+\\newcommand{{\\CongressName}}{{{congress_name}}}
+\\newcommand{{\\ShortName}}{{{short_name}}}
+\\newcommand{{\\CongressCity}}{{{city}}}
+\\newcommand{{\\CongressDates}}{{{dates}}}
+"""
     
-#             print("...")
+    with open(os.path.join(temp_dir, "config.tex"), 'w', encoding='utf-8') as f:
+        f.write(config_content)
     
-#             # Chercher les références aux comm_*.tex
-#             comm_references = [line for line in lines if 'comm_' in line and '.tex' in line]
-#             print(f"--- RÉFÉRENCES AUX COMMUNICATIONS ({len(comm_references)} trouvées) ---")
-#             for ref in comm_references[:10]:  # Premières 10
-#                 print(f"    {ref.strip()}")
-    
-#             # Chercher la partie problématique
-#             mainmatter_start = None
-#             for i, line in enumerate(lines):
-#                 if '\\mainmatter' in line:
-#                     mainmatter_start = i
-#                     break
-    
-#                 if mainmatter_start:
-#                     print(f"--- PARTIE MAINMATTER (lignes {mainmatter_start}-{mainmatter_start+15}) ---")
-#                 for i in range(mainmatter_start, min(mainmatter_start + 15, len(lines))):
-#                     print(f"{i+1:2d}: {lines[i]}")
-    
-#                 print("=== FIN EXAMEN ===")
-    
-#         except Exception as e:
-#             print(f"Erreur lors de la lecture du fichier: {e}")       
-#             debug_dir = os.path.join(current_app.root_path, "static", "uploads", "debug_latex")
-#             os.makedirs(debug_dir, exist_ok=True)
-
-#             debug_files = ['livre.tex', 'config.tex', 'page-garde.tex', 'Tableau_Reviewer.tex' 
-#                            'remerciements.tex', 'comite-organisation.tex', 'index_style.ist']
-#         for file in debug_files:
-#             src = os.path.join(temp_dir, file)
-#             if os.path.exists(src):
-#                 shutil.copy2(src, debug_dir)
-#                 current_app.logger.info(f"Fichier {file} copié vers debug_latex")
-                    
-#         current_app.logger.info(f"Fichiers debug copiés vers: {debug_dir}")
-
-            
-#         # Copier les PDFs des communications
-#         copy_communication_pdfs(communications_by_theme, temp_dir, book_type)
-
-#         try:
-#             # Deux compilations LaTeX pour stabiliser les références
-#             for _ in range(2):
-#                 subprocess.run(
-#                     ["pdflatex", "-interaction=nonstopmode", "livre.tex"],
-#                     cwd=temp_dir,
-#                     check=True,
-#                     capture_output=True,
-#                     text=True,
-#                 )
-
-
-                
-#             # Vérifier que le PDF a bien été généré
-#             pdf_source = os.path.join(temp_dir, "livre.pdf")
-#             if not os.path.exists(pdf_source):
-#                 raise FileNotFoundError(f"PDF non généré : {pdf_source}")
-
-#             # Dossier uploads
-#             uploads_dir = os.path.join(current_app.root_path, "static", "uploads")
-#             os.makedirs(uploads_dir, exist_ok=True)
-
-#             # Nom final (ajout timestamp pour éviter les collisions)
-#             filename = f"latex_book_{book_type}_{int(time.time())}.pdf"
-#             pdf_dest = os.path.join(uploads_dir, filename)   # absolu
-#             pdf_web_path = f"static/uploads/{filename}"      # relatif web
-
-#             # Copier le PDF
-#             shutil.copy2(pdf_source, pdf_dest)
-
-#             current_app.logger.info(f"PDF généré avec succès: {pdf_web_path}")
-
-#             # ✅ Retour uniquement l'URL relative pour le front
-#             return pdf_web_path
-
-#         except subprocess.CalledProcessError as e:
-#             # Lire le log LaTeX pour aider au debug
-#             log_file = os.path.join(temp_dir, "livre.log")
-#             if os.path.exists(log_file):
-#                 with open(log_file, "r") as f:
-#                     log_content = f.read()
-#                 current_app.logger.error(f"Erreur LaTeX: {log_content[:2000]}...")
-
-#             raise Exception("Erreur compilation LaTeX — voir logs.")
-
-
+    current_app.logger.info("✅ Fichier config.tex généré pour LuaLaTeX")
 
 
 def generate_latex_content(title, communications_by_theme, book_type):
@@ -2794,7 +2934,6 @@ def generate_latex_content(title, communications_by_theme, book_type):
 %=====================================
 
 \\input{{config.tex}}
-\\begingroup\\shorthandoff{{:;}}
 \\hypersetup{{
   pdfinfo={{
     Title={{{config.get('conference', {}).get('short_name', 'CONF')} - {title}}},
@@ -2804,7 +2943,6 @@ def generate_latex_content(title, communications_by_theme, book_type):
     Creator={{{config.get('conference', {}).get('organizing_lab', {}).get('short_name', 'LAB')}}}
   }}
 }}
-\\endgroup
 
 \\begin{{document}}
 \\SetBgContents{{}}
@@ -2814,7 +2952,7 @@ def generate_latex_content(title, communications_by_theme, book_type):
 %
 \\input{{./page-garde.tex}}
 %
-\\part{{Prolégomènes}}
+\\part{{Introduction}}
 
  \\input{{./remerciements.tex}}
  \\cleardoublepage
@@ -2856,13 +2994,18 @@ def generate_latex_content(title, communications_by_theme, book_type):
 \\chapter{{{escape_latex(theme_name)}}}
 
 """
+     # Générer chaque communication
+        for comm in communications:
+            comm_filename = f"comm_{comm.id}.tex"
             
-            # Ajouter chaque communication
-            for comm in communications:
-                comm_filename = f"comm_{comm.id}"
-                latex_content += f"\\input{{{comm_filename}.tex}}\n"
-                latex_content += f"\\includepdf[pages=-,pagecommand={{\\thispagestyle{{fancy}}}},width=1.05\\paperwidth]{{{comm_filename}.pdf}}\n"
-            
+            if book_type == 'resumes-wip':
+                # Pour les résumés, inclure seulement le fichier .tex
+                latex_content += f"\\input{{{comm_filename}}}\n"
+                latex_content += "\\clearpage\n"
+            else:
+                # Pour les articles, inclure le .tex ET le PDF
+                latex_content += f"\\input{{{comm_filename}}}\n"
+                latex_content += f"\\includepdf[pages=-,pagecommand={{\\thispagestyle{{fancy}}}},width=1.05\\paperwidth]{{comm_{comm.id}.pdf}}\n"       
             theme_num += 1
     
     # Fin du document
@@ -2968,134 +3111,54 @@ def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
     
     current_app.logger.info(f"=== FIN copy_communication_pdfs ===")
 
-# def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
-#     """Copie les PDFs des communications vers le répertoire temporaire."""
-#     import os
-#     import shutil
-    
-#     for theme_name, communications in communications_by_theme.items():
-#         for comm in communications:
-#             # Récupérer le PDF de la communication
-#             pdf_path = get_communication_pdf(comm, book_type)
-#             if pdf_path and os.path.exists(pdf_path):
-#                 # Copier avec un nom standardisé
-#                 dest_filename = f"comm_{comm.id}.pdf"
-#                 dest_path = os.path.join(temp_dir, dest_filename)
-#                 shutil.copy2(pdf_path, dest_path)
-                
-#                 # Générer aussi un fichier .tex minimal pour cette communication
-#                 generate_communication_tex(comm, temp_dir)
-#             else:
-#                 current_app.logger.warning(f"PDF manquant pour communication {comm.id}: {comm.title}")
-#                 # Créer un placeholder
-#                 create_placeholder_tex(comm, temp_dir)
-
-# def generate_communication_tex(communication, temp_dir):
-#     """Génère un fichier LaTeX pour une communication à partir de ses champs textuels."""
-#     from .utils.text_cleaner import clean_text
-    
-#     # Nettoyage des textes pour LaTeX
-#     title = escape_latex(communication.title or "Titre non spécifié")
-#     abstract_fr_clean, _ = clean_text(communication.abstract_fr or "", mode='strict')
-#     abstract_fr_latex = escape_latex(abstract_fr_clean)
-    
-#     # Génération du contenu LaTeX basique
-#     latex_content = f"""% Communication {communication.id} - {communication.title}
-# \\newpage
-
-# {'\\SetBgContents{Work In Progress}\\BgThispage' if communication.type == 'wip' else ''}
-
-# \\phantomsection\\addtocounter{{section}}{{1}}
-# \\subsection*{{{title}}}
-# \\label{{comm_{communication.id}}}
-
-# % TODO: Ajouter auteurs et affiliations ici
-
-# \\textbf{{Résumé :}}\\\\[2mm]
-# {{\\normalsize
-# {abstract_fr_latex}
-# }}\\\\[4mm]
-
-# """
-    
-#     # Écrire le fichier
-#     comm_filename = f"comm_{communication.id}.tex"
-#     with open(os.path.join(temp_dir, comm_filename), 'w', encoding='utf-8') as f:
-#         f.write(latex_content)
-    
-#     return comm_filename
-
-# def escape_latex(text):
-#     """Échappe les caractères spéciaux LaTeX."""
-#     if not text:
-#         return ""
-    
-#     latex_chars = {
-#         '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#',
-#         '_': '\\_', '{': '\\{', '}': '\\}',
-#     }
-    
-#     for char, replacement in latex_chars.items():
-#         text = text.replace(char, replacement)
-    
-#     return text
-
-
-# def generate_communication_tex(comm, temp_dir):
-#     """Génère un fichier .tex minimal pour une communication."""
-#     current_app.logger.info(f"Génération fichier .tex pour communication {comm.id}")
-    
-#     # Échapper le titre pour les références techniques
-#     escaped_title = escape_latex(comm.title)
-#     index_entries = []
-    
-#     # Générer les entrées d'index pour les auteurs
-#     for author in comm.authors:
-#         first_name = author.first_name or ""
-#         last_name = author.last_name or ""
-        
-#         if first_name or last_name:
-#             # Créer l'entrée d'index : \index{nomprenom@Prenom, Nom}
-#             clean_last = last_name.replace(' ', '').replace('-', '')
-#             clean_first = first_name.replace(' ', '').replace('-', '')
-#             index_key = f"{clean_last}{clean_first}"
-#             index_display = f"{first_name}, {last_name}" if last_name else first_name
-            
-#             index_entries.append(f"\\index{{{index_key}@{escape_latex(index_display)}}}")
-    
-#     # Contenu technique uniquement (pas d'affichage visuel)
-#     tex_content = f"""
-# % Communication {comm.id} - Références techniques uniquement
-# % Index des auteurs
-# """
-    
-#     # Ajouter toutes les entrées d'index
-#     for entry in index_entries:
-#         tex_content += f"{entry}\n"
-    
-#     # Références pour la table des matières et les liens croisés
-#     tex_content += f"""
-# % Références pour TOC et liens croisés (pas d'affichage visuel)
-# \\phantomsection\\addtocounter{{section}}{{1}}
-# \\addcontentsline{{toc}}{{section}}{{{escaped_title}}}
-# \\label{{ref:{comm.id}}}
-
-# % Le titre et les auteurs sont déjà dans le PDF intégré
-
-# """
-    
-#     tex_filename = f"comm_{comm.id}.tex"
-#     tex_path = os.path.join(temp_dir, tex_filename)
-    
-#     with open(tex_path, 'w', encoding='utf-8') as f:
-#         f.write(tex_content)
-    
-#     current_app.logger.info(f"✅ Fichier {tex_filename} créé avec {len(index_entries)} entrées d'index (mode technique)")
-
 
 def generate_communication_tex(communication, temp_dir):
     """Génère un fichier LaTeX pour une communication à partir de ses champs textuels.
     Reproduit exactement le template de make_recueils.py"""
+
+    print(f"DEBUG: generate_communication_tex START - comm {communication.id}")
+    print(f"DEBUG: temp_dir = {temp_dir}")
+    
+    filename = f"comm_{communication.id}.tex"
+    filepath = os.path.join(temp_dir, filename)
+    print(f"DEBUG: filepath = {filepath}")
+    
+    # Votre code de génération du contenu LaTeX ici...
+    # Par exemple :
+    title_escaped = escape_latex(communication.title)
+    
+    content = f"""% Communication {communication.id}
+\\section*{{{title_escaped}}}
+
+Test content pour debug
+"""
+    
+    try:
+        print(f"DEBUG: Tentative d'écriture du fichier...")
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print(f"DEBUG: Fichier écrit")
+        
+        # Vérification immédiate
+        if os.path.exists(filepath):
+            size = os.path.getsize(filepath)
+            print(f"DEBUG: Fichier {filename} créé avec succès, taille: {size} bytes")
+            
+            # Lire le contenu pour vérifier
+            with open(filepath, 'r', encoding='utf-8') as f:
+                read_content = f.read()
+            print(f"DEBUG: Contenu lu: {read_content[:100]}...")
+        else:
+            print(f"DEBUG: ERREUR - Fichier {filename} n'existe pas après création!")
+            
+    except Exception as e:
+        print(f"DEBUG: EXCEPTION lors de l'écriture: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+    
+    print(f"DEBUG: generate_communication_tex END")
+
     from .utils.text_cleaner import clean_text
     
     # Nettoyage des textes pour LaTeX
@@ -3121,7 +3184,14 @@ def generate_communication_tex(communication, temp_dir):
         author_affiliations = []
         for affiliation in author.affiliations:
             # Utiliser le champ citation s'il existe, sinon nom_complet
-            aff_text = affiliation.citation or affiliation.nom_complet or affiliation.sigle
+            if affiliation.citation:
+                aff_text = affiliation.citation
+            elif affiliation.nom_complet:
+                aff_text = affiliation.nom_complet
+            else:
+                aff_text = affiliation.sigl
+
+
             if aff_text not in affiliations_list:
                 affiliations_list.append(aff_text)
             author_affiliations.append(affiliations_list.index(aff_text) + 1)
@@ -3528,98 +3598,112 @@ delim_2 "\\\\dotfill"
     with open(os.path.join(temp_dir, "index_style.ist"), 'w', encoding='utf-8') as f:
         f.write(index_style)
 
-def generate_config_tex(temp_dir, config):
-    """Génère config.tex dynamiquement avec les bonnes informations."""
+# def generate_config_tex(temp_dir, config):
+#     """Génère config.tex dynamiquement avec les bonnes informations."""
     
-    # Extraire les infos depuis conference.yml
-    congress_name = config.get('conference', {}).get('name', 'Congrès')
-    short_name = config.get('conference', {}).get('short_name', 'CONF')
-    city = config.get('location', {}).get('city', 'Ville')
-    dates = config.get('dates', {}).get('dates', 'Dates à définir')
+#     # Extraire les infos depuis conference.yml
+#     congress_name = config.get('conference', {}).get('name', 'Congrès')
+#     short_name = config.get('conference', {}).get('short_name', 'CONF')
+#     city = config.get('location', {}).get('city', 'Ville')
+#     dates = config.get('dates', {}).get('dates', 'Dates à définir')
     
-    # Formater les dates pour l'en-tête (ex: "2 -- 5 juin 2026")
-    header_dates = dates  # À adapter selon le format souhaité
+#     # Formater les dates pour l'en-tête (ex: "2 -- 5 juin 2026")
+#     header_dates = dates  # À adapter selon le format souhaité
     
-    config_content = f"""\\usepackage[french]{{babel}}
-\\usepackage[utf8]{{inputenc}}
-\\usepackage[T1]{{fontenc}}
-\\usepackage{{xspace}}
+#     config_content = f"""\\usepackage{{polyglossia}}
+# \\setdefaultlanguage{{french}}
+# % Configuration des polices avec fontspec (natif LuaLaTeX)
+# \\usepackage{{fontspec}}
+# \\setmainfont{{Latin Modern Roman}}
+# \\setsansfont{{Latin Modern Sans}}
+# \\setmonofont{{Latin Modern Mono}}
 
-\\usepackage[]{{pdfpages}}
-\\usepackage{{marvosym}}
-\\usepackage{{sansmathfonts}}
-\\usepackage[scaled]{{helvet}}
-\\renewcommand{{\\familydefault}}{{\\sfdefault}}
-\\hyphenpenalty=0
-\\pdfminorversion=7
-\\usepackage{{amsfonts}}
-\\usepackage{{amsmath}}
-\\usepackage{{amssymb}}
-\\usepackage{{multicol}}
+# % Police par défaut en sans-serif
+# \\renewcommand{{\\familydefault}}{{\\sfdefault}}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\\usepackage[nohints]{{minitoc}}
-\\setcounter{{minitocdepth}}{{2}}
-\\setlength{{\\mtcindent}}{{0pt}}
-\\renewcommand{{\\mtcfont}}{{\\small}}
-\\renewcommand{{\\mtcSfont}}{{\\small}}
-\\mtcsettitle{{minitoc}}{{}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\\setcounter{{tocdepth}}{{1}}
-\\setcounter{{secnumdepth}}{{1}}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\\usepackage{{enumitem}}
-\\usepackage[makeindex]{{imakeidx}}
-\\makeindex[options= -s index_style.ist, title=Liste des auteurs]
+# % Packages mathématiques optimisés pour LuaLaTeX
+# \\usepackage{{unicode-math}}  % Mathématiques Unicode natives
+# \\setmathfont{{Latin Modern Math}}
+# \\usepackage{{amsmath}}
+# \\usepackage{{amssymb}}  % Toujours utile pour certains symboles
+# \\usepackage{{mathtools}}  % Extension d'amsmath avec plus de fonctionnalités
+
 
     
-\\usepackage[a4paper,top=1.5cm,bottom=1.5cm,left=1.8cm,right=1.8cm]{{geometry}}
+# \\usepackage{{xspace}}
 
-\\usepackage{{graphicx}}
-\\DeclareGraphicsExtensions{{.jpg,.eps,.pdf,.png}}
+# \\usepackage[]{{pdfpages}}
+# \\usepackage{{marvosym}}
+# \\usepackage{{sansmathfonts}}
+# \\usepackage[scaled]{{helvet}}
+# \\renewcommand{{\\familydefault}}{{\\sfdefault}}
+# \\hyphenpenalty=0
+# \\pdfminorversion=7
+# \\usepackage{{multicol}}
 
-\\usepackage{{supertabular}}
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# \\usepackage[nohints]{{minitoc}}
+# \\setcounter{{minitocdepth}}{{2}}
+# \\setlength{{\\mtcindent}}{{0pt}}
+# \\renewcommand{{\\mtcfont}}{{\\small}}
+# \\renewcommand{{\\mtcSfont}}{{\\small}}
+# \\mtcsettitle{{minitoc}}{{}}
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# \\setcounter{{tocdepth}}{{1}}
+# \\setcounter{{secnumdepth}}{{1}}
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# \\usepackage{{enumitem}}
+# \\usepackage[makeindex]{{imakeidx}}
+# \\makeindex[options= -s index_style.ist, title=Liste des auteurs]
 
-\\setlength{{\\parindent}}{{10mm}}
-\\setlength{{\\parskip}}{{2mm}}
-\\usepackage{{tcolorbox}}
-\\tcbuselibrary{{breakable}}
+    
+# \\usepackage[a4paper,top=1.5cm,bottom=1.5cm,left=1.8cm,right=1.8cm]{{geometry}}
 
-\\usepackage[pages=some,contents={{Work In Progress}},color=gray!50]{{background}}
+# \\usepackage{{graphicx}}
+# \\DeclareGraphicsExtensions{{.jpg,.eps,.pdf,.png}}
 
-\\usepackage[compact]{{titlesec}}
+# \\usepackage{{supertabular}}
 
-%%%%%%%%%% Titre en haut de page
-\\usepackage{{fancyhdr}}
-\\setlength{{\\headheight}}{{15pt}}
-\\renewcommand{{\\headrule}}{{\\hrule height 0.5pt}}
-\\renewcommand{{\\footrule}}{{\\hrule height 0.5pt}}
+# \\setlength{{\\parindent}}{{10mm}}
+# \\setlength{{\\parskip}}{{2mm}}
+# \\usepackage{{tcolorbox}}
+# \\tcbuselibrary{{breakable}}
 
-\\fancyhf{{}}
-\\fancyfoot[C]{{\\thepage}}
-\\fancyhead[C]{{{congress_name} {short_name}, {city}, {header_dates}}}
-\\fancyhead[L]{{}}
-\\fancyhead[R]{{}}
-\\pagestyle{{fancy}}
+# \\usepackage[pages=some,contents={{Work In Progress}},color=gray!50]{{background}}
 
-\\usepackage{{ifthen}}
+# \\usepackage[compact]{{titlesec}}
 
-\\usepackage[final,colorlinks,linkcolor={{blue}},citecolor={{blue}},urlcolor={{red}}]{{hyperref}}
+# %%%%%%%%%% Titre en haut de page
+# \\usepackage{{fancyhdr}}
+# \\setlength{{\\headheight}}{{15pt}}
+# \\renewcommand{{\\headrule}}{{\\hrule height 0.5pt}}
+# \\renewcommand{{\\footrule}}{{\\hrule height 0.5pt}}
 
-\\hyphenation{{con-flu-ence Ga-ny-me-de}}
-\\newcommand{{\\unit}}[1]{{\\,\\mathsf{{#1}}}}
-\\newcommand{{\\dC}}{{\\,{{}}^{{\\circ}}\\mathsf{{C}}{{}}}}
+# \\fancyhf{{}}
+# \\fancyfoot[C]{{\\thepage}}
+# \\fancyhead[C]{{{congress_name} {short_name}, {city}, {header_dates}}}
+# \\fancyhead[L]{{}}
+# \\fancyhead[R]{{}}
+# \\pagestyle{{fancy}}
 
-%============
-% Réglages césure des mots
-%===========
-\\sloppy
-\\widowpenalty=10000
-\\clubpenalty=10000
-\\raggedbottom"""
+# \\usepackage{{ifthen}}
 
-    with open(os.path.join(temp_dir, "config.tex"), 'w', encoding='utf-8') as f:
-        f.write(config_content)
+# \\usepackage[final,colorlinks,linkcolor={{blue}},citecolor={{blue}},urlcolor={{red}}]{{hyperref}}
+
+# \\hyphenation{{con-flu-ence Ga-ny-me-de}}
+# \\newcommand{{\\unit}}[1]{{\\,\\mathsf{{#1}}}}
+# \\newcommand{{\\dC}}{{\\,{{}}^{{\\circ}}\\mathsf{{C}}{{}}}}
+
+# %============
+# % Réglages césure des mots
+# %===========
+# \\sloppy
+# \\widowpenalty=10000
+# \\clubpenalty=10000
+# \\raggedbottom"""
+
+#     with open(os.path.join(temp_dir, "config.tex"), 'w', encoding='utf-8') as f:
+#         f.write(config_content)
 
 
 def copy_latex_templates(temp_dir, title, book_type):
@@ -3984,82 +4068,180 @@ def generate_introduction_tex(temp_dir, config):
         with open(os.path.join(temp_dir, "introduction.tex"), 'w', encoding='utf-8') as f:
             f.write("\\chapter*{Introduction}\nIntroduction en cours de rédaction.\n")
 
-
 def generate_prix_biot_fourier_tex(temp_dir):
-    """Génère prix-biot-fourier.tex depuis la base de données."""
+    """Génère prix-biot-fourier.tex depuis la base de données (version robuste)."""
+    current_app.logger.info("=== DEBUT generate_prix_biot_fourier_tex ===")
+    
     try:
-        from .models import Communication, Review
+        # Import sécurisé
+        try:
+            from .models import Communication
+            current_app.logger.info("✅ Import models réussi")
+        except ImportError as e:
+            current_app.logger.error(f"❌ Erreur import models: {e}")
+            raise
         
-        # Récupérer les communications sélectionnées pour l'audition
-        audition_candidates = Communication.query.filter_by(
-            biot_fourier_audition_selected=True
-        ).all()
+        # Recherche des candidats avec gestion d'erreur
+        try:
+            # Vérifier si la colonne existe dans le modèle
+            if hasattr(Communication, 'prix') and hasattr(Communication, 'biot_fourier_audition_selected'):
+                # Utiliser la nouvelle colonne si elle existe
+                audition_candidates = Communication.query.filter_by(
+                    biot_fourier_audition_selected=True
+                ).all()
+            elif hasattr(Communication, 'prix'):
+                # Fallback sur l'ancienne colonne prix
+                audition_candidates = Communication.query.filter_by(prix=True).all()
+            else:
+                # Aucune colonne disponible
+                current_app.logger.warning("Aucune colonne prix trouvée dans Communication")
+                audition_candidates = []
+            
+            current_app.logger.info(f"✅ {len(audition_candidates)} candidats trouvés")
+            
+        except Exception as e:
+            current_app.logger.error(f"❌ Erreur requête candidats: {e}")
+            audition_candidates = []
         
+        # Génération du contenu LaTeX
         prix_content = "\\chapter{Prix Biot-Fourier}\n\n"
         
         if audition_candidates:
             nb_candidates = len(audition_candidates)
-            
-            # Utiliser la concaténation au lieu de f-string pour éviter les antislashs
-            prix_content += str(nb_candidates) + " contributions ont été présélectionnées pour le Prix Biot-Fourier. Les auteurs présenteront leurs travaux à l'occasion de sessions orales.\n\n"
+            prix_content += f"{nb_candidates} contributions ont été présélectionnées pour le Prix Biot-Fourier.\n\n"
+            prix_content += "Les auteurs présenteront leurs travaux à l'occasion de sessions orales.\n\n"
             prix_content += "Le Prix Biot-Fourier sera attribué en fonction des rapports d'expertise et de la qualité des présentations orales.\n\n"
-            prix_content += "\\vspace{\\stretch{1}}\n"
-            prix_content += "\\hrule\n\n"
             
             for candidate in audition_candidates:
-                # Auteurs avec soulignement pour le premier auteur
-                authors_list = []
-                for i, author in enumerate(candidate.authors):
-                    author_name = f"{author.first_name} {author.last_name}"
-                    if i == 0:  # Premier auteur souligné
-                        authors_list.append("\\underline{" + author_name + "}")
-                    else:
-                        authors_list.append(author_name)
-                
-                authors_str = ", ".join(authors_list)
-                
-                # Récupérer les affiliations
-                affiliations = []
-                for author in candidate.authors:
-                    if author.institution and author.institution not in affiliations:
-                        affiliations.append(author.institution)
-                
-                # Construction avec concaténation
-                prix_content += "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
-                prix_content += "%% Communication " + str(candidate.id) + "\n"
-                prix_content += "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
-                prix_content += "% Titre\n"
-                prix_content += "\\begin{flushleft}\n"
-                prix_content += "\\phantomsection\\addtocounter{section}{1}\n"
-                prix_content += "\\addcontentsline{toc}{section}{" + candidate.title + "}\n"
-                prix_content += "{\\Large \\textbf{" + candidate.title + "}}\\label{ref:" + str(candidate.id) + "}\n"
-                prix_content += "\\end{flushleft}\n"
-                prix_content += "%\n"
-                prix_content += "% Auteurs\n"
-                prix_content += authors_str + "\\\\[2mm]\n"
-                
-                if affiliations:
-                    for i, aff in enumerate(affiliations):
-                        prix_content += "{\\footnotesize $^{" + str(i+1) + "}$ " + aff + "}\\\\\\n"
-                
-                prix_content += "[4mm]\n"
-                prix_content += "%\n"
-                prix_content += "% Mots clés\n"
-                tags_str = ', '.join(candidate.tags or [])
-                prix_content += "\\noindent \\textbf{Mots clés : } " + tags_str + "\\\\[4mm]\n\n"
-                prix_content += "\\noindent(Cf. page \\pageref{ref:" + str(candidate.id) + "})\n"
-                prix_content += "\\vspace{\\stretch{1}}\n"
-                prix_content += "\\hrule\n\n"
+                try:
+                    # Titre échappé
+                    title_escaped = escape_latex(candidate.title)
+                    
+                    # Auteurs avec gestion d'erreur
+                    authors_list = []
+                    try:
+                        for i, author in enumerate(candidate.authors):
+                            author_name = f"{author.first_name} {author.last_name}"
+                            if i == 0:  # Premier auteur souligné
+                                authors_list.append(f"\\underline{{{escape_latex(author_name)}}}")
+                            else:
+                                authors_list.append(escape_latex(author_name))
+                    except Exception as e:
+                        current_app.logger.error(f"Erreur traitement auteurs comm {candidate.id}: {e}")
+                        authors_list = ["Auteurs non disponibles"]
+                    
+                    authors_str = ", ".join(authors_list)
+                    
+                    # Ajout de la communication
+                    prix_content += f"\\section*{{{title_escaped}}}\n"
+                    prix_content += f"{authors_str}\n\n"
+                    prix_content += f"(Cf. page \\pageref{{ref:{candidate.id}}})\n\n"
+                    prix_content += "\\hrule\n\n"
+                    
+                except Exception as e:
+                    current_app.logger.error(f"Erreur traitement communication {candidate.id}: {e}")
+                    continue
         else:
             prix_content += "Les communications sélectionnées pour le Prix Biot-Fourier seront annoncées prochainement.\n"
         
-        with open(os.path.join(temp_dir, "prix-biot-fourier.tex"), 'w', encoding='utf-8') as f:
+        # Écriture du fichier
+        file_path = os.path.join(temp_dir, "prix-biot-fourier.tex")
+        with open(file_path, 'w', encoding='utf-8') as f:
             f.write(prix_content)
-            
+        
+        current_app.logger.info(f"✅ prix-biot-fourier.tex généré: {file_path}")
+        
     except Exception as e:
-        current_app.logger.error(f"Erreur génération prix-biot-fourier.tex: {e}")
-        with open(os.path.join(temp_dir, "prix-biot-fourier.tex"), 'w', encoding='utf-8') as f:
-            f.write("\\chapter{Prix Biot-Fourier}\nLes communications sélectionnées seront annoncées prochainement.\n")
+        current_app.logger.error(f"❌ Erreur génération prix-biot-fourier.tex: {e}")
+        
+        # Créer un fichier de fallback
+        fallback_content = """\\chapter{Prix Biot-Fourier}
+
+Les communications sélectionnées pour le Prix Biot-Fourier seront annoncées prochainement.
+"""
+        
+        file_path = os.path.join(temp_dir, "prix-biot-fourier.tex")
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(fallback_content)
+        
+        current_app.logger.info("✅ Fichier de fallback prix-biot-fourier.tex créé")
+    
+    current_app.logger.info("=== FIN generate_prix_biot_fourier_tex ===")
+# def generate_prix_biot_fourier_tex(temp_dir):
+#     """Génère prix-biot-fourier.tex depuis la base de données."""
+#     try:
+#         from .models import Communication, Review
+        
+#         # Récupérer les communications sélectionnées pour l'audition
+#         audition_candidates = Communication.query.filter_by(
+#             biot_fourier_audition_selected=True
+#         ).all()
+        
+#         prix_content = "\\chapter{Prix Biot-Fourier}\n\n"
+        
+#         if audition_candidates:
+#             nb_candidates = len(audition_candidates)
+            
+#             # Utiliser la concaténation au lieu de f-string pour éviter les antislashs
+#             prix_content += str(nb_candidates) + " contributions ont été présélectionnées pour le Prix Biot-Fourier. Les auteurs présenteront leurs travaux à l'occasion de sessions orales.\n\n"
+#             prix_content += "Le Prix Biot-Fourier sera attribué en fonction des rapports d'expertise et de la qualité des présentations orales.\n\n"
+#             prix_content += "\\vspace{\\stretch{1}}\n"
+#             prix_content += "\\hrule\n\n"
+            
+#             for candidate in audition_candidates:
+#                 # Auteurs avec soulignement pour le premier auteur
+#                 authors_list = []
+#                 for i, author in enumerate(candidate.authors):
+#                     author_name = f"{author.first_name} {author.last_name}"
+#                     if i == 0:  # Premier auteur souligné
+#                         authors_list.append("\\underline{" + author_name + "}")
+#                     else:
+#                         authors_list.append(author_name)
+                
+#                 authors_str = ", ".join(authors_list)
+                
+#                 # Récupérer les affiliations
+#                 affiliations = []
+#                 for author in candidate.authors:
+#                     if author.institution and author.institution not in affiliations:
+#                         affiliations.append(author.institution)
+                
+#                 # Construction avec concaténation
+#                 prix_content += "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+#                 prix_content += "%% Communication " + str(candidate.id) + "\n"
+#                 prix_content += "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n"
+#                 prix_content += "% Titre\n"
+#                 prix_content += "\\begin{flushleft}\n"
+#                 prix_content += "\\phantomsection\\addtocounter{section}{1}\n"
+#                 prix_content += "\\addcontentsline{toc}{section}{" + candidate.title + "}\n"
+#                 prix_content += "{\\Large \\textbf{" + candidate.title + "}}\\label{ref:" + str(candidate.id) + "}\n"
+#                 prix_content += "\\end{flushleft}\n"
+#                 prix_content += "%\n"
+#                 prix_content += "% Auteurs\n"
+#                 prix_content += authors_str + "\\\\[2mm]\n"
+                
+#                 if affiliations:
+#                     for i, aff in enumerate(affiliations):
+#                         prix_content += "{\\footnotesize $^{" + str(i+1) + "}$ " + aff + "}\\\\\\n"
+                
+#                 prix_content += "[4mm]\n"
+#                 prix_content += "%\n"
+#                 prix_content += "% Mots clés\n"
+#                 tags_str = ', '.join(candidate.tags or [])
+#                 prix_content += "\\noindent \\textbf{Mots clés : } " + tags_str + "\\\\[4mm]\n\n"
+#                 prix_content += "\\noindent(Cf. page \\pageref{ref:" + str(candidate.id) + "})\n"
+#                 prix_content += "\\vspace{\\stretch{1}}\n"
+#                 prix_content += "\\hrule\n\n"
+#         else:
+#             prix_content += "Les communications sélectionnées pour le Prix Biot-Fourier seront annoncées prochainement.\n"
+        
+#         with open(os.path.join(temp_dir, "prix-biot-fourier.tex"), 'w', encoding='utf-8') as f:
+#             f.write(prix_content)
+            
+#     except Exception as e:
+#         current_app.logger.error(f"Erreur génération prix-biot-fourier.tex: {e}")
+#         with open(os.path.join(temp_dir, "prix-biot-fourier.tex"), 'w', encoding='utf-8') as f:
+#             f.write("\\chapter{Prix Biot-Fourier}\nLes communications sélectionnées seront annoncées prochainement.\n")
 
 def generate_page_garde_tex(temp_dir, config, title, book_type):
     """Génère page-garde.tex dynamiquement."""
