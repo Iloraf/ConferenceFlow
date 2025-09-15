@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{{ display_name }} - {{ conference.short_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center p-4">
+                    <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                    <h3>{{ display_name }}</h3>
+                    <p class="text-muted mb-4">{{ message }}</p>
+                    
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+                        <i class="fas fa-home me-2"></i>Retour à l'accueil
+                    </a>
+                    
+                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    <div class="mt-3 pt-3 border-top">
+                        <a href="{{ url_for('admin.manage_content') }}" class="btn btn-sm btn-warning">
+                            <i class="fas fa-cog me-1"></i>Gérer les zones (Admin)
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
