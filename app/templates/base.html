@@ -85,28 +85,30 @@
                             <i class="fas fa-users me-1"></i>Organisation
                         </a>
                     </li>
-<li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                            <i class="fas fa-users me-1"></i>Social
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('main.galerie') }}">
-                                <i class="fas fa-images me-2"></i>Galerie photos
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('main.echanges') }}">
-                                <i class="fas fa-comments me-2"></i>Messagerie
-                            </a></li>
-                            {% if current_user.is_authenticated %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('main.mes_photos') }}">
-                                <i class="fas fa-image me-2"></i>Mes photos
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('main.mes_messages') }}">
-                                <i class="fas fa-user-edit me-2"></i>Mes messages
-                            </a></li>
-                            {% endif %}
-                        </ul>
-                    </li>
+		    <!-------------------------------------------------------------------------------------------->
+		    <!-- <li class="nav-item dropdown">							        -->
+                    <!--     <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">	        -->
+                    <!--         <i class="fas fa-users me-1"></i>Social				        -->
+                    <!--     </a>									        -->
+                    <!--     <ul class="dropdown-menu">							        -->
+                    <!--         <li><a class="dropdown-item" href="{{ url_for('main.galerie') }}">	        -->
+                    <!--             <i class="fas fa-images me-2"></i>Galerie photos			        -->
+                    <!--         </a></li>								        -->
+                    <!--         <li><a class="dropdown-item" href="{{ url_for('main.echanges') }}">	        -->
+                    <!--             <i class="fas fa-comments me-2"></i>Messagerie			        -->
+                    <!--         </a></li>								        -->
+                    <!--         {% if current_user.is_authenticated %}					        -->
+                    <!--         <li><hr class="dropdown-divider"></li>					        -->
+                    <!--         <li><a class="dropdown-item" href="{{ url_for('main.mes_photos') }}">	        -->
+                    <!--             <i class="fas fa-image me-2"></i>Mes photos			        -->
+                    <!--         </a></li>								        -->
+                    <!--         <li><a class="dropdown-item" href="{{ url_for('main.mes_messages') }}">        -->
+                    <!--             <i class="fas fa-user-edit me-2"></i>Mes messages			        -->
+                    <!--         </a></li>								        -->
+                    <!--         {% endif %}								        -->
+                    <!--     </ul>									        -->
+                    <!-- </li>										        -->
+		    <!-------------------------------------------------------------------------------------------->
 
 		    <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('conference.inscription_conference') }}">
