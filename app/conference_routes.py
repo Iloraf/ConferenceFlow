@@ -841,7 +841,7 @@ def inscription_conference():
         fees = {
             'early': {
                 'date': '15 avril 2026',
-                'student': 310,
+                'student': 300,
                 'member_indiv': 400,
                 'member_collec': 460,
                 'not_member': 510,
@@ -918,10 +918,26 @@ def inscription_conference():
                 }
             ]
         }
-    
-    return render_template("conference/inscription_conference.html", fees=fees,
-                         registration_urls=registration_urls)
 
+        zones_status = {'inscription_is_open': False, 'inscription_message': 'Les inscriptions seront bientôt ouvertes.'}
+    try:
+        zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+        if zones_file.exists():
+            with open(zones_file, 'r', encoding='utf-8') as f:
+                zones = yaml.safe_load(f)['zones']
+                inscription_zone = zones.get('inscription', {})
+                zones_status = {
+                    'inscription_is_open': inscription_zone.get('is_open', False),
+                    'inscription_message': inscription_zone.get('message', 'Les inscriptions seront bientôt ouvertes.')
+                }
+    except Exception as e:
+        current_app.logger.error(f"Erreur lecture zones.yml dans inscription_conference: {e}")
+
+    # Modifier le return render_template pour ajouter zones=zones_status :
+    return render_template("conference/inscription_conference.html", 
+                         fees=fees,
+                         registration_urls=registration_urls,
+                         zones=zones_status)
 
 @conference.route("/communication-info")
 def communication_info():
