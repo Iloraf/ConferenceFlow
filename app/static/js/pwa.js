@@ -166,10 +166,25 @@ class ConferenceFlowPWA {
   
   // === GESTION INSTALLATION PWA ===
   setupInstallPrompt() {
-    console.log('🔧 Configuration du prompt d\'installation...');
+    // Détecter si on est sur mobile ou desktop
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+                    || window.matchMedia('(max-width: 768px)').matches
+                    || ('ontouchstart' in window);
+    
+    console.log('📱 Détection appareil:', isMobile ? 'Mobile' : 'Desktop');
     
     window.addEventListener('beforeinstallprompt', (event) => {
-      console.log('🎯 beforeinstallprompt événement déclenché !');
+      console.log('📱 Prompt d\'installation détecté');
+      
+      // Si on est sur desktop, empêcher le prompt et ne rien faire
+      if (!isMobile) {
+        console.log('🚫 Installation désactivée sur desktop');
+        event.preventDefault();
+        return;
+      }
+      
+      // Sinon, continuer normalement pour mobile
+      console.log('📱 Device mobile détecté, autorisation installation');
       event.preventDefault();
       this.installPrompt = event;
       this.showInstallButton();
@@ -184,6 +199,8 @@ class ConferenceFlowPWA {
       this.installPrompt = null;
     });
   }
+
+
 
   async installApp() {
     if (!this.installPrompt) {
