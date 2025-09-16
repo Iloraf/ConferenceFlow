@@ -196,7 +196,8 @@ def create_app():
             app.conference_config = config_loader.load_conference_config()
             app.themes_config = config_loader.load_themes()
             app.email_config = config_loader.load_email_config()
-
+            app.sponsors_config = config_loader.load_sponsors()
+             
             app.config_loader = config_loader
             app.logger.info(f"✅ Configuration chargée : {len(app.themes_config)} thématiques")
             
@@ -206,7 +207,8 @@ def create_app():
             app.conference_config = {}
             app.themes_config = []
             app.email_config = {}
-
+            app.sponsors_config = {'title': 'Parrainages', 'sponsors': []}
+            
         @app.context_processor
         def inject_conference_config():
             """Injecte la configuration dans tous les templates."""
@@ -217,6 +219,7 @@ def create_app():
             fees_info = app.conference_config.get('fees', {})
             transport_info = app.conference_config.get('transport', {})
             accommodation_info = app.conference_config.get('accommodation', {})
+            sponsors_info = app.sponsors_config
             legal_info = app.conference_config.get('legal', {})
             
             return {
@@ -228,6 +231,7 @@ def create_app():
                 'conference_transport': transport_info,
                 'conference_accommodation': accommodation_info,
                 'legal': legal_info,
+                'sponsors': sponsors_info, 
                 'themes_available': len(app.themes_config)
             }
 

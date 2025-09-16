@@ -3257,7 +3257,7 @@ Test content pour debug
         if name and surname:
             name_clean = clean_string(name)
             surname_clean = clean_string(surname)
-            latex_content += f"\\index{{{name_clean + surname_clean}@{name}, {surname}}}\n"
+            latex_content += f"\\index{{{surname_clean + name_clean}@{surname}, {name}}}\n"
     
     latex_content += f"""
 % Titre
@@ -3352,7 +3352,7 @@ def create_placeholder_tex(comm, temp_dir):
             clean_last = last_name.replace(' ', '').replace('-', '')
             clean_first = first_name.replace(' ', '').replace('-', '')
             index_key = f"{clean_last}{clean_first}"
-            index_display = f"{first_name}, {last_name}" if last_name else first_name
+            index_display = f"{last_name}, {first_name}" if last_name else first_name
             
             index_entries.append(f"\\index{{{index_key}@{escape_latex(index_display)}}}")
     
@@ -3783,18 +3783,24 @@ def copy_latex_templates(temp_dir, title, book_type):
 #     create_auxiliary_files(temp_dir) 
 #     current_app.logger.info("Tous les fichiers LaTeX ont été générés")
 
-
-
 def generate_remerciements_tex(temp_dir, config):
-    """Génère remerciements.tex depuis static/content/remerciements.yml."""
+    """Génère remerciements.tex avec parrainages depuis sponsors.yml et remerciements.yml."""
     try:
         from pathlib import Path
         import yaml
         import os
         from flask import current_app
         
-        # Charger depuis remerciements.yml
+        # Charger depuis sponsors.yml d'abord
         content_dir = Path(current_app.root_path) / "static" / "content"
+        sponsors_file = content_dir / "sponsors.yml"
+        
+        sponsors_data = None
+        if sponsors_file.exists():
+            with open(sponsors_file, 'r', encoding='utf-8') as f:
+                sponsors_data = yaml.safe_load(f)
+        
+        # Charger depuis remerciements.yml
         remerciements_file = content_dir / "remerciements.yml"
         
         if remerciements_file.exists():
@@ -3807,7 +3813,7 @@ def generate_remerciements_tex(temp_dir, config):
                 'signature': "Le Comité d'organisation"
             }
         
-        # Remplacer les variables
+        # Remplacer les variables dans les remerciements
         content = remerciements_data['content']
         signature = remerciements_data['signature']
         
@@ -3821,7 +3827,47 @@ def generate_remerciements_tex(temp_dir, config):
             content = content.replace('{' + var + '}', value)
             signature = signature.replace('{' + var + '}', value)
         
-        # Gestion des puces
+        # Construire le contenu LaTeX final
+        latex_content = ""
+        
+        # 1. Section des parrainages (si sponsors.yml existe)
+        if sponsors_data:
+            sponsors_title = sponsors_data.get('title', 'Parrainages')
+            sponsors_intro = sponsors_data.get('introduction', '')
+            sponsors_list = sponsors_data.get('sponsors', [])
+            
+            latex_content += f"\\chapter*{{{sponsors_title}}}\n\n"
+            
+            if sponsors_intro:
+                latex_content += f"{sponsors_intro}\n\n"
+            
+            if sponsors_list:
+                latex_content += "\\begin{itemize}\n"
+                for sponsor in sponsors_list:
+                    sponsor_name = sponsor.get('name', '')
+                    sponsor_address = sponsor.get('address', '')
+                    
+                    if sponsor_name:
+                        latex_content += f"\\item {escape_latex(sponsor_name)}"
+                        if sponsor_address:
+                            # Remplacer les retours à la ligne par \\
+                            address_lines = sponsor_address.strip().split('\n')
+                            if len(address_lines) > 1:
+                                # Créer le séparateur en dehors de la f-string
+                                separator = ' \\\\ '
+                                address_formatted = escape_latex(separator.join(address_lines))
+                                latex_content += f" \\\\\n{address_formatted}"
+                        latex_content += "\n"
+                
+                latex_content += "\\end{itemize}\n\n"
+            
+            # Saut de page avant les remerciements
+            latex_content += "\\cleardoublepage\n\n"
+        
+        # 2. Section des remerciements
+        latex_content += f"\\chapter*{{{remerciements_data['title']}}}\n\n"
+        
+        # Gestion des puces pour les remerciements
         if "•" in content:
             lines = content.splitlines()
             processed_lines = []
@@ -3843,24 +3889,126 @@ def generate_remerciements_tex(temp_dir, config):
         else:
             content_latex = content
         
-        # Construction du LaTeX final
-        remerciements_content = f"""\\chapter*{{{remerciements_data['title']}}}
-
-{content_latex}
-
-\\begin{{flushright}}
-{signature}
-\\end{{flushright}}
-"""
+        latex_content += f"{content_latex}\n\n"
         
+        # Signature
+        latex_content += f"\\begin{{flushright}}\n{signature}\n\\end{{flushright}}\n"
+        
+        # Écrire le fichier
         with open(os.path.join(temp_dir, "remerciements.tex"), 'w', encoding='utf-8') as f:
-            f.write(remerciements_content)
+            f.write(latex_content)
+            
+        current_app.logger.info("✅ remerciements.tex généré avec parrainages")
             
     except Exception as e:
         current_app.logger.error(f"Erreur génération remerciements.tex: {e}")
         # Fallback par défaut
         with open(os.path.join(temp_dir, "remerciements.tex"), 'w', encoding='utf-8') as f:
             f.write("\\chapter*{Remerciements}\nRemerciements en cours de rédaction.\n")
+
+
+def escape_latex(text):
+    """Échappe les caractères spéciaux pour LaTeX."""
+    if not text:
+        return ""
+    
+    # Dictionnaire des caractères à échapper
+    latex_chars = {
+        '\\': r'\textbackslash{}', 
+        '&': r'\&',
+        '%': r'\%', 
+        '$': r'\$',
+        '#': r'\#',
+        '^': r'\textasciicircum{}',
+        '_': r'\_',
+        '{': r'\{',
+        '}': r'\}',
+        '~': r'\textasciitilde{}',
+    }
+    
+    escaped_text = str(text)
+    for char, replacement in latex_chars.items():
+        escaped_text = escaped_text.replace(char, replacement)
+    
+    return escaped_text
+
+
+# def generate_remerciements_tex(temp_dir, config):
+#     """Génère remerciements.tex depuis static/content/remerciements.yml."""
+#     try:
+#         from pathlib import Path
+#         import yaml
+#         import os
+#         from flask import current_app
+        
+#         # Charger depuis remerciements.yml
+#         content_dir = Path(current_app.root_path) / "static" / "content"
+#         remerciements_file = content_dir / "remerciements.yml"
+        
+#         if remerciements_file.exists():
+#             with open(remerciements_file, 'r', encoding='utf-8') as f:
+#                 remerciements_data = yaml.safe_load(f)
+#         else:
+#             remerciements_data = {
+#                 'title': 'Remerciements',
+#                 'content': "Le Comité d'organisation remercie tous les participants.",
+#                 'signature': "Le Comité d'organisation"
+#             }
+        
+#         # Remplacer les variables
+#         content = remerciements_data['content']
+#         signature = remerciements_data['signature']
+        
+#         variables = {
+#             'CONFERENCE_NAME': config.get('conference', {}).get('name', ''),
+#             'CONFERENCE_SHORT_NAME': config.get('conference', {}).get('short_name', ''),
+#             'ORGANIZATION_NAME': config.get('conference', {}).get('organizer', {}).get('name', '')
+#         }
+        
+#         for var, value in variables.items():
+#             content = content.replace('{' + var + '}', value)
+#             signature = signature.replace('{' + var + '}', value)
+        
+#         # Gestion des puces
+#         if "•" in content:
+#             lines = content.splitlines()
+#             processed_lines = []
+#             in_itemize = False
+#             for line in lines:
+#                 if line.strip().startswith("•"):
+#                     if not in_itemize:
+#                         processed_lines.append("\\begin{itemize}")
+#                         in_itemize = True
+#                     processed_lines.append(line.replace("•", "\\item", 1).strip())
+#                 else:
+#                     if in_itemize:
+#                         processed_lines.append("\\end{itemize}")
+#                         in_itemize = False
+#                     processed_lines.append(line)
+#             if in_itemize:
+#                 processed_lines.append("\\end{itemize}")
+#             content_latex = "\n".join(processed_lines)
+#         else:
+#             content_latex = content
+        
+#         # Construction du LaTeX final
+#         remerciements_content = f"""\\chapter*{{{remerciements_data['title']}}}
+
+# {content_latex}
+
+# \\begin{{flushright}}
+# {signature}
+# \\end{{flushright}}
+# """
+        
+#         with open(os.path.join(temp_dir, "remerciements.tex"), 'w', encoding='utf-8') as f:
+#             f.write(remerciements_content)
+            
+#     except Exception as e:
+#         current_app.logger.error(f"Erreur génération remerciements.tex: {e}")
+#         # Fallback par défaut
+#         with open(os.path.join(temp_dir, "remerciements.tex"), 'w', encoding='utf-8') as f:
+#             f.write("\\chapter*{Remerciements}\nRemerciements en cours de rédaction.\n")
 
 
 

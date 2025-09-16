@@ -2,8 +2,12 @@ zones:
   registration:
     display_name: Création de compte et inscription
     is_open: false
-    message: Les inscriptions seront bientôt ouvertes.
+    message: La création de compte sera bientôt possible.
   submission:
     display_name: Dépôt de communications
     is_open: false
     message: Le dépôt de communications sera bientôt ouvert.
+  inscription:
+    display_name: Inscription au congrès
+    is_open: false
+    message: Les inscriptions seront ouvertes à partir de janvier 2026.

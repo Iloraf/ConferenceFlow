@@ -393,6 +393,31 @@ L'équipe d'organisation'''
                 }
             }
         }
+
+    def load_sponsors(self):
+        """Charge la configuration des sponsors depuis sponsors.yml"""
+        sponsors_file = self.config_dir / "sponsors.yml"
+        
+        if not sponsors_file.exists():
+            current_app.logger.warning(f"Fichier sponsors.yml non trouvé : {sponsors_file}")
+            return self._get_default_sponsors()
+        
+        try:
+            with open(sponsors_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+                return config
+        except Exception as e:
+            current_app.logger.error(f"Erreur lors du chargement de sponsors.yml : {e}")
+            return self._get_default_sponsors()
+    
+    def _get_default_sponsors(self):
+        """Configuration par défaut pour les sponsors"""
+        return {
+            'title': 'Parrainages',
+            'introduction': 'Le congrès bénéficie du soutien des organismes suivants :',
+            'sponsors': []
+        }
+
     
     def _get_default_themes(self):
         """Thématiques par défaut (celles actuellement dans models.py)"""
