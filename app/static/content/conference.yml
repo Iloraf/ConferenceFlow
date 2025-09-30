@@ -79,7 +79,7 @@ location:
   city: "Nancy"
   region: "Grand Est"
   country: "France"
-  description: "Centre de congrès moderne situé dans un cadre verdoyant à proximité de Nancy"
+  description: "À proximité de Nancy, le Domaine de l’Asnée offre un cadre exceptionnel pour accueillir le congrès."
   image: "images/domaine_asnee.jpg"
   
   coordinates:
@@ -94,8 +94,8 @@ location:
     exhibition_stands: 20
     
   # Informations ville
-  city_description: "Nancy, ancienne capitale des ducs de Lorraine, est une ville d'art et d'histoire classée au patrimoine mondial de l'UNESCO."
-  place_description: "Le Domaine de l'Asnée offre un cadre exceptionnel pour accueillir le congrès dans un environnement calme et moderne."
+  city_description: "Ancienne capitale des ducs de Lorraine, Nancy possède un riche patrimoine historique mêlant styles médiéval, Renaissance et Art nouveau, dont sa célèbre Place Stanislas classée au patrimoine mondial de l’UNESCO."
+  place_description: "Le Domaine de l’Asnée offre un cadre exceptionnel pour accueillir le congrès au sein d'une architecture unique située dans un parc arboré de 9 hectares."
 
 # ===== TRANSPORTS =====
 transport:
