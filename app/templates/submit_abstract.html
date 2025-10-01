@@ -150,6 +150,41 @@
                         </div>
                     </div>
 
+<!-- NOUVEAU : Sélection de l'auteur correspondant -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">
+                        <i class="fas fa-envelope me-2"></i>Auteur correspondant *
+                    </label>
+                    <div class="form-text mb-3">
+                        L'auteur correspondant sera le contact principal pour cette communication. 
+                        Par défaut, vous êtes désigné comme auteur correspondant.
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-body">
+                            <!-- Vous (auteur principal) -->
+                            <div class="form-check mb-2">
+                                <input class="form-check-input corresponding-radio" type="radio" 
+                                       name="corresponding_author" value="main" id="corresponding_main" checked required>
+                                <label class="form-check-label" for="corresponding_main">
+                                    <strong>{{ current_user.full_name }}</strong> 
+                                    <span class="badge bg-primary ms-2">Vous</span>
+                                    <span class="badge bg-success ms-1">Par défaut</span>
+                                    {% if current_user.email %}
+                                    <br><small class="text-muted">{{ current_user.email }}</small>
+                                    {% endif %}
+                                </label>
+                            </div>
+                            
+                            <!-- Co-auteurs sélectionnés -->
+                            <div id="corresponding-coauthors-list">
+                                <small class="text-muted">Les co-auteurs sélectionnés apparaîtront ici</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+		    
                     <!-- Résumés textuels -->
                     <div class="mb-4">
                         <label for="abstract_fr" class="form-label fw-bold">
@@ -468,9 +503,78 @@ function addNewAuthor() {
     // Mettre à jour le compteur
     const countElement = document.getElementById('author-count');
     countElement.textContent = parseInt(countElement.textContent) + 1;
-}
-</script>
+	}
 
+
+
+	
+</script>
+<!-- Script gestion auteur correspondant -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const authorCheckboxes = document.querySelectorAll('input[name="coauthors"]');
+    const correspondingList = document.getElementById('corresponding-coauthors-list');
+    
+    function updateCorrespondingOptions() {
+        // Récupérer tous les co-auteurs cochés
+        const selectedAuthors = Array.from(authorCheckboxes).filter(cb => cb.checked);
+        
+        if (selectedAuthors.length === 0) {
+            correspondingList.innerHTML = '<small class="text-muted">Les co-auteurs sélectionnés apparaîtront ici</small>';
+            return;
+        }
+        
+        // Construire la liste des options
+        let html = '<hr class="my-3"><small class="text-muted mb-2 d-block">Ou choisir un co-auteur :</small>';
+        
+        selectedAuthors.forEach(checkbox => {
+            const label = checkbox.nextElementSibling;
+            const authorId = checkbox.value;
+            const authorName = label.querySelector('strong').textContent;
+            const authorEmail = label.querySelector('small.text-muted') ? 
+                               label.querySelector('small.text-muted').textContent.replace('(', '').replace(')', '') : '';
+            
+            html += `
+                <div class="form-check mb-2">
+                    <input class="form-check-input corresponding-radio" type="radio" 
+                           name="corresponding_author" value="${authorId}" id="corresponding_${authorId}">
+                    <label class="form-check-label" for="corresponding_${authorId}">
+                        <strong>${authorName}</strong>
+                        ${authorEmail ? `<br><small class="text-muted">${authorEmail}</small>` : ''}
+                    </label>
+                </div>
+            `;
+        });
+        
+        correspondingList.innerHTML = html;
+    }
+    
+    // Mettre à jour quand on coche/décoche un co-auteur
+    authorCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateCorrespondingOptions);
+    });
+    
+    // Observer les nouveaux auteurs ajoutés via le modal
+    const authorsList = document.getElementById('authors-list');
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.addedNodes.length) {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === 1 && node.classList.contains('author-item')) {
+                        const checkbox = node.querySelector('input[name="coauthors"]');
+                        if (checkbox) {
+                            checkbox.addEventListener('change', updateCorrespondingOptions);
+                            updateCorrespondingOptions(); // Mettre à jour immédiatement
+                        }
+                    }
+                });
+            }
+        });
+    });
+    
+    observer.observe(authorsList, { childList: true });
+});
+</script>
 <!-- Script validation caractères spéciaux -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -508,7 +612,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Détecter d'autres caractères non-ASCII
+        // Détecter d autres caractères non-ASCII
         for (const char of text) {
             if (char.charCodeAt(0) > 127 && !mathSymbols[char]) {
                 if (!problematicChars.includes(char)) {

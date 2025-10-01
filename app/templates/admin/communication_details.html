@@ -125,17 +125,28 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        {% for author in communication.authors %}
-                        <div class="col-md-6 mb-3">
-                            <div class="card border-light">
-                                <div class="card-body p-3">
-                                    <h6 class="card-title mb-1">
-                                        {{ author.first_name }} {{ author.last_name }}
-                                        {% if loop.index == 1 %}
-                                        <span class="badge bg-primary">Auteur principal</span>
-                                        {% endif %}
-                                    </h6>
-                                    <p class="card-text mb-1">
+
+
+
+{% for author in communication.authors %}
+<div class="col-md-6 mb-3">
+    <div class="card border-light">
+        <div class="card-body p-3">
+            <h6 class="card-title mb-1">
+                {{ author.first_name }} {{ author.last_name }}
+                {% if loop.index == 1 %}
+                <span class="badge bg-primary">Auteur principal</span>
+                {% endif %}
+                {% if communication.corresponding_author and author.id == communication.corresponding_author.id %}
+                <span class="badge bg-success">
+                    <i class="fas fa-envelope me-1"></i>Corresponding Author
+                </span>
+                {% endif %}
+            </h6>
+
+
+
+				    <p class="card-text mb-1">
                                         <i class="fas fa-envelope me-1"></i>{{ author.email }}
                                     </p>
                                     {% if author.affiliations %}
@@ -150,6 +161,10 @@
                             </div>
                         </div>
                         {% endfor %}
+
+
+
+			
                     </div>
                 </div>
             </div>

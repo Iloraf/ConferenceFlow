@@ -30,10 +30,10 @@ db = SQLAlchemy()
 # ==================== TABLES D'ASSOCIATION ====================
 
 # Table d'association pour les auteurs des communications
-communication_authors = db.Table('communication_authors',
-    db.Column('communication_id', db.Integer, db.ForeignKey('communication.id'), primary_key=True),
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
-)
+#communication_authors = db.Table('communication_authors',
+#    db.Column('communication_id', db.Integer, db.ForeignKey('communication.id'), primary_key=True),
+#    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+#)
 # Table d'association pour les affiliations des users
 user_affiliations = db.Table('user_affiliations',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
@@ -41,6 +41,19 @@ user_affiliations = db.Table('user_affiliations',
 )
 
 # ==================== MODÈLES PRINCIPAUX ====================
+class CommunicationAuthor(db.Model):
+    """Table d'association enrichie entre Communication et User (auteurs)."""
+    __tablename__ = 'communication_authors'
+    
+    communication_id = db.Column(db.Integer, db.ForeignKey('communication.id'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    author_order = db.Column(db.Integer, nullable=False, default=0)
+    is_corresponding = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # Relations sans backref - on les définira manuellement
+    communication = db.relationship('Communication')
+    user = db.relationship('User')
+
 
 class User(UserMixin, db.Model):
     """Modèle utilisateur avec support des rôles et spécialités."""
@@ -74,9 +87,20 @@ class User(UserMixin, db.Model):
     # Relations many-to-many
     specialites_codes = db.Column(db.String(500), nullable=True)
     
-    authored_communications = db.relationship('Communication', secondary=communication_authors,
-                                            back_populates='authors')
+    #authored_communications = db.relationship('Communication', secondary=communication_authors,
+    #                                        back_populates='authors')
+    # Relation many-to-many simple
+    authored_communications = db.relationship('Communication', 
+                                         secondary='communication_authors',
+                                         back_populates='authors',
+                                         overlaps="author_associations,communication_associations,communication,user")
 
+    # Accès direct à la table d'association
+    communication_associations = db.relationship('CommunicationAuthor',
+                                            foreign_keys='CommunicationAuthor.user_id',
+                                            overlaps="authored_communications,communication,user")
+
+    
     activation_token = db.Column(db.String(100), nullable=True, unique=True)
     is_activated = db.Column(db.Boolean, default=False)
     activation_sent_at = db.Column(db.DateTime, nullable=True)
@@ -349,9 +373,23 @@ class Communication(db.Model):
     poster_submitted_at = db.Column(db.DateTime, nullable=True)
     
     # Relations
-    authors = db.relationship('User', secondary=communication_authors,
-                            back_populates='authored_communications')
+    #authors = db.relationship('User', secondary=communication_authors,
+    #                        back_populates='authored_communications')
 
+    # Relation many-to-many simple
+    authors = db.relationship('User', 
+                         secondary='communication_authors',
+                         back_populates='authored_communications',
+                         order_by='CommunicationAuthor.author_order',
+                         overlaps="author_associations,communication_associations,communication,user")
+
+    # Accès direct à la table d'association
+    author_associations = db.relationship('CommunicationAuthor', 
+                                     foreign_keys='CommunicationAuthor.communication_id',
+                                     overlaps="authors,communication,user")
+
+    
+    
     final_decision = db.Column(db.String(20), nullable=True)  # 'accepter', 'rejeter', 'reviser'
     decision_date = db.Column(db.DateTime, nullable=True)
     decision_by_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_communication_decision_by'), nullable=True)
@@ -894,7 +932,20 @@ class Communication(db.Model):
             
             return potential_reviewers
 
-
+    @property
+    def corresponding_author(self):
+        """Retourne l'auteur correspondant (ou le premier auteur par défaut)."""
+        # Chercher l'auteur marqué comme corresponding
+        corresponding_assoc = CommunicationAuthor.query.filter_by(
+            communication_id=self.id,
+            is_corresponding=True
+        ).first()
+    
+        if corresponding_assoc:
+            return User.query.get(corresponding_assoc.user_id)
+    
+        # Fallback : retourner le premier auteur
+        return self.authors[0] if self.authors else None
 
     
 

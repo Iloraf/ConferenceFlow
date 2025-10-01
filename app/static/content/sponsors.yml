@@ -1,0 +1,115 @@
+title: "Parrainages"
+
+introduction: |
+  Le Congrès Français de Thermique, SFT 2023, organisé par le LEMTA (UMR7562, CNRS-Université de Lorraine) a bénéficié du parrainage et du soutien financier des institutions et des organismes suivants :
+
+# Parrainages institutionnels principaux
+institutional_sponsors:
+  - name: "Laboratoire Énergies & Mécanique Théorique et Appliquée (UMR 7563)"
+    type: "institutional"
+    level: "principal"
+    description: "Laboratoire organisateur principal"
+    logo: "lemta.png"
+    url: "https://lemta.univ-lorraine.fr/"
+    address: |
+      2 avenue de la Forêt de Haye
+      BP 90161
+      54505 Vandoeuvre-lès-Nancy cedex
+
+  - name: "CNRS"
+    type: "institutional"
+    level: "principal"
+    description: "Centre National de la Recherche Scientifique"
+    logo: "cnrs.png"
+    url: "https://www.cnrs.fr"
+    address: ""
+
+  - name: "Université de Lorraine"
+    type: "institutional"
+    level: "principal"
+    description: "Université organisatrice"
+    logo: "ul.png"
+    url: "https://www.univ-lorraine.fr"
+    address: ""
+
+# Organismes de financement
+funding_sponsors:
+  - name: "Région Grand-Est"
+    type: "funding"
+    level: "principal"
+    description: ""
+    logo: "region_GE.png"
+    url: "https://www.grandest.fr/"
+    address: |
+      Place Gabriel Hanoteau
+      57000 Metz
+
+# Section sponsors industriels
+industrial_intro: |
+  Il a également reçu le soutien d'exposants-sponsors industriels :
+
+# Sponsors industriels avec contacts détaillés
+industrial_sponsors:
+  - name: "THEMACS Ingénierie"
+    type: "industrial"
+    level: "exposant"
+    logo: "themacs.png"
+    url: "themacs-engineering.com"
+    address: |
+      2 bis rue Alfred Nobel
+      77420 Champs-sur-Marne, France
+    contact:
+      name: "Jean-Pierre MONCHAU"
+      phone: "06 29 82 44 34"
+      email: "monchau@themacs.fr"
+
+  - name: "LaVision GmbH"
+    type: "industrial"
+    level: "exposant"
+    logo: "lavision.png"
+    url: "https://www.lavision.de/fr/"
+    address: |
+      Anna-Vandenhoeck-Ring 19
+      37081 Göttingen, Germany
+    contact:
+      name: "Cédric DEGOUET"
+      email: "infofrance@lavision.com"
+
+  - name: "COMSOL France"
+    type: "industrial"
+    level: "exposant"
+    logo: "comsol.png"
+    url: "www.comsol.com"
+    address: |
+      26 rue Gustave Eiffel
+      38000 Grenoble, France
+    contact:
+      name: "Frédéric BERNARD"
+      phone: "04 76 46 49 01"
+      email: "frederic.bernard@comsol.fr"
+
+  - name: "DEWESoft"
+    type: "industrial"
+    level: "exposant"
+    logo: "dewesoft.png"
+    url: "dewesoft.com"
+    address: |
+      14 rue René Cassin
+      91300 Massy
+    contact:
+      name: "Fabien JEANDENANS"
+      email: "fabien.jeandenans@dewesoft.com"
+
+  - name: "Alt-R&D"
+    type: "industrial"
+    level: "exposant"
+    logo: "alt_rd.png"
+    url: "https://www.alt-rd.com/"
+    subtitle: "CoAction"
+    address: |
+      46-48 rue Ferdinand Buisson
+      33130 BEGLES
+    contact:
+      name: "Emmanuel RUFFIO"
+      email: "emmanuel.ruffio@alt-rd.com"
+

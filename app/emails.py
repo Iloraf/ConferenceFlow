@@ -20,6 +20,7 @@ from flask_mail import Message
 from app import mail
 from flask import current_app, url_for
 import logging
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -450,8 +451,10 @@ def send_coauthor_notification_email(user, communication, token):
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
             'COMMUNICATION_TYPE': communication.type.title() if communication.type else 'Communication',
-    'MAIN_AUTHOR_NAME': main_author_name,
-            'MAIN_AUTHOR_NAME': main_author_name,  
+            'MAIN_AUTHOR_NAME': main_author_name,
+            'MAIN_AUTHOR_EMAIL': main_author.email if main_author else '',  # ← CETTE LIGNE MANQUE
+            'INVITATION_DEADLINE': (datetime.utcnow() + timedelta(days=14)).strftime('%d/%m/%Y'),  # ← CETTE LIGNE MANQUE
+            'ACTIVATION_TOKEN': token if token else '',
             'ACTIVATION_TOKEN': token if token else '',
             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True) if not token else url_for('main.activate_account', token=token, _external=True)
         }
