@@ -484,6 +484,17 @@ content:
       {CUSTOM_MESSAGE}
     call_to_action: "Répondre à cette demande"
 
+  information_generale:
+    greeting: "Bonjour {USER_FIRST_NAME} {USER_LAST_NAME},"
+    intro: ""
+    body: |
+      {ADMIN_MESSAGE}
+      
+      Communication concernée : {COMMUNICATION_TITLE} (ID: {COMMUNICATION_ID})
+      
+      Pour toute question, n'hésitez pas à nous contacter.
+    call_to_action: "Voir la communication"
+
 # ===== SIGNATURES =====
 signatures:
   default: |

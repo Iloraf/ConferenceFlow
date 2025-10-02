@@ -27,7 +27,13 @@ logger = logging.getLogger(__name__)
 def send_email(subject, recipients, body, html=None):
     """Fonction de base pour envoyer un email."""
     try:
-        msg = Message(subject=subject, recipients=recipients, body=body, html=html)
+        msg = Message(
+            subject=subject, 
+            recipients=recipients, 
+            body=body, 
+            html=html,
+            reply_to=current_app.config.get('MAIL_REPLY_TO')
+        )
         mail.send(msg)
         logger.info(f"Email envoyé à {recipients} avec sujet: {subject}")
     except Exception as e:
@@ -342,7 +348,7 @@ def send_any_email_with_themes(template_name, recipient_email, base_context,
 def send_submission_confirmation_email(communication, submission_type='résumé', submission_file=None):
     """Envoie un email de confirmation après le dépôt d'un fichier."""
     try:
-        main_author = communication.authors[0] if communication.authors else None
+        main_author = communication.corresponding_author
         if not main_author:
             logger.error(f"Aucun auteur trouvé pour la communication {communication.id}")
             return

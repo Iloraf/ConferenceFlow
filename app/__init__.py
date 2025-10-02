@@ -95,7 +95,8 @@ def create_app():
     app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True') == 'True'
     app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
     app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-    app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
+    app.config['MAIL_DEFAULT_SENDER'] = ('Congrès SFT 2026', os.getenv('MAIL_USERNAME'))
+    app.config['MAIL_REPLY_TO'] = 'congres-sft2026@univ-lorraine.fr'
     
     # Configuration application
     app.config['BASE_URL'] = os.getenv('BASE_URL', 'http://localhost:5000')
