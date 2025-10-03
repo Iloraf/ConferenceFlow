@@ -250,7 +250,7 @@ def get_book_css():
             margin-bottom: 0;
         }
         
-        /* ESPACES FLEXIBLES (reproduit \vspace{\stretch{1}}) */
+        /* ESPACES FLEXIBLES (reproduit \\vspace{\\stretch{1}}) */
         .cover-spacer-1 { flex: 1; }
         .cover-spacer-2 { flex: 0.5; }
         .cover-spacer-3 { flex: 1; }
