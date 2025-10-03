@@ -300,22 +300,26 @@ def mes_communications():
 @login_required
 def choose_type():
     if not current_user.is_admin:
-        try:
-            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
-            if zones_file.exists():
-                with open(zones_file, 'r', encoding='utf-8') as f:
-                    zones = yaml.safe_load(f)['zones']
-                    if not zones['submission']['is_open']:
-                        return render_template('simple_closed.html', 
-                                             zone_name='submission',
-                                             message=zones['submission']['message'],
-                                             display_name=zones['submission']['display_name'])
-        except Exception as e:
-            current_app.logger.error(f"Erreur lecture zones.yml: {e}")
-            return render_template('simple_closed.html', 
-                                 zone_name='submission',
-                                 message="Le dépôt de communications n'est pas encore ouvert.",
-                                 display_name="Dépôt de communications")
+        ###########################################################################################
+        # try:                                                                                    #
+        #     zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'       #
+        #     if zones_file.exists():                                                             #
+        #         with open(zones_file, 'r', encoding='utf-8') as f:                              #
+        #             zones = yaml.safe_load(f)['zones']                                          #
+        #             print(f"DEBUG: zones chargées = {zones}")                                   #
+        #             print(f"DEBUG: submission is_open = {zones['submission']['is_open']}")      #
+        #             if not zones['submission']['is_open']:                                      #
+        #                 return render_template('simple_closed.html',                            #
+        #                                      zone_name='submission',                            #
+        #                                      message=zones['submission']['message'],            #
+        #                                      display_name=zones['submission']['display_name'])  #
+        # except Exception as e:                                                                  #
+        #     current_app.logger.error(f"Erreur lecture zones.yml: {e}")                          #
+        #     return render_template('simple_closed.html',                                        #
+        #                          zone_name='submission',                                        #
+        #                          message="Le dépôt de communications n'est pas encore ouvert.", #
+        #                          display_name="Dépôt de communications")                        #
+        ###########################################################################################
     
     # Vérifier les affiliations pour l'affichage
     has_affiliations = bool(current_user.affiliations)
@@ -345,24 +349,26 @@ def start_submission(type):
         return redirect(url_for("main.profile"))
     # ========================================================
     
-    # Vérifier si la zone de soumission est ouverte (sauf pour les admins)
-    if not current_user.is_admin:
-        try:
-            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
-            if zones_file.exists():
-                with open(zones_file, 'r', encoding='utf-8') as f:
-                    zones = yaml.safe_load(f)['zones']
-                    if not zones['submission']['is_open']:
-                        return render_template('simple_closed.html', 
-                                             zone_name='submission',
-                                             message=zones['submission']['message'],
-                                             display_name=zones['submission']['display_name'])
-        except Exception as e:
-            current_app.logger.error(f"Erreur lecture zones.yml: {e}")
-            return render_template('simple_closed.html', 
-                                 zone_name='submission',
-                                 message="Le dépôt de communications n'est pas encore ouvert.",
-                                 display_name="Dépôt de communications")
+    ###############################################################################################
+    # # Vérifier si la zone de soumission est ouverte (sauf pour les admins)                      #
+    # if not current_user.is_admin:                                                               #
+    #     try:                                                                                    #
+    #         zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'       #
+    #         if zones_file.exists():                                                             #
+    #             with open(zones_file, 'r', encoding='utf-8') as f:                              #
+    #                 zones = yaml.safe_load(f)['zones']                                          #
+    #                 if not zones['submission']['is_open']:                                      #
+    #                     return render_template('simple_closed.html',                            #
+    #                                          zone_name='submission',                            #
+    #                                          message=zones['submission']['message'],            #
+    #                                          display_name=zones['submission']['display_name'])  #
+    #     except Exception as e:                                                                  #
+    #         current_app.logger.error(f"Erreur lecture zones.yml: {e}")                          #
+    #         return render_template('simple_closed.html',                                        #
+    #                              zone_name='submission',                                        #
+    #                              message="Le dépôt de communications n'est pas encore ouvert.", #
+    #                              display_name="Dépôt de communications")                        #
+    ###############################################################################################
         
     if request.method == "POST":
         title = request.form.get("title", "").strip()
