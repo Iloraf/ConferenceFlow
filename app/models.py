@@ -270,7 +270,7 @@ class Affiliation(db.Model):
     """Modèle pour les affiliations (laboratoires, universités, etc.)."""
     
     id = db.Column(db.Integer, primary_key=True)
-    sigle = db.Column(db.String(20), unique=True, nullable=False)
+    sigle = db.Column(db.String(40), unique=True, nullable=False)
     nom_complet = db.Column(db.String(200), nullable=False)
     adresse = db.Column(db.Text, nullable=True)
     citation = db.Column(db.String(500), nullable=True)
