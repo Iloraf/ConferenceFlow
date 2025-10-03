@@ -1,7 +1,7 @@
 zones:
   inscription:
     display_name: Inscription au congrès
-    is_open: false
+    is_open: true
     message: Les inscriptions seront ouvertes à partir de janvier 2026.
   registration:
     display_name: Création de compte et inscription
