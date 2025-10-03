@@ -1,24 +1,136 @@
 sigle;nom_complet;adresse;citation;struct_id_hal;acronym_hal;type_hal
-IUSTI;Institut Universitaire des Systèmes Thermiques Industriels;"Marseille, Aix-Marseille Université; CNRS";IUSTI, Marseille;949;IUSTI;laboratory
-LOCIE;Laboratoire Optimisation de la Conception et Ingénierie de l'Environnement;"Chambéry (Le Bourget-du-Lac), Université Savoie Mont Blanc; CNRS";LOCIE, Chambéry;1174528;LOCIE;laboratory
-ICUBE;Laboratoire des sciences de l'ingénieur de l'informatique et de l'imagerie;"Strasbourg, Université de Strasbourg; CNRS; INSA Strasbourg; ENGEES; Inria";ICube, Strasbourg;217648;ICube;laboratory
-CETHIL;Centre de Thermique de Lyon;"Lyon/Villeurbanne, INSA Lyon; Université de Lyon; CNRS";CETHIL, Lyon/Villeurbanne;442221;CETHIL;laboratory
-LASIE;Laboratoire des Sciences de l'Ingénieur pour l'Environnement;"La Rochelle, La Rochelle Université; CNRS";LaSIE, La Rochelle;185979;LaSIE;laboratory
-INSTITUTP;Institut Pprime;"Poitiers; Chasseneuil-du-Poitou, CNRS; Université de Poitiers; ISAE-ENSMA";"INSTITUTP, Poitiers; Chasseneuil-du-Poitou";;;laboratory
-LATEP;Laboratoire de Thermique Énergétique et Procédés;Pau, Université de Pau et des Pays de l'Adour;LaTEP, Pau;33789;LaTEP;laboratory
-LTEN;Laboratoire de Thermique et Énergie de Nantes;Nantes, Nantes Université;LTNLTEN, Nantes;;;laboratory
-I2M;Institut de Mécanique et d'Ingénierie de Bordeaux;"Bordeaux/Talence, Université de Bordeaux; Bordeaux INP; Arts et Métiers; CNRS";I2M, Bordeaux/Talence;1002421;I2M;laboratory
-FEMTOST;Franche-Comté Électronique Mécanique Thermique et Optique Sciences et Technologies;"Besançon; Belfort; Montbéliard, Université Bourgogne Franche-Comté; CNRS; ENSMM; UTBM";"FEMTO-ST, Besançon; Belfort; Montbéliard";866;FEMTO-ST;laboratory
-CERTES;Centre d'Études et de Recherche en Thermique Environnement et Systèmes;"Créteil, Université Paris-Est Créteil; Université Gustave Eiffel";CERTES, Créteil;;;laboratory
-IRDL;Institut de Recherche Dupuy de Lôme;"Lorient; Brest; Quimper; Vannes, Université Bretagne Sud; ENSTA Bretagne; ENIB; Université de Bretagne Occidentale";"IRDL, Lorient; Brest; Quimper; Vannes";1251173;IRDL;laboratory
-ITHEMM;Institut de Thermique Mécanique Matériaux;Reims, Université de Reims Champagne-Ardenne;ITheMM, Reims;1003313;ITheMM;laboratory
-ONERA;Office National d'Études et de Recherches Aérospatiales;Toulouse, ONERA (Établissement public);ONERA, Toulouse;;;laboratory
-CNAM;Conservatoire National des Arts et Métiers Laboratoires énergie/thermique;Paris, CNAM;CNAM, Paris;;;laboratory
-LAMIH;Laboratoire d'Automatique de Mécanique et d'Informatique Industrielles et Humaines;"Valenciennes, Université Polytechnique Hauts-de-France; CNRS";LAMIH, Valenciennes;;;laboratory
-CORIA;Complexe de Recherche Interprofessionnel en Aérothermochimie;"Saint-Étienne-du-Rouvray (Rouen), CNRS; Normandie Université; INSA Rouen Normandie; Université de Rouen Normandie";CORIA, Saint-Étienne-du-Rouvray;962;CORIA;laboratory
-LEGI;Laboratoire des Écoulements Géophysiques et Industriels;"Grenoble, Université Grenoble Alpes; CNRS; Grenoble INP–UGA";LEGI, Grenoble;1043048;LEGI;laboratory
-SIMAP;Science et Ingénierie des Matériaux et Procédés;"Grenoble, Université Grenoble Alpes; CNRS; Grenoble INP–UGA";SIMaP, Grenoble;1043114;SIMaP;laboratory
-M2P2;Mécanique Modélisation et Procédés Propres;"Marseille, Aix-Marseille Université; CNRS; Centrale Méditerranée";M2P2, Marseille;199963;M2P2;laboratory
-TREFLEI2M;Transferts Écoulements Fluides Énergétique (équipe au sein d'I2M);"Bordeaux/Talence, Université de Bordeaux; Bordeaux INP; Arts et Métiers; CNRS";TREFLEI2M, Bordeaux/Talence;;;laboratory
-FAST;Fluides Automatique et Systèmes Thermiques;"Orsay (Plateau de Saclay), CNRS; Université Paris-Saclay";FAST, Orsay;1051120;FAST;laboratory
-LEMTA;Laboratoire Énergies et Mécanique Théorique et Appliquée;"Vandoeuvre-lès-Nancy, CNRS; Université de Lorraine";Université de Lorraine, CNRS, LEMTA, Vandœuvre-lès-Nancy, F–54500, France;;;laboratory
+INSA Strasbourg;ICUBE Strasbourg University;;Université de Strasbourg, INSA Strasbourg, CNRS, ICube Laboratory UMR 7357;;;
+LaTEP;Laboratoire de Thermique, Energétique et Procédés;;Université de Pau et des Pays de l’Adour, LaTEP, Pau, France;;;
+FEMTO-ST;Franche-Comté Électronique Mécanique Thermique et Optique Sciences et Technologies;;Université Marie et Louis Pasteur CNRS, Institut FEMTO-ST;;;
+LabEREE;LabEREE;;Laboratoire Énergies Renouvelables et Efficacité Énergétique (LabEREE), Institut International de l’Ingénierie de l’Eau et de l’Environnement (2iE);;;
+CEALI Énergie;CEALI Énergie;;CAELI Energie;;;
+LOCIE;'Laboratoire Optimisation de la Conception et Ingénierie de l''Environnement';; Laboratoire procédés énergie bâtiment (LOCIE), Université Savoie Mont Blanc (USMB), CNRS UMR5271;;;
+LEMHaD;LEMHaD;; Laboratoire Eco-Matériaux et Habitats Durables (LEMHaD), Institut International de l’Ingénierie de l’Eau et de l’Environnement (2iE);;;
+CEREMA BPE;CEREMA BPE;;Cerema, Equipe de recherche BPE, Ministère de la transition écologique;;;
+CEA Cadarache;CEA Cadarache;;CEA Cadarache, IRESNE/DER/SESI;;;
+LAPLACE;LAPLACE;; LAPLACE, UMR CNRS 5213, Université Paul Sabatier, Toulouse, France;;;
+IUSTI;IUSTI;;Aix Marseille Université, CNRS IUSTI, Marseille, France;;;
+LAMIH;LAMIH;; LAMIH UPHF;;;
+MASEEL;MASEEL;;MASEEL FSTT UAE Maroc;;;
+LFP UAE;LFP UAE;; LFP UAE Maroc;;;
+ENSI;ENSI;;New Science School of Engineering (ENSI);;;
+PROMES;PROMES;;CNRS-PROMES (UPR 8521), Technosud-Rambla de la Thermodynamique, 66100 Perpignan, Université de Perpignan Via Domitia, 52 avenue Paul Alduy, 66100 Perpignan;;;
+CEA Grenoble;CEA Grenoble;;CEA Grenoble;;;
+CEA-Liten;CEA-Liten;;CEA Grenoble, DRT/LITEN/DTCH, Université Grenoble Alpes;;;
+LEHSA;LEHSA;;Laboratoire Eau, Hydro-Systèmes et Agriculture (LEHSA), Institut International d’Ingénierie de l’Eau et de l’Environnement (2iE);;;
+Groupe de recherche Energy – U. Malaga;Groupe de recherche Energy – U. Malaga;;Groupe de recherche Energy, Departement d’ingénierie mécanique, thermique et des fluides, université de Malaga;;;
+UMONS;UMONS;;Université de Mons, Faculté Polytechnique, service de Thermique et Combustion;;;
+CEA-Saclay;CEA-Saclay;; CEA Saclay, DES/ISAS/DM2S, Université Paris-Saclay;;;
+ Capgemini Engineering; Capgemini Engineering;; Capgemini Engineering;;;
+Université de la Polynésie Française;Université de la Polynésie Française;;Université de la Polynésie Française (UPF);;;
+ENGIE Lab CRIGEN;ENGIE Lab CRIGEN;;ENGIE Lab CRIGEN;;;
+ IMT Nord Europe; IMT Nord Europe;;IMT Nord Europe, Institut Mines Télécom, Univ. Lille, Centre énergie & environnement, F-59000 Lille;;;
+Tecumseh S&L;Tecumseh S&L;;Tecumseh S&L;;;
+CETHIL;CETHIL;;INSA-Lyon, CNRS, CETHIL, UMR5008, F-69621, Villeurbanne, 69100, France;;;
+LISTIC;LISTIC;;LISTIC - Université Savoie Mont Blanc;;;
+Genvia;Genvia;;Genvia, SAS, France;;;
+U Genova;U Genova;;Università degli Studi di Genova;;;
+Newheat;Newheat;;Newheat;;;
+ESTP;ESTP;;ESTP;;;
+IRDL;IRDL;; Univ. Bretagne Sud, UMR CNRS 6027, IRDL;;;
+Feng Technologies;Feng Technologies;;Feng Technologies SAS;;;
+LAMA;LAMA;;LAMA;;;
+PANDO2;PANDO2;;PANDO2;;;
+LERMA;LERMA;;LERMA, College of Engineering & Architecture, International University of Rabat;;;
+LTEN;Laboratoire de Thermique et Énergie de Nantes;;Nantes Université, CNRS, Laboratoire de Thermique et énergie de Nantes;;;
+ICAM;ICAM;;Institut Catholique d’Arts et Métiers;;;
+UNSTIM;UNSTIM;;UNSTIM, BENIN;;;
+Renault Group AMPERE;Renault Group AMPERE;;Renault Group AMPERE;;;
+Laboratoire Ampère;Laboratoire Ampère;;Laboratoire Ampère;;;
+NEEXT ENGINEERING;NEEXT ENGINEERING;;NEEXT ENGINEERING;;;
+LEMTA;Laboratoire Énergies et Mécanique Théorique et Appliquée;;Université de Lorraine, CNRS, LEMTA, F-54000 Nancy, France;;;
+U Liège;U Liège;;Université de Liège;;;
+Tecumseh;Tecumseh;;Tecumseh Europe Sales & Logistics, Engineering Department;;;
+PIMENT;PIMENT;;Laboratoire PIMENT de l’Université de La Réunion;;;
+IMAGEEN;IMAGEEN;;IMAGEEN;;;
+Q3E Conseils;Q3E Conseils;;Q3E Conseils;;;
+INSET;INSET;;INSET;;;
+IC66;IC66;;IC66;;;
+ItheMM;Institut de Thermique, Mécanique, Matériaux;;ITheMM/Université de Reims Champagne-Ardenne, UR 7548;;;
+Xlim;Xlim;; Université de Limoges, Xlim, UMR 7252;;;
+CEA-Le Ripault;CEA-Le Ripault;; CEA Le Ripault, Centre d’études du Ripault;;;
+IRCER;IRCER;; Université de Limoges, Institut de Recherche sur les CERamiques;;;
+SGRParis;Saint Gobain Recherche Paris;;Saint-Gobain Research Paris;;;
+Institut Langevin;Institut Langevin;; Institut Langevin, ESPCI Paris, Université PSL, CNRS;;;
+PPRIME;Institut P’;;Institut Pprime, CNRS, Université de Poitiers, ISAE-ENSMA;;;
+I2M;I2M;; I2M - Institut de Mécanique et d’Ingénierie de Bordeaux;;;
+LEME;LEME;; Laboratoire Energétique Mécanique Electromagnétisme (LEME), Université de Paris Nanterre;;;
+LETTM;LETTM;;Laboratoire d’Energétique et des Transferts Thermiques et Massiques, Université de Tunis El Manar;;;
+INSA Centre Val de Loire;INSA Centre Val de Loire;;INSA Centre Val de Loire;;;
+Sorbonne Coll. Doctoral;Sorbonne Coll. Doctoral;;Sorbonne Université, Collège Doctoral, Paris, France;;;
+ENS Lyon;ENS Lyon;;Lab. Physique, Ecole Normale Supérieure de Lyon, CNRS, Lyon, France;;;
+Lab. Interdisciplinaire des Sciences du Numérique;Lab. Interdisciplinaire des Sciences du Numérique;;CNRS, Lab. Interdisciplinaire des Sciences du Numérique, Université Paris-Saclay, CNRS, Orsay, France;;;
+Sorbonne Fac des Sciences et Ing;Sorbonne Fac des Sciences et Ing;;Sorbonne Université, Fac. des Sciences et Ing. , Paris, France;;;
+INRAE;INRAE;;INRAE;;;
+IFPEN;IFPEN;;IFPEN;;;
+RAPSODEE;RAPSODEE;;RAPSODEE, UMR CNRS 5302, IMT Mines Albi, Campus Jarlard, 81013 Albi, France;;;
+LES-GPTE;LES-GPTE;; LES-GPTE,Université de Lomé, 01BP1515 Lomé, Togo;;;
+Caminetti Montegrappa;Caminetti Montegrappa;;Caminetti Montegrappa;;;
+ Invicta; Invicta;; Invicta;;;
+CERTES;CERTES;;Centre d’Études et de Recherche en Thermique, Environnement et Systèmes;;;
+CSTB;CSTB;;Centre scientifique et technique du bâtiment;;;
+Technip Energies;Technip Energies;;Technip Energies;;;
+SNCF;SNCF;;SNCF;;;
+CEREA;CEREA;; CEREA - École des Ponts, EDF R&D Marne la Vallée, 77455, France;;;
+EDF R&D - Dpt. Technology and Research for Energy Efficiency;EDF R&D - Dpt. Technology and Research for Energy Efficiency;;EDF R&D - Dpt. Technology and Research for Energy Efficiency, Écuelles, 77250, France;;;
+IMFT;IMFT;; Institut de Mécanique des Fluides de Toulouse, CNRS INPT UPS, Toulouse, France;;;
+ EDF R&D; EDF R&D;; EDF R&D;;;
+Carnegie Mellon University;Carnegie Mellon University;;Carnegie Mellon University, Department of Chemical Engineering;;;
+LPCE;LPCE;;Université Joseph KI-ZERBO, Laboratoire de Physique et Chimie de l’Environnement (LPCE);;;
+Lafset;Lafset;;Lafset, Cnam;;;
+Cleveland State University;Cleveland State University;;Cleveland State University;;;
+IRCELYON;IRCELYON;;Université Claude Bernard Lyon 1, CNRS, IRCELYON, UMR 5256;;;
+Onera/DMPE;'Office National d''Études et de Recherches Aérospatiales';;Onera/DMPE, Université de Toulouse;;;
+LASIE;'Laboratoire des Sciences de l''Ingénieur pour l''Environnement';; Laboratoire des Sciences de l’Ingénieur pour l’Environnement (LaSIE), UMR 7356 CNRS, La Rochelle Université, CNRS;;;
+LATERMO;LATERMO;;LATERMO, Department of Mechanical Engineering, Federal Fluminense University;;;
+UFRJ;UFRJ;; COPPE, Department of Mechanical Engineering, Federal University of Rio De Janeiro;;;
+CRMSB;CRMSB;;CRMSB;;;
+UNIFEI;UNIFEI;; Federal University of Itajubá (UNIFEI);;;
+CoActions-AltRD;CoActions-AltRD;;CoActions-AltRD;;;
+LGCgE;LGCgE;;Université d’Artois, LGCgE;;;
+GEPEA;GEPEA;;GEPEA;;;
+Institut de Recherche Dupuy De Lôme;Institut de Recherche Dupuy De Lôme;;Institut de Recherche Dupuy De Lôme;;;
+LMGC;LMGC;;LMGC – UMR 5508;;;
+LMEE;LMEE;; LMEE, Univ. Evry Paris-Saclay;;;
+IST Antananarivo;IST Antananarivo;;Institut Supérieur de Technologie d’Antananarivo, Iadiambola Ampasapito, BP 8122, Antananarivo 101, Madagascar;;;
+UNSW;UNSW;;University of New South Wales (UNSW);;;
+2IE;2IE;;Institut International d’ingénierie de l’Eau et de l’environnement (2iE);;;
+UJKZ;UJKZ;;Université Joseph Ki-ZERBO (UJKZ);;;
+BLUETEK;BLUETEK;;BLUETEK;;;
+LMDC;LMDC;;Université de Toulouse, INSA de Toulouse, LMDC, UPS;;;
+université IBN ZOHR;université IBN ZOHR;;université IBN ZOHR Agadir, Maroc;;;
+Université BEN MSIK;Université BEN MSIK;;Université BEN MSIK Casablanca;;;
+MaSEEL;MaSEEL;;Materials, Systems and Energy Engineering Laboratory (MaSEEL) - UAE/U04FSTTg, Tanger, Maroc;;;
+WINK PANDO2;WINK PANDO2;;WINK PANDO2, 46 – 48 Rue René Clair, 75018 Paris, France;;;
+LaBEL;LaBEL;;Research Laboratory of Built Environment and Landscape (LaBEL), National School of Architecture, Tetouan, Morocco;;;
+LAGEPP;LAGEPP;;LAGEPP- Université Claude Bernard Lyon 1;;;
+CERTES-Créteil;CERTES-Créteil;;Université Paris Est Créteil, CERTES, OSU Efluve;;;
+ICMR;ICMR;;Institut de Chimie Moléculaire de Reims (ICMR-UMR 7312 CNRS), UFR Sciences Exactes et Naturelles;;;
+ADEME;ADEME;;ADEME, Agence de la transition écologique;;;
+ Université Cheikh Anta Diop; Université Cheikh Anta Diop;; Université Cheikh Anta Diop de Dakar;;;
+Cellaouate;Cellaouate;;Cellaouate, 29600 Saint Martin des Champs, France;;;
+CEMHTI;CEMHTI;; CEMHTI - UPR3079 CNRS;;;
+Centrale Lille Institut;Centrale Lille Institut;;Univ. Lille, CNRS, INRAE, Centrale Lille Institut, UMR 8207 - UMET, France;;;
+URME;URME;; Unité de Recherche des Matériaux Émergents;;;
+Polytech Belle-Beille-BEMS-LARIS;Polytech Belle-Beille-BEMS-LARIS;;Polytech Belle-Beille-BEMS-LARIS, 62 Avenue Notre Dame du Lac, 49000 Angers;;;
+Université Gustave Eiffel;Université Gustave Eiffel;;Université Gustave Eiffel;;;
+IJL;Institut Jean Lamour;;Institut Jean Lamour;;;
+LIED;LIED;;Université Paris Cité - Laboratoire Interdisciplinaire des Energies de Demain (LIED);;;
+ICA-Albi;Institut Clément Ader – Albi;;Institut Clément Ader - Université de Toulouse, CNRS, IMT Mines Albi, INSA, UPS, ISAE SUPAERO;;;
+ICA-Toulouse;Institut Clément Ader – Toulouse;;Institut Clément Ader - Université de Toulouse, CNRS, IMT Mines Albi, INSA, UPS, ISAE SUPAERO;;;
+IRAP;;;Institut de Recherche en Astrophysique et Planétologie (IRAP), CNRS/CNES;;;
+Université de Sao Paulo;Université de Sao Paulo;;Université de Sao Paulo/EESC/GOTAS;;;
+ASNR;ASNR;;Autorité de Sûreté Nucléaire et de Radioprotection;;;
+Institut Pascal ;Institut Pascal ;;Université Clermont Auvergne, Clermont Auvergne INP, Institut Pascal UMR CNRS 6602;;;
+CRCA;CRCA;;Centre de Recherches sur la Cognition Animale (CRCA), Centre de Biologie Intégrative (CBI);;;
+CEA, IRFM;CEA, IRFM;;CEA, IRFM;;;
+PIIM;PIIM;; Aix Marseille Univ, CNRS, PIIM, Marseille, France;;;
+Sao Carlos School of Engineering;Sao Carlos School of Engineering;;Sao Carlos School of Engineering, University of Sao Paulo, Brazil;;;
+CNAM;CNAM;;Conservatoire National des Arts et Métiers;;;
+Laboratoire Navier;Laboratoire Navier;; Laboratoire Navier, Ecole des ponts, Univ. Gustave Eiffel, CNRS;;;
+IRT Jules Verne;IRT Jules Verne;; IRT Jules Verne;;;
