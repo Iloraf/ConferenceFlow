@@ -77,25 +77,17 @@
                     <table class="table table-hover">
                         <thead class="table-light">
                             <tr>
-			      <th style="width: 40px;">
-                                <input type="checkbox" class="form-check-input" id="selectAllArticles" 
-                                       onchange="toggleSelectAll('articles')">
-                              </th>
-                              <th>Titre</th>
-                              <th>Auteur principal</th>
-                              <th>Statut</th>
-                              <th>Reviewers assignés</th>
-                              <th>Thématiques</th>
-                              <th class="text-center">Actions</th>
+                                <th>Titre</th>
+                                <th>Auteur principal</th>
+                                <th>Statut</th>
+                                <th>Reviewers assignés</th>
+                                <th>Thématiques</th>
+                                <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for article in articles %}
-<tr data-communication-id="{{ article.id }}" class="communication-row">
-                                <td>
-                                    <input type="checkbox" class="form-check-input article-checkbox" 
-                                           value="{{ article.id }}">
-                                </td>
+                            <tr>
                                 <td>
                                     <strong>{{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}</strong>
                                     <br>
