@@ -389,19 +389,23 @@ console.log('🔍 DEBUG: Abonnement récupéré:', !!subscription);
 
       console.log('📱 État abonnement existant:', !!subscription);
       
-      if (subscription) {
+      //if (subscription) {
         // Vérifier que l'abonnement est encore valide
-        console.log('🔍 Vérification validité abonnement existant...');
-        try {
+      //  console.log('🔍 Vérification validité abonnement existant...');
+      //  try {
           // Test de validité en tentant une requête vers l'endpoint
-          const testResponse = await fetch(subscription.endpoint, { method: 'HEAD' });
-          console.log('🔍 Test endpoint:', testResponse.status);
-        } catch (error) {
-          console.warn('⚠️ Abonnement peut-être invalide:', error.message);
+      //    const testResponse = await fetch(subscription.endpoint, { method: 'HEAD' });
+      //    console.log('🔍 Test endpoint:', testResponse.status);
+      //  } catch (error) {
+      //    console.warn('⚠️ Abonnement peut-être invalide:', error.message);
           // Si l'endpoint ne répond pas, on peut garder l'abonnement quand même
-        }
-      }
-      
+      //  }
+      //}
+      if (subscription) {
+        console.log('✅ Abonnement push existant trouvé');
+      } 
+
+
       if (!subscription) {
         console.log('📱 Création d\'un nouvel abonnement push...');
         

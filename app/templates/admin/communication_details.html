@@ -115,6 +115,65 @@
                 </div>
             </div>
 
+<!-- Section Résumés -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-text me-2"></i>
+                        Résumés
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if communication.abstract_fr or communication.abstract_en %}
+                        {% if communication.abstract_fr %}
+                        <div class="mb-4">
+                            <h6 class="text-primary">
+                                <i class="fas fa-globe-europe me-2"></i>
+                                Résumé en français
+                            </h6>
+                            <div class="p-3 bg-light border rounded">
+                                <p style="white-space: pre-wrap;">{{ communication.abstract_fr }}</p>
+                            </div>
+                            <small class="text-muted">
+                                {{ communication.abstract_fr|length }} caractères
+                            </small>
+                        </div>
+                        {% endif %}
+                        
+                        {% if communication.abstract_en %}
+                        <div class="mb-4">
+                            <h6 class="text-success">
+                                <i class="fas fa-globe-americas me-2"></i>
+                                Résumé en anglais
+                            </h6>
+                            <div class="p-3 bg-light border rounded">
+                                <p style="white-space: pre-wrap;">{{ communication.abstract_en }}</p>
+                            </div>
+                            <small class="text-muted">
+                                {{ communication.abstract_en|length }} caractères
+                            </small>
+                        </div>
+                        {% endif %}
+                        
+                        {% if communication.keywords %}
+                        <div>
+                            <h6 class="text-info">
+                                <i class="fas fa-tags me-2"></i>
+                                Mots-clés
+                            </h6>
+                            <p class="ms-3">{{ communication.keywords }}</p>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Aucun résumé saisi pour cette communication.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+	    
             <!-- Auteurs -->
             <div class="card mb-4">
                 <div class="card-header">

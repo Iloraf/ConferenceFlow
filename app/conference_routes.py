@@ -1041,7 +1041,7 @@ def communication_info():
             'required_for_articles': True,
             'format': {
                 'max_pages': 1,
-                'file_format': 'PDF',
+                'file_format': 'Texte brut',
                 'required_elements': [
                     'Titre et auteurs',
                     'Affiliations complètes', 
@@ -1093,7 +1093,7 @@ def communication_info():
         guidelines['types'] = [
             {
                 'name': 'Article complet',
-                'pages': '6 pages max',
+                'pages': '8 pages max',
                 'deadline': _format_date(deadlines.get('article_submission', '2026-01-22')),
                 'description': 'Travaux aboutis avec résultats complets (nécessite un résumé accepté)'
             },
