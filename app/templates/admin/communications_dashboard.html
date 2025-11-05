@@ -87,7 +87,11 @@
                         </thead>
                         <tbody>
                             {% for article in articles %}
-                            <tr>
+                            <tr data-communication-id="{{ article.id }}" class="communication-row">
+                                <td>
+                                    <input type="checkbox" class="form-check-input article-checkbox" 
+                                           value="{{ article.id }}">
+                                </td>
                                 <td>
                                     <strong>{{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}</strong>
                                     <br>

@@ -385,9 +385,9 @@ class Communication(db.Model):
 
     # Accès direct à la table d'association
     author_associations = db.relationship('CommunicationAuthor', 
-                                     foreign_keys='CommunicationAuthor.communication_id',
-                                     overlaps="authors,communication,user")
-
+                                 foreign_keys='CommunicationAuthor.communication_id',
+                                 cascade="all, delete-orphan",
+                                 overlaps="authors,communication,user")
     
     
     final_decision = db.Column(db.String(20), nullable=True)  # 'accepter', 'rejeter', 'reviser'
@@ -425,6 +425,48 @@ class Communication(db.Model):
         return (self.status == CommunicationStatus.RESUME_SOUMIS and 
                 self.has_file('résumé'))
 
+    def reclassify_as_wip(self, admin_user):
+        """
+        Reclasse un article en WIP.
+        Réinitialise le statut et adapte le workflow.
+        
+        Args:
+        admin_user (User): L'administrateur qui effectue le reclassement
+        
+        Returns:
+        bool: True si le reclassement a réussi, False sinon
+        """
+        if self.type != 'article':
+            return False  # On ne peut reclasser que des articles
+    
+        # Changer le type
+        self.type = 'wip'
+    
+        # Adapter le statut selon l'état actuel
+        if self.status in [CommunicationStatus.RESUME_SOUMIS, 
+                           CommunicationStatus.ARTICLE_SOUMIS,
+                           CommunicationStatus.EN_REVIEW,
+                           CommunicationStatus.REVISION_DEMANDEE]:
+            self.status = CommunicationStatus.WIP_SOUMIS
+        elif self.status == CommunicationStatus.ACCEPTE:
+            self.status = CommunicationStatus.WIP_SOUMIS
+        elif self.status == CommunicationStatus.REJETE:
+            self.status = CommunicationStatus.WIP_SOUMIS
+    
+        # Réinitialiser la décision si elle existe
+        self.final_decision = None
+        self.decision_date = None
+        self.decision_by_id = None
+        self.decision_comments = None
+        self.decision_notification_sent = False
+        self.decision_notification_sent_at = None
+    
+        # Mettre à jour la date de modification
+        self.updated_at = datetime.utcnow()
+        
+        return True
+
+    
     def can_submit_poster(self):
         """Vérifie si on peut soumettre le poster."""
         return self.status == CommunicationStatus.ACCEPTE

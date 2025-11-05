@@ -115,6 +115,66 @@
                 </div>
             </div>
 
+<!-- Section Résumés -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-text me-2"></i>
+                        Résumés
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if communication.abstract_fr or communication.abstract_en %}
+                        {% if communication.abstract_fr %}
+                        <div class="mb-4">
+                            <h6 class="text-primary">
+                                <i class="fas fa-globe-europe me-2"></i>
+                                Résumé en français
+                            </h6>
+                            <div class="p-3 bg-light border rounded">
+                                <p style="white-space: pre-wrap;">{{ communication.abstract_fr }}</p>
+                            </div>
+                            <small class="text-muted">
+                                {{ communication.abstract_fr|length }} caractères
+                            </small>
+                        </div>
+                        {% endif %}
+                        
+                        {% if communication.abstract_en %}
+                        <div class="mb-4">
+                            <h6 class="text-success">
+                                <i class="fas fa-globe-americas me-2"></i>
+                                Résumé en anglais
+                            </h6>
+                            <div class="p-3 bg-light border rounded">
+                                <p style="white-space: pre-wrap;">{{ communication.abstract_en }}</p>
+                            </div>
+                            <small class="text-muted">
+                                {{ communication.abstract_en|length }} caractères
+                            </small>
+                        </div>
+                        {% endif %}
+                        
+                        {% if communication.keywords %}
+                        <div>
+                            <h6 class="text-info">
+                                <i class="fas fa-tags me-2"></i>
+                                Mots-clés
+                            </h6>
+                            <p class="ms-3">{{ communication.keywords }}</p>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Aucun résumé saisi pour cette communication.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+
+
             <!-- Auteurs -->
             <div class="card mb-4">
                 <div class="card-header">
@@ -496,7 +556,12 @@
                             <i class="fas fa-user-plus me-2"></i>Assigner reviewers
                         </a>
                         {% endif %}
-                        
+
+			{% if communication.type == 'article' %}
+			<button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reclassifyModal">
+			  <i class="fas fa-exchange-alt me-2"></i>Reclasser en WIP
+			</button>
+			{% endif %}
                         <hr>
                         
                         <a href="{{ url_for('admin.communications_dashboard') }}" class="btn btn-secondary">
@@ -595,4 +660,50 @@
         </div>
     </div>
 </div>
+
+
+<!-- Modal de confirmation pour le reclassement -->
+{% if communication.type == 'article' %}
+<div class="modal fade" id="reclassifyModal" tabindex="-1" aria-labelledby="reclassifyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="reclassifyModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Confirmer le reclassement en WIP
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Attention :</strong> Vous êtes sur le point de reclasser cette soumission en Work in Progress (WIP).</p>
+                <p>Cette action va :</p>
+                <ul>
+                    <li>Changer le type de "article" vers "wip"</li>
+                    <li>Adapter le statut (résumé → WIP soumis)</li>
+                    <li>Effacer toute décision finale si elle existe</li>
+                    <li>Simplifier le workflow (plus besoin d'article complet ni de review)</li>
+                </ul>
+                <p class="text-success">
+                    <i class="fas fa-check-circle"></i>
+                    Les résumés, fichiers et auteurs seront conservés.
+                </p>
+                <p class="text-info mb-0">
+                    <i class="fas fa-info-circle"></i>
+                    L'auteur pourra ensuite soumettre directement un poster.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" action="{{ url_for('main.reclassify_as_wip', comm_id=communication.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-exchange-alt me-2"></i>
+                        Confirmer le reclassement
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
