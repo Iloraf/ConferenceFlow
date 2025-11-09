@@ -134,6 +134,19 @@ def index():
             
         return data
     
+    def format_date(date_str):
+        """Convertit une date YYYY-MM-DD en format français DD/MM/YYYY"""
+        if not date_str:
+            return "À définir"
+        try:
+            from datetime import datetime
+            if isinstance(date_str, str) and len(date_str) == 10:
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                return date_obj.strftime('%d/%m/%Y')
+            return str(date_str)
+        except:
+            return str(date_str)
+
     # Chargement des données CSV
     sponsors_data = load_csv_data('sponsors.csv')
     
@@ -156,6 +169,20 @@ def index():
     # Tri des sponsors par niveau (or > argent > bronze)
     level_order = {'or': 1, 'gold': 1, 'argent': 2, 'silver': 2, 'bronze': 3}
     committees['sponsors'].sort(key=lambda x: level_order.get(x['level'], 4))
+
+    # Récupérer et formater les dates depuis conference.yml
+    dates_info = current_app.conference_config.get('dates', {})
+    deadlines = dates_info.get('deadlines', {})
+    
+    formatted_deadlines = {
+        'abstract_submission': format_date(deadlines.get('abstract_submission')),
+        'abstract_notification': format_date(deadlines.get('abstract_notification')),
+        'article_submission': format_date(deadlines.get('article_submission')),
+        'article_notification': format_date(deadlines.get('article_notification')),
+        'final_version': format_date(deadlines.get('final_version')),
+        'wip_submission': format_date(deadlines.get('wip_submission'))
+    }
+
     
     # Statistiques pour affichage (optionnel)
     stats = {
@@ -163,7 +190,8 @@ def index():
     }
 
     return render_template("index.html",
-                           committees=committees)
+                           committees=committees,
+                           deadlines=formatted_deadlines)
 
 
 @main.route("/profile", methods=["GET", "POST"])

@@ -156,7 +156,7 @@ content:
       Merci de nous le faire savoir en répondant à cet email ou en contactant {SCIENTIFIC_EMAIL}.
     
       Votre contribution est précieuse pour maintenir la qualité scientifique du congrès.
-    call_to_action: "► Accepter et créer mon compte reviewer"
+    call_to_action: "Accepter et créer mon compte reviewer"
 
   # Email de review assignée
   review_assigned:

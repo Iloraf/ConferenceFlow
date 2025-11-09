@@ -32,10 +32,10 @@ RUN pip install --user -r requirements.txt
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-base texlive-latex-recommended texlive-latex-extra \
-    texlive-fonts-recommended texlive-fonts-extra lmodern \
-    texlive-lang-french latexmk ghostscript \
+    texlive-fonts-recommended texlive-fonts-extra lmodern tex-gyre fonts-texgyre \
+    texlive-lang-french texlive-luatex latexmk ghostscript \
     && rm -rf /var/lib/apt/lists/*
-USER appuser    
+USER appuser
 COPY --chown=appuser:appuser app ./app
 
 COPY --chown=appuser:appuser init_app.py ./init_app.py

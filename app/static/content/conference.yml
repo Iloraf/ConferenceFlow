@@ -44,7 +44,7 @@ dates:
 
   # Dates limites de soumission
   deadlines:
-    abstract_submission: "2025-11-15"
+    abstract_submission: "2025-11-21"
     abstract_notification: "2025-12-01"
     article_submission: "2026-01-21"
     article_notification: "2026-03-25"

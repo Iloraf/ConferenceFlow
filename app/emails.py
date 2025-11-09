@@ -131,6 +131,12 @@ def prepare_email_context(base_context, communication=None, user=None, reviewer=
 def send_reviewer_welcome_email(user, token):
     """Envoie l'email de bienvenue à un reviewer."""
     try:
+        from datetime import datetime, timedelta
+        
+        # Dates par défaut pour l'information
+        assignment_date = (datetime.utcnow() + timedelta(days=7)).strftime('%d/%m/%Y')
+        review_deadline = (datetime.utcnow() + timedelta(days=30)).strftime('%d/%m/%Y')
+        
         base_context = {
             'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
             'USER_LAST_NAME': user.last_name or '',
@@ -139,6 +145,8 @@ def send_reviewer_welcome_email(user, token):
             'REVIEWER_SPECIALTIES': getattr(user, 'specialites_codes', 'Non spécifiées'),
             'REVIEWER_AFFILIATIONS': 'Non spécifiées',  # À adapter selon votre modèle
             'ACTIVATION_TOKEN': token,
+            'ASSIGNMENT_DATE': assignment_date,  # ← LIGNE AJOUTÉE
+            'REVIEW_DEADLINE': review_deadline,  # ← LIGNE AJOUTÉE
             'call_to_action_url': url_for('main.activate_account', token=token, _external=True)
         }
         
@@ -161,31 +169,31 @@ def _build_info_section_with_icons(context, primary_color):
     
     # Informations communication avec émojis
     if context.get('COMMUNICATION_TITLE'):
-        info_parts.append(f'<li>📄 <strong>Communication :</strong> {context["COMMUNICATION_TITLE"]}</li>')
+        info_parts.append(f'<li><strong>Communication :</strong> {context["COMMUNICATION_TITLE"]}</li>')
     if context.get('COMMUNICATION_ID'):
-        info_parts.append(f'<li>🔢 <strong>ID :</strong> {context["COMMUNICATION_ID"]}</li>')
+        info_parts.append(f'<li><strong>ID :</strong> {context["COMMUNICATION_ID"]}</li>')
     if context.get('COMMUNICATION_THEMES'):
-        info_parts.append(f'<li>🏷️ <strong>Thématiques :</strong> <span class="themes">{context["COMMUNICATION_THEMES"]}</span></li>')
+        info_parts.append(f'<li><strong>Thématiques :</strong> <span class="themes">{context["COMMUNICATION_THEMES"]}</span></li>')
     
     # Informations reviewer avec émojis
     if context.get('REVIEWER_AFFILIATIONS'):
-        info_parts.append(f'<li>🏛️ <strong>Affiliations :</strong> {context["REVIEWER_AFFILIATIONS"]}</li>')
+        info_parts.append(f'<li><strong>Affiliations :</strong> {context["REVIEWER_AFFILIATIONS"]}</li>')
     
     # Informations utilisateur avec émojis
     if context.get('USER_EMAIL'):
-        info_parts.append(f'<li>📧 <strong>Email :</strong> {context["USER_EMAIL"]}</li>')
+        info_parts.append(f'<li><strong>Email :</strong> {context["USER_EMAIL"]}</li>')
     
     # Informations de fichier (si présentes)
     if context.get('FILE_VERSION'):
-        info_parts.append(f'<li>📁 <strong>Version :</strong> {context["FILE_VERSION"]}</li>')
+        info_parts.append(f'<li><strong>Version :</strong> {context["FILE_VERSION"]}</li>')
     
     if context.get('SUBMISSION_DATE'):
-        info_parts.append(f'<li>📅 <strong>Date :</strong> {context["SUBMISSION_DATE"]}</li>')
+        info_parts.append(f'<li><strong>Date :</strong> {context["SUBMISSION_DATE"]}</li>')
     
     if info_parts:
         return f'''
         <div class="info-box">
-            <h4 style="margin-top: 0; color: {primary_color};">ℹ️ Détails :</h4>
+            <h4 style="margin-top: 0; color: {primary_color};">Détails :</h4>
             <ul style="list-style: none; padding-left: 0;">
                 {''.join(info_parts)}
             </ul>
@@ -248,7 +256,7 @@ def _build_html_email(template_name, context, color_scheme='blue'):
                 <a href="{context['call_to_action_url']}" 
                    style="background-color: {colors['primary']}; color: white; padding: 12px 25px; 
                           text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-                    🔗 {button_text}
+                    {button_text}
                 </a>
             </div>
             ''')
@@ -294,7 +302,7 @@ def _build_text_email(template_name, context):
         if context.get('call_to_action_url'):
             button_text = content_config.get('call_to_action', 'Accéder à la plateforme')
             button_text = config_loader._replace_variables(button_text, context)
-            text_parts.append(f"\n\n🔗 {button_text} : {context['call_to_action_url']}")
+            text_parts.append(f"\n\n{button_text} : {context['call_to_action_url']}")
         
         signature = config_loader.get_email_signature('default', **context)
         if signature:
@@ -482,37 +490,6 @@ def send_coauthor_notification_email(user, communication, token):
         logger.error(f"Erreur envoi notification co-auteur à {user.email}: {e}")
         raise
     
-    
-#################################################################################################################################################################################################
-# def send_coauthor_notification_email(user, communication, token):                                                                                                                             #
-#     """Envoie un email de notification à un nouveau co-auteur."""                                                                                                                             #
-#     try:                                                                                                                                                                                      #
-#         base_context = {                                                                                                                                                                      #
-#             'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],                                                                                                                   #
-#             'USER_LAST_NAME': user.last_name or '',                                                                                                                                           #
-#             'USER_EMAIL': user.email,                                                                                                                                                         #
-#             'COMMUNICATION_TITLE': communication.title,                                                                                                                                       #
-#             'COMMUNICATION_ID': communication.id,                                                                                                                                             #
-#             'MAIN_AUTHOR': communication.user.full_name or communication.user.email,                                                                                                          #
-#             'ACTIVATION_TOKEN': token if token else '',                                                                                                                                       #
-#             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True) if not token else url_for('main.activate_account', token=token, _external=True) #
-#         }                                                                                                                                                                                     #
-#                                                                                                                                                                                               #
-#         template_name = 'coauthor_notification' if not token else 'coauthor_invitation'                                                                                                       #
-#                                                                                                                                                                                               #
-#         send_any_email_with_themes(                                                                                                                                                           #
-#             template_name=template_name,                                                                                                                                                      #
-#             recipient_email=user.email,                                                                                                                                                       #
-#             base_context=base_context,                                                                                                                                                        #
-#             communication=communication,                                                                                                                                                      #
-#             user=user,                                                                                                                                                                        #
-#             color_scheme='green'                                                                                                                                                              #
-#         )                                                                                                                                                                                     #
-#                                                                                                                                                                                               #
-#     except Exception as e:                                                                                                                                                                    #
-#         logger.error(f"Erreur envoi notification co-auteur à {user.email}: {e}")                                                                                                              #
-#         raise                                                                                                                                                                                 #
-#################################################################################################################################################################################################
 
 def send_review_reminder_email(reviewer, assignments):
     """Envoie un email de rappel à un reviewer avec ses reviews en attente."""
@@ -525,7 +502,7 @@ def send_review_reminder_email(reviewer, assignments):
         comm_list = []
         for assignment in assignments:
             comm = assignment.communication
-            status = "⚠️ En retard" if (hasattr(assignment, 'is_overdue') and assignment.is_overdue) else "En attente"
+            status = "En retard" if (hasattr(assignment, 'is_overdue') and assignment.is_overdue) else "En attente"
             comm_list.append(f"• {comm.title} (ID: {comm.id}) - {status}")
         
         base_context = {
@@ -533,7 +510,7 @@ def send_review_reminder_email(reviewer, assignments):
             'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
             'PENDING_REVIEWS_COUNT': total_assignments,
             'OVERDUE_COUNT': overdue_count,
-            'OVERDUE_MESSAGE': f"⚠️ {overdue_count} review(s) sont en retard." if overdue_count > 0 else "",
+            'OVERDUE_MESSAGE': f"{overdue_count} review(s) sont en retard." if overdue_count > 0 else "",
             'COMMUNICATIONS_LIST': '\n'.join(comm_list),
             'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
         }
@@ -692,28 +669,30 @@ def send_hal_collection_request(admin_email, communications_count):
         logger.error(f"Erreur envoi demande collection HAL: {e}")
         raise
 
-def send_reviewer_welcome_email(reviewer):
-    """Envoie un email de bienvenue à un nouveau reviewer."""
-    try:
-        base_context = {
-            'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
-            'AUTHOR_NAME': user.full_name or user.email,
-            'USER_EMAIL': reviewer.email,
-            'call_to_action_url': url_for('reviewer.dashboard', _external=True)
-        }
-        
-        send_any_email_with_themes(
-            template_name='reviewer_welcome',
-            recipient_email=reviewer.email,
-            base_context=base_context,
-            user=reviewer,
-            reviewer=reviewer,
-            color_scheme='green'
-        )
-        
-    except Exception as e:
-        logger.error(f"Erreur envoi bienvenue reviewer à {reviewer.email}: {e}")
-        raise
+#######################################################################################
+# def send_reviewer_welcome_email(reviewer):                                          #
+#     """Envoie un email de bienvenue à un nouveau reviewer."""                       #
+#     try:                                                                            #
+#         base_context = {                                                            #
+#             'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0], #
+#             'AUTHOR_NAME': user.full_name or user.email,                            #
+#             'USER_EMAIL': reviewer.email,                                           #
+#             'call_to_action_url': url_for('reviewer.dashboard', _external=True)     #
+#         }                                                                           #
+#                                                                                     #
+#         send_any_email_with_themes(                                                 #
+#             template_name='reviewer_welcome',                                       #
+#             recipient_email=reviewer.email,                                         #
+#             base_context=base_context,                                              #
+#             user=reviewer,                                                          #
+#             reviewer=reviewer,                                                      #
+#             color_scheme='green'                                                    #
+#         )                                                                           #
+#                                                                                     #
+#     except Exception as e:                                                          #
+#         logger.error(f"Erreur envoi bienvenue reviewer à {reviewer.email}: {e}")    #
+#         raise                                                                       #
+#######################################################################################
 
 def send_admin_weekly_summary(admin_email, stats):
     """Envoie un résumé hebdomadaire aux administrateurs."""

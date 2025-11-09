@@ -4658,6 +4658,11 @@ def run_reviewer_welcome_test(user, dry_run):
     try:
         if not dry_run:
             from app.emails import send_any_email_with_themes
+            from datetime import datetime, timedelta
+            
+            # Dates par défaut pour l'information
+            assignment_date = (datetime.utcnow() + timedelta(days=7)).strftime('%d/%m/%Y')
+            review_deadline = (datetime.utcnow() + timedelta(days=30)).strftime('%d/%m/%Y')
             
             base_context = {
                 'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
@@ -4666,6 +4671,8 @@ def run_reviewer_welcome_test(user, dry_run):
                 'REVIEWER_NAME': user.full_name or f"{user.first_name} {user.last_name}".strip() or user.email.split('@')[0],
                 'REVIEWER_SPECIALTIES': getattr(user, 'specialites_codes', 'Non spécifiées'),
                 'REVIEWER_AFFILIATIONS': 'Non spécifiées',
+                'ASSIGNMENT_DATE': assignment_date,  # ← LIGNE AJOUTÉE
+                'REVIEW_DEADLINE': review_deadline,  # ← LIGNE AJOUTÉE
                 'call_to_action_url': 'https://conference-flow.example.com/reviewer/dashboard'
             }
             
@@ -4688,6 +4695,45 @@ def run_reviewer_welcome_test(user, dry_run):
             'success': False,
             'message': f'Erreur: {str(e)}'
         }
+
+
+#################################################################################################################################
+# def run_reviewer_welcome_test(user, dry_run):                                                                                 #
+#     """Test email de bienvenue reviewer."""                                                                                   #
+#     try:                                                                                                                      #
+#         if not dry_run:                                                                                                       #
+#             from app.emails import send_any_email_with_themes                                                                 #
+#                                                                                                                               #
+#             base_context = {                                                                                                  #
+#                 'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],                                               #
+#                 'USER_LAST_NAME': user.last_name or '',                                                                       #
+#                 'USER_EMAIL': user.email,                                                                                     #
+#                 'REVIEWER_NAME': user.full_name or f"{user.first_name} {user.last_name}".strip() or user.email.split('@')[0], #
+#                 'REVIEWER_SPECIALTIES': getattr(user, 'specialites_codes', 'Non spécifiées'),                                 #
+#                 'REVIEWER_AFFILIATIONS': 'Non spécifiées',                                                                    #
+#                 'call_to_action_url': 'https://conference-flow.example.com/reviewer/dashboard'                                #
+#             }                                                                                                                 #
+#                                                                                                                               #
+#             send_any_email_with_themes(                                                                                       #
+#                 template_name='reviewer_welcome',  # Template spécifique pour l'accueil                                       #
+#                 recipient_email=user.email,                                                                                   #
+#                 base_context=base_context,                                                                                    #
+#                 user=user,                                                                                                    #
+#                 color_scheme='green'                                                                                          #
+#             )                                                                                                                 #
+#                                                                                                                               #
+#         return {                                                                                                              #
+#             'test': 'Email bienvenue reviewer',                                                                               #
+#             'success': True,                                                                                                  #
+#             'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'                                                 #
+#         }                                                                                                                     #
+#     except Exception as e:                                                                                                    #
+#         return {                                                                                                              #
+#             'test': 'Email bienvenue reviewer',                                                                               #
+#             'success': False,                                                                                                 #
+#             'message': f'Erreur: {str(e)}'                                                                                    #
+#         }                                                                                                                     #
+#################################################################################################################################
 
 def run_admin_weekly_summary_test(test_email, dry_run):
     """Test email résumé hebdomadaire admin."""
@@ -4770,6 +4816,7 @@ def create_test_objects_for_admin(test_email):
         'type': 'article',
         'status': type('MockStatus', (), {'value': 'submitted'})(),
         'authors': [test_user],
+        'corresponding_author': test_user,
         'thematiques': 'COND,SIMUL',
         'thematiques_codes': 'COND,SIMUL',
         'user': test_user,  # IMPORTANT

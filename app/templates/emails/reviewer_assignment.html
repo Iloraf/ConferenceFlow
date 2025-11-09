@@ -14,7 +14,7 @@
     <div class="communication-title">{{ communication.title }}</div>
     
     {% if communication.authors %}
-    <p><strong>👥 Auteur(s) :</strong></p>
+    <p><strong>Auteur(s) :</strong></p>
     <ul>
         {% for author in communication.authors %}
         <li>{{ author.full_name or author.email }}{% if author.affiliation %} ({{ author.affiliation.sigle }}){% endif %}</li>
@@ -23,7 +23,7 @@
     {% endif %}
 
     {% if COMMUNICATION_THEMES %}
-    <p><strong>🏷️ Thématiques :</strong> {{ COMMUNICATION_THEMES }}</p>
+    <p><strong>Thématiques :</strong> {{ COMMUNICATION_THEMES }}</p>
     {% endif %}
     
     {% if due_date %}
@@ -31,9 +31,9 @@
                 border: 1px solid {% if assignment.is_overdue %}#f5c6cb{% else %}#ffeaa7{% endif %}; 
                 padding: 15px; border-radius: 5px; margin: 15px 0;">
         {% if assignment.is_overdue %}
-            <strong style="color: #721c24;">⚠️ EN RETARD</strong> - Échéance dépassée le {{ due_date.strftime('%d/%m/%Y') }}
+            <strong style="color: #721c24;">EN RETARD</strong> - Échéance dépassée le {{ due_date.strftime('%d/%m/%Y') }}
         {% else %}
-            <strong style="color: #856404;">📅 ÉCHÉANCE : {{ due_date.strftime('%d/%m/%Y') }}</strong><br>
+            <strong style="color: #856404;">ÉCHÉANCE : {{ due_date.strftime('%d/%m/%Y') }}</strong><br>
             <small>Merci de rendre votre évaluation avant cette date</small>
         {% endif %}
     </div>
@@ -50,10 +50,10 @@
 
 <div style="text-align: center; margin: 30px 0;">
     <a href="{{ review_url }}" class="btn">
-        📝 Effectuer la review
+        Effectuer la review
     </a>
     <a href="{{ dashboard_url }}" class="btn btn-secondary">
-        📊 Mon tableau de bord
+        Mon tableau de bord
     </a>
 </div>
 

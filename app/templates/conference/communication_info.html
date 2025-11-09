@@ -326,8 +326,8 @@
                                         {% endif %}
                                     {% endfor %}
                                 {% else %}
-                                <li><strong>15/11/2025</strong> : Date limite soumission résumés</li>
-                                <li><strong>01/12/2025</strong> : Notifications d'acceptation</li>
+                                <li><strong>{{ conference.dates.deadlines.abstract_submission }}</strong> : Date limite soumission résumés</li>
+                                <li><strong>{{ conference.dates.deadlines.abstract_notification }}</strong> : Notifications d'acceptation</li>
                                 {% endif %}
                             </ul>
                         </div>

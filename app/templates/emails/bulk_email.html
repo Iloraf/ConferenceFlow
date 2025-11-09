@@ -34,11 +34,11 @@
 <div style="text-align: center; margin: 30px 0;">
     {% if recipient.is_reviewer %}
     <a href="{{ url_for('reviewer.dashboard', _external=True) }}" class="btn">
-        📊 Mon tableau de bord reviewer
+        Mon tableau de bord reviewer
     </a>
     {% else %}
     <a href="{{ url_for('main.mes_communications', _external=True) }}" class="btn">
-        📋 Mes communications
+        Mes communications
     </a>
     {% endif %}
 </div>
