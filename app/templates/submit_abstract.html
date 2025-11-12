@@ -663,24 +663,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Validation avant soumission
-    const form = document.querySelector('form');
-    form.addEventListener('submit', function(e) {
-        const hasWarnings = document.querySelector('.alert-warning[style*="block"]');
-        
-        if (hasWarnings) {
-            const confirmed = confirm(
-                'Des caractères spéciaux ont été détectés dans votre texte. ' +
-                'Ils seront automatiquement traités lors de la soumission. ' +
-                'Continuer ?'
-            );
-            
-            if (!confirmed) {
-                e.preventDefault();
-                return false;
-            }
-        }
-    });
 });
 </script>
 

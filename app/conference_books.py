@@ -3311,21 +3311,38 @@ Test content pour debug
     
     return comm_filename
 
-
 def clean_string(text):
-    """Nettoie une chaîne pour les index LaTeX (reproduction exacte de make_recueils.py)."""
+    """Nettoie une chaîne pour les clés d'index LaTeX (compatible UTF-8/LuaLaTeX)."""
     if not text:
         return ""
     
-    # Supprimer les accents et caractères spéciaux
+    # Normaliser Unicode (forme canonique composée)
     import unicodedata
-    normalized = unicodedata.normalize('NFD', text)
-    ascii_text = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
+    normalized = unicodedata.normalize('NFC', text)
     
-    # Supprimer les espaces et caractères non alphanumériques
-    clean_text = ''.join(c for c in ascii_text if c.isalnum())
+    # Garder les lettres (y compris accentuées), chiffres et quelques caractères
+    # On enlève seulement les espaces, ponctuation et caractères spéciaux problématiques
+    clean_text = ''.join(c for c in normalized if c.isalnum() or c in '-_')
     
     return clean_text
+
+
+################################################################################################
+# def clean_string(text):                                                                      #
+#     """Nettoie une chaîne pour les index LaTeX (reproduction exacte de make_recueils.py).""" #
+#     if not text:                                                                             #
+#         return ""                                                                            #
+#                                                                                              #
+#     # Supprimer les accents et caractères spéciaux                                           #
+#     import unicodedata                                                                       #
+#     normalized = unicodedata.normalize('NFD', text)                                          #
+#     ascii_text = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')           #
+#                                                                                              #
+#     # Supprimer les espaces et caractères non alphanumériques                                #
+#     clean_text = ''.join(c for c in ascii_text if c.isalnum())                               #
+#                                                                                              #
+#     return clean_text                                                                        #
+################################################################################################
 
 def create_placeholder_tex(comm, temp_dir):
     """Crée un fichier .tex placeholder pour une communication sans PDF."""
