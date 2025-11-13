@@ -346,7 +346,7 @@ class Communication(db.Model):
     """Modèle pour les communications soumises."""
     
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
+    title = db.Column(db.String(220), nullable=False)
     keywords = db.Column(db.String(500), nullable=True)
     abstract_fr = db.Column(db.Text, nullable=True) 
     abstract_en = db.Column(db.Text, nullable=True)
