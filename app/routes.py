@@ -889,7 +889,7 @@ def resend_coauthor_invitation(comm_id, coauthor_id):
         # Renvoyer l'email
         current_app.send_coauthor_notification_email(coauthor, comm, activation_token)
         
-        flash(f"✅ Invitation renvoyée à {coauthor.full_name or coauthor.email}", "success")
+        flash(f"Invitation renvoyée à {coauthor.full_name or coauthor.email}", "success")
         current_app.logger.info(f"Invitation renvoyée à {coauthor.email} pour communication {comm_id} par {current_user.email}")
         
     except Exception as e:
@@ -1055,7 +1055,8 @@ def activate_account(token):
             # Activer le compte
             user.set_password(password)
             user.is_activated = True
-            user.activation_token = None  # Supprimer le token
+            user.is_active = True
+            user.activation_token = None
             db.session.commit()
             
             flash('Compte activé avec succès ! Vous pouvez maintenant vous connecter.', 'success')
