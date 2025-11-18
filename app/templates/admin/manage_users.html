@@ -172,6 +172,29 @@
                                         </form>
                                     </li>
                                     {% endif %}
+                                    {% if user.id != current_user.id %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="POST" 
+                                              action="{{ url_for('admin.delete_user', user_id=user.id) }}" 
+                                              style="display: inline;"
+                                              onsubmit="return confirm('ATTENTION !\n\nVoulez-vous vraiment supprimer l\'utilisateur {{ user.email }} ?\n\n{{ user.authored_communications|length }} communication(s) associée(s).\n\nCette action est irréversible.');">
+                                            <button type="submit" 
+                                                    class="dropdown-item text-danger" 
+                                                    {% if user.authored_communications %}
+                                                        disabled 
+                                                        title="Impossible de supprimer : a {{ user.authored_communications|length }} communication(s)"
+                                                    {% endif %}>
+                                                <i class="fas fa-trash me-2"></i>
+                                                {% if user.authored_communications %}
+                                                    Supprimer ({{ user.authored_communications|length }} comm.)
+                                                {% else %}
+                                                    Supprimer l'utilisateur
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </td>

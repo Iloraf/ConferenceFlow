@@ -401,6 +401,35 @@ def toggle_zone(zone_name):
         current_app.logger.error(f"Erreur toggle zone {zone_name}: {e}")
         return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
 
+@admin.route('/users/delete/<int:user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    """Supprime un utilisateur."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Empêcher la suppression de son propre compte
+    if user.id == current_user.id:
+        flash("Vous ne pouvez pas supprimer votre propre compte.", "danger")
+        return redirect(url_for('admin.manage_users'))
+    
+    # Vérifier s'il a des communications
+    if user.authored_communications:
+        flash(f"Impossible de supprimer {user.email} : auteur de {len(user.authored_communications)} communication(s).", "warning")
+        return redirect(url_for('admin.manage_users'))
+    
+    email = user.email
+    db.session.delete(user)
+    db.session.commit()
+    
+    flash(f"Utilisateur {email} supprimé avec succès.", "success")
+    current_app.logger.info(f"Admin {current_user.email} a supprimé l'utilisateur {email}")
+    
+    return redirect(url_for('admin.manage_users'))
+
+    
 
 @admin.route("/zones/update-message/<zone_name>", methods=["POST"])
 @login_required
