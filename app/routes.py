@@ -598,11 +598,18 @@ def start_submission(type):
                             current_app.send_existing_coauthor_notification_email(coauthor, comm)
                         else:
                             # Nouveau co-auteur ou compte inactif - envoyer avec token d'activation
-                            import secrets
-                            activation_token = secrets.token_urlsafe(32)
-                            coauthor.activation_token = activation_token
+                            activation_token = coauthor.generate_activation_token()  # ✅ Utilise la méthode qui définit aussi activation_sent_at
                             db.session.commit()
                             current_app.send_coauthor_notification_email(coauthor, comm, activation_token)
+
+
+                        # else:                                                                       #
+                        #     # Nouveau co-auteur ou compte inactif - envoyer avec token d'activation #
+                        #     import secrets                                                          #
+                        #     activation_token = secrets.token_urlsafe(32)                            #
+                        #     coauthor.activation_token = activation_token                            #
+                        #     db.session.commit()                                                     #
+                        #     current_app.send_coauthor_notification_email(coauthor, comm, activation_token)
                     except Exception as e:
                         current_app.logger.error(f"Erreur envoi email co-auteur {coauthor.email}: {e}")
                         # Ne pas bloquer la soumission si un email échoue
@@ -779,6 +786,55 @@ def update_submission(comm_id):
                          files_by_type=files_by_type,
                          allowed_uploads={ft: comm.can_upload_file_type(ft) for ft in file_types})
 
+
+@main.route("/soumission/<int:comm_id>/resend-coauthor-invitation/<int:coauthor_id>", methods=["POST"])
+@login_required
+def resend_coauthor_invitation(comm_id, coauthor_id):
+    """Permet à l'auteur principal de renvoyer l'invitation à un co-auteur."""
+    comm = Communication.query.get_or_404(comm_id)
+    coauthor = User.query.get_or_404(coauthor_id)
+    
+    # Vérifications de sécurité
+    # 1. L'utilisateur doit être auteur de la communication
+    if current_user not in comm.authors:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.mes_communications"))
+    
+    # 2. L'utilisateur doit être l'auteur principal (premier auteur) OU l'auteur correspondant
+    is_main_author = comm.authors and comm.authors[0].id == current_user.id
+    is_corresponding = comm.corresponding_author == current_user
+    
+    if not is_main_author and not is_corresponding:
+        flash("Seul l'auteur principal ou l'auteur correspondant peut renvoyer des invitations.", "danger")
+        return redirect(url_for("main.update_submission", comm_id=comm_id))
+    
+    # 3. Le co-auteur doit faire partie de la communication
+    if coauthor not in comm.authors:
+        flash("Cet utilisateur n'est pas co-auteur de cette communication.", "danger")
+        return redirect(url_for("main.update_submission", comm_id=comm_id))
+    
+    # 4. Le co-auteur ne doit pas être déjà activé
+    if coauthor.is_activated:
+        flash(f"{coauthor.full_name or coauthor.email} a déjà activé son compte.", "info")
+        return redirect(url_for("main.update_submission", comm_id=comm_id))
+    
+    try:
+        # Générer un nouveau token d'activation (utilise la méthode qui définit aussi activation_sent_at)
+        activation_token = coauthor.generate_activation_token()
+        db.session.commit()
+        
+        # Renvoyer l'email
+        current_app.send_coauthor_notification_email(coauthor, comm, activation_token)
+        
+        flash(f"✅ Invitation renvoyée à {coauthor.full_name or coauthor.email}", "success")
+        current_app.logger.info(f"Invitation renvoyée à {coauthor.email} pour communication {comm_id} par {current_user.email}")
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur renvoi invitation à {coauthor.email}: {e}")
+        flash(f"❌ Erreur lors de l'envoi de l'invitation. Veuillez réessayer.", "danger")
+    
+    return redirect(url_for("main.update_submission", comm_id=comm_id))
+
 @main.route("/download-file/<int:file_id>")
 def download_file(file_id):
     file = SubmissionFile.query.get_or_404(file_id)
@@ -912,7 +968,7 @@ def edit_specialites():
 
 @main.route('/activate/<token>', methods=['GET', 'POST'])
 def activate_account(token):
-    """Page d'activation du compte reviewer."""
+    """Page d'activation du compte (reviewer ou co-auteur)."""
     # Trouver l'utilisateur avec ce token
     user = User.query.filter_by(activation_token=token).first()
     
@@ -942,7 +998,47 @@ def activate_account(token):
             flash('Compte activé avec succès ! Vous pouvez maintenant vous connecter.', 'success')
             return redirect(url_for('auth.login'))
     
-    return render_template('activate_account.html', user=user)
+    # ✅ NOUVEAU : Déterminer le type d'utilisateur pour le template
+    account_type = 'reviewer' if user.is_reviewer else 'auteur'
+    
+    return render_template('activate_account.html', user=user, account_type=account_type)
+
+
+######################################################################################################
+# @main.route('/activate/<token>', methods=['GET', 'POST'])                                          #
+# def activate_account(token):                                                                       #
+#     """Page d'activation du compte reviewer."""                                                    #
+#     # Trouver l'utilisateur avec ce token                                                          #
+#     user = User.query.filter_by(activation_token=token).first()                                    #
+#                                                                                                    #
+#     if not user or not user.is_activation_token_valid(token):                                      #
+#         flash('Lien d\'activation invalide ou expiré.', 'danger')                                  #
+#         return redirect(url_for('main.index'))                                                     #
+#                                                                                                    #
+#     if user.is_activated:                                                                          #
+#         flash('Ce compte est déjà activé.', 'info')                                                #
+#         return redirect(url_for('auth.login'))                                                     #
+#                                                                                                    #
+#     if request.method == 'POST':                                                                   #
+#         password = request.form.get('password')                                                    #
+#         confirm_password = request.form.get('confirm_password')                                    #
+#                                                                                                    #
+#         if not password or len(password) < 8:                                                      #
+#             flash('Le mot de passe doit contenir au moins 8 caractères.', 'danger')                #
+#         elif password != confirm_password:                                                         #
+#             flash('Les mots de passe ne correspondent pas.', 'danger')                             #
+#         else:                                                                                      #
+#             # Activer le compte                                                                    #
+#             user.set_password(password)                                                            #
+#             user.is_activated = True                                                               #
+#             user.activation_token = None  # Supprimer le token                                     #
+#             db.session.commit()                                                                    #
+#                                                                                                    #
+#             flash('Compte activé avec succès ! Vous pouvez maintenant vous connecter.', 'success') #
+#             return redirect(url_for('auth.login'))                                                 #
+#                                                                                                    #
+#     return render_template('activate_account.html', user=user)                                     #
+######################################################################################################
 
 @main.context_processor
 def inject_thematique_helpers():

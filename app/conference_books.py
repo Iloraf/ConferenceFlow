@@ -413,195 +413,6 @@ def get_book_css():
         }
     """
 
-# def get_book_css():
-#     """CSS reproduisant exactement le style LaTeX SFT de référence."""
-#     return """
-#     /* === CONFIGURATION DE PAGE === */
-#     @page {
-#         size: A4;
-#         margin: 1.5cm 1.8cm 1.5cm 1.8cm;  /* Marges exactes du LaTeX */
-        
-#         @top-center {
-#             content: string(page-header);
-#             font-family: "Helvetica", Arial, sans-serif;
-#             font-size: 9pt;
-#             border-bottom: 0.5pt solid #000;
-#             padding-bottom: 3pt;
-#             margin-bottom: 10pt;
-#         }
-        
-#         @bottom-center {
-#             content: counter(page);
-#             font-family: "Helvetica", Arial, sans-serif;
-#             font-size: 10pt;
-#         }
-#     }
-    
-#     @page cover {
-#         margin: 0;
-#         @top-center { content: none; }
-#         @bottom-center { content: none; }
-#     }
-    
-#     @page toc {
-#         @bottom-center { 
-#             content: counter(page, lower-roman);
-#             font-family: "Helvetica", Arial, sans-serif;
-#             font-size: 10pt;
-#         }
-#     }
-    
-#     /* === TYPOGRAPHIE EXACTE DU LATEX === */
-#     body {
-#         font-family: "Helvetica", Arial, sans-serif;  /* Sans-serif comme dans LaTeX */
-#         font-size: 11pt;
-#         line-height: 1.2;
-#         color: #000;
-#         margin: 0;
-#         padding: 0;
-#     }
-    
-#     /* Paragraphes avec indentation et espacement du LaTeX */
-#     p {
-#         margin: 0;
-#         padding: 0;
-#         text-indent: 10mm;  
-#         margin-bottom: 2mm; 
-#         text-align: justify;
-#     }
-    
-#     /* Pas d'indentation pour le premier paragraphe */
-#     p:first-child, .no-indent {
-#         text-indent: 0;
-#     }
-    
-#     h1, h2, h3, h4, h5, h6 {
-#         font-family: "Helvetica", Arial, sans-serif;
-#         color: #000;
-#         margin: 0;
-#         padding: 0;
-#         font-weight: bold;
-#         text-indent: 0;  /* Pas d'indentation pour les titres */
-#     }
-    
-#     /* === PAGE DE COUVERTURE STYLE SFT === */
-#     .cover-page {
-#         page: cover;
-#         height: 100vh;
-#         background: white;
-#         color: black;
-#         text-align: center;
-#         display: flex;
-#         flex-direction: column;
-#         justify-content: center;
-#         align-items: center;
-#         font-family: "Helvetica", Arial, sans-serif;
-#         page-break-after: always;
-#     }
-    
-#     .cover-theme-line {
-#         font-size: 18pt;  
-#         font-weight: normal;
-#         margin-bottom: 1em;
-#         text-transform: uppercase;
-#         letter-spacing: 0.5pt;
-#     }
-    
-#     .cover-authors {
-#         font-size: 12pt;  
-#         font-weight: normal;
-#         margin-bottom: 3em;
-#         line-height: 1.3;
-#     }
-    
-#     .cover-actes {
-#         font-size: 24pt;  
-#         font-weight: bold;
-#         margin-bottom: 1em;
-#         text-transform: uppercase;
-#     }
-    
-#     .cover-du {
-#         font-size: 12pt;
-#         margin-bottom: 1em;
-#     }
-    
-#     .cover-congres-title {
-#         font-size: 24pt;  
-#         font-weight: normal;
-#         margin-bottom: 2em;
-#         line-height: 1.2;
-#     }
-    
-#     .cover-event-code {
-#         font-size: 24pt;  
-#         font-weight: bold;
-#         margin-bottom: 2em;
-#     }
-    
-#     .cover-dates {
-#         font-size: 14pt;  
-#         font-weight: normal;
-#         margin-bottom: 0.5em;
-#     }
-    
-#     .cover-location {
-#         font-size: 14pt;  
-#         font-weight: normal;
-#         margin-bottom: 2em;
-#     }
-    
-#     .cover-organise {
-#         font-size: 14pt;  
-#         font-weight: normal;
-#         margin-bottom: 1em;
-#     }
-    
-#     .cover-organizer {
-#         font-size: 12pt;  
-#         font-weight: normal;
-#         margin-bottom: 0.5em;
-#         line-height: 1.3;
-#     }
-    
-#     /* === SECTIONS PRINCIPALES === */
-#     .part-page {
-#         page-break-before: always;
-#         page-break-after: always;
-#         text-align: center;
-#         padding-top: 40%;
-#     }
-    
-#     .part-title {
-#         font-size: 18pt;
-#         font-weight: bold;
-#         margin-bottom: 1em;
-#         text-indent: 0;
-#     }
-    
-#     /* === APERÇU WEB === */
-#     @media screen {
-#         body { 
-#             background: #f5f5f5; 
-#             padding: 20px; 
-#         }
-        
-#         .cover-page, .part-page {
-#             background: white;
-#             padding: 40px;
-#             margin-bottom: 20px;
-#             box-shadow: 0 0 10px rgba(0,0,0,0.1);
-#             min-height: 80vh;
-#         }
-        
-#         /* En mode web, on désactive l'indentation pour la lisibilité */
-#         p {
-#             text-indent: 0;
-#             margin-bottom: 1em;
-#         }
-#     }
-#     """
-
 
 def generate_dynamic_header(config):
     """Génère l'en-tête dynamiquement à partir de conference.yml."""
@@ -745,69 +556,6 @@ def get_communication_pdf(communication, book_type):
         current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return None
 
-
-
-
-# def get_communication_pdf(communication, book_type):
-#     try:
-#         bt = (book_type or "").lower()
-#         # Unifier : tout ce qui n’est pas "article" est traité comme recueil résumés/WIP
-#         is_articles = bt in {"article", "tome1", "tome2"}
-
-#         if is_articles:
-#             target_file = communication.files.filter_by(file_type='article').first()
-#         else:
-#             if communication.type == 'wip':
-#                 target_file = (communication.files
-#                                .filter(SubmissionFile.file_type.in_(['wip','WIP']))
-#                                .first())
-#             else:
-#                 # tolérer 'résumé' (accent), 'resume', 'abstract'
-#                 target_file = (communication.files
-#                                .filter(SubmissionFile.file_type.in_(['résumé','resume','abstract']))
-#                                .first())
-
-#         if target_file and target_file.file_path:
-#             full_path = os.path.join(current_app.config['UPLOAD_FOLDER'], target_file.file_path)
-#             return full_path if os.path.exists(full_path) else None
-#         return None
-#     except Exception as e:
-#         current_app.logger.error(f"Erreur récupération PDF pour communication {communication.id}: {e}")
-#         return None
-
-
-# def get_communication_pdf(communication, book_type):
-#     """Récupère le chemin du fichier PDF d'une communication selon le type de livre."""
-#     try:
-#         # Définir le type de fichier selon le type de livre
-#         if book_type == 'article':
-#             # Pour les tomes d'articles complets
-#             target_file = communication.files.filter_by(file_type='article').first()
-#         elif book_type == 'resume':
-#             # Pour les résumés et WIP
-#             if communication.type == 'wip':
-#                 target_file = communication.files.filter_by(file_type='wip').first()
-#             else:
-#                 target_file = communication.files.filter_by(file_type='résumé').first()
-#         else:
-#             target_file = None
-        
-#         if target_file and target_file.file_path:
-#             # Construire le chemin complet vers le fichier
-#             full_path = os.path.join(current_app.config['UPLOAD_FOLDER'], target_file.file_path)
-            
-#             # Vérifier que le fichier existe
-#             if os.path.exists(full_path):
-#                 return full_path
-#             else:
-#                 current_app.logger.warning(f"Fichier PDF introuvable: {full_path}")
-#                 return None
-        
-#         return None
-        
-#     except Exception as e:
-#         current_app.logger.error(f"Erreur récupération PDF pour communication {communication.id}: {e}")
-#         return None
 
 
 def calculate_page_numbers(communications_by_theme):
@@ -1100,22 +848,6 @@ def generate_book_html_parts(title, communications_by_theme, authors_index, page
     
     return parts
 
-# def generate_book_html_parts(title, communications_by_theme, authors_index, page_mapping, book_type):
-#     """Génère les parties HTML du livre (couverture, TOC, index)."""
-#     config = get_conference_config()
-    
-#     parts = {}
-    
-#     # COUVERTURE
-#     parts['cover'] = generate_cover_only_html(title, config)
-    
-#     # TABLE DES MATIÈRES
-#     parts['toc'] = generate_toc_html(communications_by_theme, page_mapping)
-    
-#     # INDEX DES AUTEURS
-#     parts['index'] = generate_index_html(authors_index)
-    
-#     return parts
 
 def generate_cover_only_html(title, config):
     """Page de garde conforme au template SFT."""
@@ -3163,7 +2895,7 @@ Test content pour debug
     
     # Nettoyage des textes pour LaTeX
     title = communication.title or "Titre non spécifié"
-    abstract_fr_clean, _ = clean_text(communication.abstract_fr or "", mode='strict')
+    abstract_fr_clean, _ = clean_text(communication.abstract_fr or "", mode='soft')
     keywords = communication.keywords or ""
     
     # Échapper pour LaTeX
@@ -3311,20 +3043,40 @@ Test content pour debug
     
     return comm_filename
 
+############################################################################################
+# def clean_string(text):                                                                  #
+#     """Nettoie une chaîne pour les clés d'index LaTeX (compatible UTF-8/LuaLaTeX)."""    #
+#     if not text:                                                                         #
+#         return ""                                                                        #
+#                                                                                          #
+#     # Normaliser Unicode (forme canonique composée)                                      #
+#     import unicodedata                                                                   #
+#     normalized = unicodedata.normalize('NFC', text)                                      #
+#                                                                                          #
+#     # Garder les lettres (y compris accentuées), chiffres et quelques caractères         #
+#     # On enlève seulement les espaces, ponctuation et caractères spéciaux problématiques #
+#     clean_text = ''.join(c for c in normalized if c.isalnum() or c in '-_')              #
+#                                                                                          #
+#     return clean_text                                                                    #
+############################################################################################
+
 def clean_string(text):
-    """Nettoie une chaîne pour les clés d'index LaTeX (compatible UTF-8/LuaLaTeX)."""
+    """
+    Nettoie une chaîne pour les index LaTeX avec LuaLaTeX.
+    Conserve les accents (LuaLaTeX gère nativement UTF-8).
+    """
     if not text:
         return ""
     
-    # Normaliser Unicode (forme canonique composée)
-    import unicodedata
-    normalized = unicodedata.normalize('NFC', text)
+    # Avec LuaLaTeX, on conserve les accents
+    # On supprime seulement les espaces et caractères spéciaux LaTeX problématiques
+    clean_text = text.strip()
     
-    # Garder les lettres (y compris accentuées), chiffres et quelques caractères
-    # On enlève seulement les espaces, ponctuation et caractères spéciaux problématiques
-    clean_text = ''.join(c for c in normalized if c.isalnum() or c in '-_')
+    # Supprimer espaces et tirets pour la clé de tri
+    clean_text = clean_text.replace(' ', '').replace('-', '')
     
     return clean_text
+
 
 
 ################################################################################################
@@ -3469,68 +3221,70 @@ def create_placeholder_tex(comm, temp_dir):
 #     current_app.logger.info(f"✅ Fichier {tex_filename} créé avec {len(index_entries)} entrées d'index")
 
 
-def create_placeholder_tex(comm, temp_dir):
-    """Crée un fichier .tex placeholder pour une communication sans PDF."""
-    current_app.logger.info(f"Création placeholder pour communication {comm.id}")
-    
-    # Échapper le titre et les noms d'auteurs
-    escaped_title = escape_latex(comm.title)
-    escaped_authors = []
-    index_entries = []
-    
-    for author in comm.authors:
-        first_name = author.first_name or ""
-        last_name = author.last_name or ""
-        
-        escaped_first = escape_latex(first_name)
-        escaped_last = escape_latex(last_name)
-        
-        name = f"{escaped_first} {escaped_last}".strip()
-        if name:
-            escaped_authors.append(name)
-            
-            # Créer l'entrée d'index : \index{nomprenom@Prenom, Nom}
-            clean_last = last_name.replace(' ', '').replace('-', '')
-            clean_first = first_name.replace(' ', '').replace('-', '')
-            index_key = f"{clean_last}{clean_first}"
-            index_display = f"{first_name}, {last_name}" if last_name else first_name
-            
-            index_entries.append(f"\\index{{{index_key}@{escape_latex(index_display)}}}")
-    
-    authors_str = ", ".join(escaped_authors) if escaped_authors else "Auteur non spécifié"
-    
-    # Contenu du placeholder avec entrées d'index
-    tex_content = f"""
-% Communication {comm.id} - PLACEHOLDER (PDF manquant)
-% Index des auteurs
-"""
-    
-    # Ajouter toutes les entrées d'index
-    for entry in index_entries:
-        tex_content += f"{entry}\n"
-    
-    tex_content += f"""
-\\phantomsection\\addtocounter{{section}}{{1}}
-\\addcontentsline{{toc}}{{section}}{{{escaped_title}}}
-{{\\Large \\textbf{{{escaped_title}}}}}\\label{{ref:{comm.id}}}
-
-\\vspace{{2mm}}
-{authors_str}
-\\vspace{{4mm}}
-
-\\textit{{[Document PDF non disponible]}}
-
-\\vspace{{4mm}}
-
-"""
-    
-    tex_filename = f"comm_{comm.id}.tex"
-    tex_path = os.path.join(temp_dir, tex_filename)
-    
-    with open(tex_path, 'w', encoding='utf-8') as f:
-        f.write(tex_content)
-    
-    current_app.logger.info(f"✅ Placeholder {tex_filename} créé avec {len(index_entries)} entrées d'index")
+################################################################################################################
+# def create_placeholder_tex(comm, temp_dir):                                                                  #
+#     """Crée un fichier .tex placeholder pour une communication sans PDF."""                                  #
+#     current_app.logger.info(f"Création placeholder pour communication {comm.id}")                            #
+#                                                                                                              #
+#     # Échapper le titre et les noms d'auteurs                                                                #
+#     escaped_title = escape_latex(comm.title)                                                                 #
+#     escaped_authors = []                                                                                     #
+#     index_entries = []                                                                                       #
+#                                                                                                              #
+#     for author in comm.authors:                                                                              #
+#         first_name = author.first_name or ""                                                                 #
+#         last_name = author.last_name or ""                                                                   #
+#                                                                                                              #
+#         escaped_first = escape_latex(first_name)                                                             #
+#         escaped_last = escape_latex(last_name)                                                               #
+#                                                                                                              #
+#         name = f"{escaped_first} {escaped_last}".strip()                                                     #
+#         if name:                                                                                             #
+#             escaped_authors.append(name)                                                                     #
+#                                                                                                              #
+#             # Créer l'entrée d'index : \index{nomprenom@Prenom, Nom}                                         #
+#             clean_last = last_name.replace(' ', '').replace('-', '')                                         #
+#             clean_first = first_name.replace(' ', '').replace('-', '')                                       #
+#             index_key = f"{clean_last}{clean_first}"                                                         #
+#             index_display = f"{first_name}, {last_name}" if last_name else first_name                        #
+#                                                                                                              #
+#             index_entries.append(f"\\index{{{index_key}@{escape_latex(index_display)}}}")                    #
+#                                                                                                              #
+#     authors_str = ", ".join(escaped_authors) if escaped_authors else "Auteur non spécifié"                   #
+#                                                                                                              #
+#     # Contenu du placeholder avec entrées d'index                                                            #
+#     tex_content = f"""                                                                                       #
+# % Communication {comm.id} - PLACEHOLDER (PDF manquant)                                                       #
+# % Index des auteurs                                                                                          #
+# """                                                                                                          #
+#                                                                                                              #
+#     # Ajouter toutes les entrées d'index                                                                     #
+#     for entry in index_entries:                                                                              #
+#         tex_content += f"{entry}\n"                                                                          #
+#                                                                                                              #
+#     tex_content += f"""                                                                                      #
+# \\phantomsection\\addtocounter{{section}}{{1}}                                                               #
+# \\addcontentsline{{toc}}{{section}}{{{escaped_title}}}                                                       #
+# {{\\Large \\textbf{{{escaped_title}}}}}\\label{{ref:{comm.id}}}                                              #
+#                                                                                                              #
+# \\vspace{{2mm}}                                                                                              #
+# {authors_str}                                                                                                #
+# \\vspace{{4mm}}                                                                                              #
+#                                                                                                              #
+# \\textit{{[Document PDF non disponible]}}                                                                    #
+#                                                                                                              #
+# \\vspace{{4mm}}                                                                                              #
+#                                                                                                              #
+# """                                                                                                          #
+#                                                                                                              #
+#     tex_filename = f"comm_{comm.id}.tex"                                                                     #
+#     tex_path = os.path.join(temp_dir, tex_filename)                                                          #
+#                                                                                                              #
+#     with open(tex_path, 'w', encoding='utf-8') as f:                                                         #
+#         f.write(tex_content)                                                                                 #
+#                                                                                                              #
+#     current_app.logger.info(f"✅ Placeholder {tex_filename} créé avec {len(index_entries)} entrées d'index") #
+################################################################################################################
 
 
 # def generate_communication_tex(comm, temp_dir):
@@ -3564,40 +3318,42 @@ def create_placeholder_tex(comm, temp_dir):
 #         f.write(tex_content)
 
 
-def create_placeholder_tex(comm, temp_dir):
-    """Crée un fichier .tex placeholder pour une communication sans PDF."""
-    # Échapper le titre et les noms d'auteurs
-    escaped_title = escape_latex(comm.title)
-    escaped_authors = []
-    for author in comm.authors:
-        escaped_first = escape_latex(author.first_name)
-        escaped_last = escape_latex(author.last_name)
-        escaped_authors.append(f"{escaped_first} {escaped_last}")
-    
-    authors_str = ", ".join(escaped_authors)
-    
-    # Contenu du placeholder avec message d'information
-    tex_content = f"""
-% Communication {comm.id} - PLACEHOLDER (PDF manquant)
-\\phantomsection\\addtocounter{{section}}{{1}}
-\\addcontentsline{{toc}}{{section}}{{{escaped_title}}}
-{{\\Large \\textbf{{{escaped_title}}}}}\\label{{ref:{comm.id}}}
-
-\\vspace{{2mm}}
-{authors_str}
-\\vspace{{4mm}}
-
-\\textit{{[Document PDF non disponible]}}
-
-\\vspace{{4mm}}
-
-"""
-    
-    tex_filename = f"comm_{comm.id}.tex"
-    tex_path = os.path.join(temp_dir, tex_filename)
-    
-    with open(tex_path, 'w', encoding='utf-8') as f:
-        f.write(tex_content)
+###############################################################################
+# def create_placeholder_tex(comm, temp_dir):                                 #
+#     """Crée un fichier .tex placeholder pour une communication sans PDF.""" #
+#     # Échapper le titre et les noms d'auteurs                               #
+#     escaped_title = escape_latex(comm.title)                                #
+#     escaped_authors = []                                                    #
+#     for author in comm.authors:                                             #
+#         escaped_first = escape_latex(author.first_name)                     #
+#         escaped_last = escape_latex(author.last_name)                       #
+#         escaped_authors.append(f"{escaped_first} {escaped_last}")           #
+#                                                                             #
+#     authors_str = ", ".join(escaped_authors)                                #
+#                                                                             #
+#     # Contenu du placeholder avec message d'information                     #
+#     tex_content = f"""                                                      #
+# % Communication {comm.id} - PLACEHOLDER (PDF manquant)                      #
+# \\phantomsection\\addtocounter{{section}}{{1}}                              #
+# \\addcontentsline{{toc}}{{section}}{{{escaped_title}}}                      #
+# {{\\Large \\textbf{{{escaped_title}}}}}\\label{{ref:{comm.id}}}             #
+#                                                                             #
+# \\vspace{{2mm}}                                                             #
+# {authors_str}                                                               #
+# \\vspace{{4mm}}                                                             #
+#                                                                             #
+# \\textit{{[Document PDF non disponible]}}                                   #
+#                                                                             #
+# \\vspace{{4mm}}                                                             #
+#                                                                             #
+# """                                                                         #
+#                                                                             #
+#     tex_filename = f"comm_{comm.id}.tex"                                    #
+#     tex_path = os.path.join(temp_dir, tex_filename)                         #
+#                                                                             #
+#     with open(tex_path, 'w', encoding='utf-8') as f:                        #
+#         f.write(tex_content)                                                #
+###############################################################################
 
 def create_auxiliary_files(temp_dir):
     """Crée les fichiers auxiliaires nécessaires pour LaTeX."""
