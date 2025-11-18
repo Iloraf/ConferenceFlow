@@ -510,10 +510,14 @@ def start_submission(type):
             for coauthor_value in coauthors:
                 coauthor_user = None
                 
+
+
                 if coauthor_value.startswith('new:'):
-                    # Nouvel auteur ajouté via le modal
-                    _, email, first_name, last_name = coauthor_value.split(':')
-                    
+                    # Nouveau co-auteur créé via le modal
+                    parts = coauthor_value.split(':')
+                    _, email, first_name, last_name = parts[:4]
+                    affiliation_id = parts[4] if len(parts) > 4 and parts[4] else None
+    
                     # Vérifier si l'utilisateur existe déjà
                     existing_user = User.query.filter_by(email=email).first()
                     if existing_user:
@@ -533,7 +537,45 @@ def start_submission(type):
                         
                         db.session.add(new_user)
                         db.session.flush()
+        
+                        # Associer l'affiliation si fournie
+                        if affiliation_id:
+                            try:
+                                affiliation = Affiliation.query.get(int(affiliation_id))
+                                if affiliation:
+                                    new_user.affiliations.append(affiliation)
+                            except (ValueError, AttributeError):
+                                pass  # Ignorer si l'affiliation est invalide
+        
                         coauthor_user = new_user
+
+
+                #################################################################################################
+                # if coauthor_value.startswith('new:'):                                                         #
+                #     # Nouvel auteur ajouté via le modal                                                       #
+                #     _, email, first_name, last_name = coauthor_value.split(':')                               #
+                #                                                                                               #
+                #     # Vérifier si l'utilisateur existe déjà                                                   #
+                #     existing_user = User.query.filter_by(email=email).first()                                 #
+                #     if existing_user:                                                                         #
+                #         coauthor_user = existing_user                                                         #
+                #     else:                                                                                     #
+                #         # Créer le nouvel utilisateur sans mot de passe (à activer plus tard)                 #
+                #         new_user = User(                                                                      #
+                #             email=email,                                                                      #
+                #             first_name=first_name.strip(),                                                    #
+                #             last_name=last_name.strip(),                                                      #
+                #             is_active=False,  # Compte inactif jusqu'à activation                             #
+                #             is_activated=False                                                                #
+                #         )                                                                                     #
+                #         # Générer un mot de passe temporaire vide (sera défini lors de l'activation)          #
+                #         import secrets                                                                        #
+                #         new_user.set_password(secrets.token_urlsafe(32))  # Mot de passe temporaire aléatoire #
+                #                                                                                               #
+                #         db.session.add(new_user)                                                              #
+                #         db.session.flush()                                                                    #
+                #         coauthor_user = new_user                                                              #
+                #################################################################################################
 
                 else:
                     # Utilisateur existant sélectionné
@@ -629,11 +671,21 @@ def start_submission(type):
     
     # GET : Récupérer tous les utilisateurs pour la sélection
     users = User.query.filter(User.id != current_user.id).order_by(User.last_name, User.first_name).all()
-    
+    all_affiliations = Affiliation.query.order_by(Affiliation.sigle).all()  # ← NOUVEAU
+
     return render_template("submit_abstract.html", 
-                         type=type, 
-                         all_thematiques=ThematiqueHelper.get_all(),
-                         users=users)
+                           type=type, 
+                           all_thematiques=ThematiqueHelper.get_all(),
+                           users=users,
+                           all_affiliations=all_affiliations)
+
+    
+    ####################################################################
+    # return render_template("submit_abstract.html",                   #
+    #                      type=type,                                  #
+    #                      all_thematiques=ThematiqueHelper.get_all(), #
+    #                      users=users)                                #
+    ####################################################################
 
 @main.route("/soumission/<int:comm_id>/abstracts", methods=["POST"])
 @login_required
@@ -780,11 +832,22 @@ def update_submission(comm_id):
             communication_id=comm.id, 
             file_type=file_type
         ).order_by(SubmissionFile.version.desc()).all()
-    
+
+
+    from datetime import datetime
+
     return render_template("update_submission.html", 
-                         comm=comm, 
-                         files_by_type=files_by_type,
-                         allowed_uploads={ft: comm.can_upload_file_type(ft) for ft in file_types})
+                           comm=comm, 
+                           files_by_type=files_by_type,
+                           allowed_uploads={ft: comm.can_upload_file_type(ft) for ft in file_types},
+                           now=datetime.utcnow())
+        
+    ##################################################################################################
+    # return render_template("update_submission.html",                                               #
+    #                      comm=comm,                                                                #
+    #                      files_by_type=files_by_type,                                              #
+    #                      allowed_uploads={ft: comm.can_upload_file_type(ft) for ft in file_types}) #
+    ##################################################################################################
 
 
 @main.route("/soumission/<int:comm_id>/resend-coauthor-invitation/<int:coauthor_id>", methods=["POST"])

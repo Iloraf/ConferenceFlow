@@ -135,6 +135,130 @@
 </div>
 
 
+
+<!-- Section Co-auteurs avec bouton de renvoi d'invitation -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">
+            <i class="fas fa-users me-2"></i>Co-auteurs
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if comm.authors|length > 1 %}
+            <ul class="list-group list-group-flush">
+                {% for author in comm.authors %}
+                    {% if author.id != current_user.id %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <strong class="me-2">{{ author.full_name or author.email }}</strong>
+                                        
+                                        <!-- Badge auteur correspondant -->
+                                        {% if comm.corresponding_author and comm.corresponding_author.id == author.id %}
+                                            <span class="badge bg-primary">
+                                                <i class="fas fa-envelope"></i> Auteur correspondant
+                                            </span>
+                                        {% endif %}
+                                        
+                                        <!-- Statut d'activation -->
+                                        {% if author.is_activated %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle"></i> Compte activé
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-clock"></i> En attente d'activation
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Email -->
+                                    {% if author.email %}
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-envelope me-1"></i>{{ author.email }}
+                                        </small>
+                                    {% endif %}
+                                    
+                                    <!-- Date d'envoi de l'invitation -->
+                                    {% if not author.is_activated and author.activation_sent_at %}
+                                        <small class="text-muted d-block mt-1">
+                                            <i class="fas fa-paper-plane me-1"></i>
+                                            Invitation envoyée le {{ author.activation_sent_at.strftime('%d/%m/%Y à %H:%M') }}
+                                            
+                                            <!-- Calculer si le lien a expiré (7 jours) -->
+                                            {% set days_since_sent = (now - author.activation_sent_at).days %}
+                                            {% if days_since_sent >= 7 %}
+                                                <span class="badge bg-danger ms-2">
+                                                    <i class="fas fa-exclamation-triangle"></i> Lien expiré
+                                                </span>
+                                            {% elif days_since_sent >= 5 %}
+                                                <span class="badge bg-warning text-dark ms-2">
+                                                    <i class="fas fa-hourglass-end"></i> Expire bientôt
+                                                </span>
+                                            {% endif %}
+                                        </small>
+                                    {% endif %}
+                                    
+                                    <!-- Affiliations -->
+                                    {% if author.affiliations %}
+                                        <div class="mt-2">
+                                            <small class="text-muted">Affiliations :</small>
+                                            {% for aff in author.affiliations %}
+                                                <span class="badge bg-info text-dark me-1">{{ aff.sigle }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Bouton renvoyer invitation (uniquement pour auteur principal/correspondant) -->
+                                {% set is_main_author = comm.authors[0].id == current_user.id %}
+                                {% set is_corresponding = comm.corresponding_author and comm.corresponding_author.id == current_user.id %}
+                                
+                                {% if not author.is_activated and (is_main_author or is_corresponding) %}
+                                    <div class="ms-3">
+                                        <form method="POST" 
+                                              action="{{ url_for('main.resend_coauthor_invitation', comm_id=comm.id, coauthor_id=author.id) }}" 
+                                              class="d-inline"
+                                              onsubmit="return confirm('Renvoyer l\'invitation à {{ author.full_name or author.email }} ?\n\nUn nouveau lien d\'activation valable 7 jours sera envoyé par email.');">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Renvoyer l'invitation">
+                                                <i class="fas fa-paper-plane me-1"></i>Renvoyer l'invitation
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+            
+            <!-- Aide contextuelle -->
+            {% set is_main_author = comm.authors[0].id == current_user.id %}
+            {% set is_corresponding = comm.corresponding_author and comm.corresponding_author.id == current_user.id %}
+            {% if is_main_author or is_corresponding %}
+                <div class="alert alert-info mt-3 mb-0">
+                    <small>
+                        <i class="fas fa-info-circle me-1"></i>
+                        <strong>Info :</strong> Vous pouvez renvoyer une invitation à un co-auteur qui n'a pas encore activé son compte. 
+                        Le lien d'activation est valable 7 jours.
+                    </small>
+                </div>
+            {% endif %}
+        {% else %}
+            <p class="text-muted mb-0">
+                <i class="fas fa-info-circle me-1"></i>Aucun co-auteur pour cette communication
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+
+<!-- Section Résumés ->
+
+
+
+
 <!-- Section Résumés -->
 <div class="card mb-4">
     <div class="card-header bg-info text-white">
