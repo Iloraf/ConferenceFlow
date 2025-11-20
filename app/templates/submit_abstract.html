@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+ç{% extends 'base.html' %}
 
 {% block title %}Soumission {{ type }} - {{ conference.short_name }}{% endblock %}
 
@@ -311,40 +311,42 @@
                 <h5 class="modal-title">Ajouter un nouvel auteur</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <form id="new-author-form">
-                    <div class="mb-3">
-                        <label for="new-author-email" class="form-label">Email *</label>
-                        <input type="email" class="form-control" id="new-author-email" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <label for="new-author-first-name" class="form-label">Prénom</label>
-                            <input type="text" class="form-control" id="new-author-first-name">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="new-author-last-name" class="form-label">Nom</label>
-                            <input type="text" class="form-control" id="new-author-last-name">
-                        </div>
-                    </div>
-                    
-                    <!-- NOUVEAU : Champ affiliation -->
-                    <div class="mb-3 mt-3">
-                        <label for="new-author-affiliation" class="form-label">
-                            Affiliation <span class="text-muted">(optionnel)</span>
-                        </label>
-                        <select class="form-select" id="new-author-affiliation">
-                            <option value="">-- Sélectionner une affiliation --</option>
-                            {% for aff in all_affiliations %}
-                                <option value="{{ aff.id }}">{{ aff.sigle }} - {{ aff.nom_complet }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text">
-                            <small>Vous pouvez associer une affiliation si elle est connue</small>
-                        </div>
-                    </div>
-                </form>
+<div class="modal-body">
+    <div id="new-author-form">
+        <div class="mb-3">
+            <label for="new-author-email" class="form-label">Email *</label>
+            <input type="email" class="form-control" id="new-author-email" required>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <label for="new-author-first-name" class="form-label">Prénom</label>
+                <input type="text" class="form-control" id="new-author-first-name">
             </div>
+            <div class="col-md-6">
+                <label for="new-author-last-name" class="form-label">Nom</label>
+                <input type="text" class="form-control" id="new-author-last-name">
+            </div>
+        </div>
+        
+        <!-- NOUVEAU : Champ affiliation -->
+        <div class="mb-3 mt-3">
+            <label for="new-author-affiliation" class="form-label">
+                Affiliation <span class="text-muted">(optionnel)</span>
+            </label>
+            <select class="form-select" id="new-author-affiliation">
+                <option value="">-- Sélectionner une affiliation --</option>
+                {% for aff in all_affiliations %}
+                    <option value="{{ aff.id }}">{{ aff.sigle }} - {{ aff.nom_complet }}</option>
+                {% endfor %}
+            </select>
+            <div class="form-text">
+                <small>Vous pouvez associer une affiliation si elle est connue</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                 <button type="button" class="btn btn-primary" onclick="addNewAuthor()">
@@ -522,34 +524,17 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Script ajout nouvel auteur -->
 <script>
 function addNewAuthor() {
-    const email = document.getElementById('new-author-email').value;
-    const firstName = document.getElementById('new-author-first-name').value;
-    const lastName = document.getElementById('new-author-last-name').value;
-    const affiliationId = document.getElementById('new-author-affiliation').value;
+    const email = document.getElementById('new-author-email').value.trim();
+    const firstName = document.getElementById('new-author-first-name').value.trim();
+    const lastName = document.getElementById('new-author-last-name').value.trim();
+    const affiliationId = document.getElementById('new-author-affiliation') ? 
+                         document.getElementById('new-author-affiliation').value : '';
     
     if (!email) {
         alert('Email obligatoire');
         return;
     }
-
-    email = email.toLowerCase();
     
-    // Validation complète avec regex
-    const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
-    if (!emailRegex.test(email)) {
-        // Déterminer l'erreur spécifique
-        if (!email.includes('@')) {
-            alert('L\'adresse email doit contenir un "@".\nExemple : prenom.nom@universite.fr');
-        } else if (email.indexOf('@') !== email.lastIndexOf('@')) {
-            alert('L\'adresse email ne doit contenir qu\'un seul "@".');
-        } else if (!email.split('@')[1].includes('.')) {
-            alert('Le domaine doit contenir un point.\nExemple : nom@universite.fr');
-        } else {
-            alert('Format d\'email invalide.\nExemple valide : prenom.nom@universite.fr');
-        }
-        return;
-    }
-
     // Créer un nouvel élément dans la liste
     const authorsList = document.getElementById('authors-list');
     const newAuthorDiv = document.createElement('div');
@@ -558,80 +543,50 @@ function addNewAuthor() {
     const fullName = `${firstName} ${lastName}`.trim() || email;
     const newId = 'new_' + Date.now();
     
-    // Récupérer le nom de l'affiliation si sélectionnée
-    let affiliationBadge = '';
+    // Construire la valeur avec l'affiliation si présente
+    let authorValue = `new:${email}:${firstName}:${lastName}`;
     if (affiliationId) {
-        const affiliationSelect = document.getElementById('new-author-affiliation');
-        const selectedOption = affiliationSelect.options[affiliationSelect.selectedIndex];
-        const affiliationSigle = selectedOption.text.split(' - ')[0];
-        affiliationBadge = `<br><small class="text-muted"><span class="badge bg-light text-dark">${affiliationSigle}</span></small>`;
+        authorValue += `:${affiliationId}`;
     }
     
     newAuthorDiv.innerHTML = `
         <input class="form-check-input" type="checkbox" name="coauthors" 
-               value="new:${email}:${firstName}:${lastName}:${affiliationId}" id="${newId}" checked>
+               value="${authorValue}" id="${newId}" checked>
         <label class="form-check-label" for="${newId}">
             <strong>${fullName}</strong>
             ${fullName !== email ? `<small class="text-muted">(${email})</small>` : ''}
-            ${affiliationBadge}
             <span class="badge bg-warning">Nouveau</span>
         </label>
     `;
     
     authorsList.appendChild(newAuthorDiv);
     
-    // Fermer le modal et réinitialiser le formulaire
+    // Fermer le modal et réinitialiser les champs
     const modal = bootstrap.Modal.getInstance(document.getElementById('newAuthorModal'));
-    modal.hide();
-    document.getElementById('new-author-form').reset();
+    if (modal) {
+        modal.hide();
+    }
+    
+    // Réinitialiser manuellement les champs (au lieu de .reset())
+    document.getElementById('new-author-email').value = '';
+    document.getElementById('new-author-first-name').value = '';
+    document.getElementById('new-author-last-name').value = '';
+    if (document.getElementById('new-author-affiliation')) {
+        document.getElementById('new-author-affiliation').value = '';
+    }
     
     // Mettre à jour le compteur
     const countElement = document.getElementById('author-count');
     countElement.textContent = parseInt(countElement.textContent) + 1;
+    
+    // Déclencher la mise à jour de la liste des auteurs correspondants
+    const newCheckbox = document.getElementById(newId);
+    if (newCheckbox) {
+        newCheckbox.addEventListener('change', updateCorrespondingOptions);
+        updateCorrespondingOptions();
+    }
 }
-
   
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-// function addNewAuthor() {									    //
-//     const email = document.getElementById('new-author-email').value;				    //
-//     const firstName = document.getElementById('new-author-first-name').value;		    //
-//     const lastName = document.getElementById('new-author-last-name').value;			    //
-//     												    //
-//     if (!email) {										    //
-//         alert('Email obligatoire');								    //
-//         return;										    //
-//     }											    //
-//     												    //
-//     // Créer un nouvel élément dans la liste							    //
-//     const authorsList = document.getElementById('authors-list');				    //
-//     const newAuthorDiv = document.createElement('div');					    //
-//     newAuthorDiv.className = 'form-check author-item';					    //
-//     												    //
-//     const fullName = `${firstName} ${lastName}`.trim() || email;				    //
-//     const newId = 'new_' + Date.now();							    //
-//     												    //
-//     newAuthorDiv.innerHTML = `								    //
-//         <input class="form-check-input" type="checkbox" name="coauthors" 			    //
-//                value="new:${email}:${firstName}:${lastName}" id="${newId}" checked>		    //
-//         <label class="form-check-label" for="${newId}">					    //
-//             <strong>${fullName}</strong>							    //
-//             ${fullName !== email ? `<small class="text-muted">(${email})</small>` : ''}	    //
-//             <span class="badge bg-warning">Nouveau</span>					    //
-//         </label>										    //
-//     `;											    //
-//     												    //
-//     authorsList.appendChild(newAuthorDiv);							    //
-//     												    //
-//     // Fermer le modal et réinitialiser le formulaire					    //
-//     const modal = bootstrap.Modal.getInstance(document.getElementById('newAuthorModal'));	    //
-//     modal.hide();										    //
-//     document.getElementById('new-author-form').reset();					    //
-//     												    //
-//     // Mettre à jour le compteur								    //
-//     const countElement = document.getElementById('author-count');				    //
-//     countElement.textContent = parseInt(countElement.textContent) + 1;			    //
-// 	}											    //
-//////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	
 </script>
