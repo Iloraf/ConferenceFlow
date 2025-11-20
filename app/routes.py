@@ -20,12 +20,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime
+import secrets
 import os
 import csv
 import re
 import uuid
-from .forms import UserSpecialitesForm, CreateAffiliationForm, SubmitResumeForm, SubmitWipForm
-from .models import db, Communication, SubmissionFile, User, Affiliation, ThematiqueHelper, CommunicationStatus, ReviewAssignment, Review, ReviewRecommendation, Photo, PhotoCategory, Message, MessageCategory, MessageStatus, MessageReaction
+from .forms import UserSpecialitesForm, CreateAffiliationForm, SubmitResumeForm, SubmitWipForm, EditCommunicationForm
+from .models import db, Communication, SubmissionFile, User, Affiliation, ThematiqueHelper, CommunicationStatus, ReviewAssignment, Review, ReviewRecommendation, Photo, PhotoCategory, Message, MessageCategory, MessageStatus, MessageReaction, CommunicationAuthor
 from .utils.text_cleaner import clean_text, validate_for_hal, suggest_latex_equivalent
 from pathlib import Path
 import yaml
@@ -837,12 +838,19 @@ def update_submission(comm_id):
 
     from datetime import datetime
 
+    # return render_template("update_submission.html", 
+    #                        comm=comm, 
+    #                        files_by_type=files_by_type,
+    #                        allowed_uploads={ft: comm.can_upload_file_type(ft) for ft in file_types},
+    #                        now=datetime.utcnow())
+
     return render_template("update_submission.html", 
-                           comm=comm, 
-                           files_by_type=files_by_type,
-                           allowed_uploads={ft: comm.can_upload_file_type(ft) for ft in file_types},
-                           now=datetime.utcnow())
-        
+                     comm=comm, 
+                     files_by_type=files_by_type,
+                     allowed_uploads={ft: comm.can_upload_file_type(ft) for ft in file_types},
+                     now=datetime.utcnow(),
+                     CommunicationStatus=CommunicationStatus)
+
     ##################################################################################################
     # return render_template("update_submission.html",                                               #
     #                      comm=comm,                                                                #
@@ -851,6 +859,129 @@ def update_submission(comm_id):
     ##################################################################################################
 
 
+@main.route("/soumission/<int:comm_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_communication(comm_id):
+    """Permet à l'auteur principal de modifier le titre et d'ajouter des co-auteurs."""
+    comm = Communication.query.get_or_404(comm_id)
+    
+    # Vérifier que c'est l'auteur principal (premier auteur)
+    if not comm.authors or comm.authors[0].id != current_user.id:
+        flash("Seul l'auteur principal peut modifier cette communication.", "danger")
+        return redirect(url_for("main.update_submission", comm_id=comm.id))
+    
+    # Bloquer si la communication est en review ou acceptée
+    if comm.status in [CommunicationStatus.EN_REVIEW, CommunicationStatus.ACCEPTE, 
+                   CommunicationStatus.REVISION_DEMANDEE]:
+        flash("Vous ne pouvez pas modifier cette communication car elle est en cours de review ou acceptée.", "warning")
+        return redirect(url_for("main.update_submission", comm_id=comm.id))
+    
+    form = EditCommunicationForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Mettre à jour le titre
+            comm.title = form.title.data.strip()
+            
+            # Traiter les nouveaux co-auteurs ajoutés
+            new_coauthors = request.form.getlist("new_coauthors")
+            
+            if new_coauthors:
+                # Trouver le dernier ordre actuel
+                max_order = max([assoc.author_order for assoc in comm.author_associations], default=0)
+                author_order = max_order + 1
+                
+                for coauthor_value in new_coauthors:
+                    coauthor_user = None
+                    
+                    if coauthor_value.startswith('new:'):
+                        # Nouvel auteur à créer
+                        parts = coauthor_value.split(':')
+                        email = parts[1]
+                        first_name = parts[2] if len(parts) > 2 else ''
+                        last_name = parts[3] if len(parts) > 3 else ''
+                        affiliation_id = parts[4] if len(parts) > 4 else None
+                        
+                        # Vérifier si l'utilisateur existe déjà
+                        coauthor_user = User.query.filter_by(email=email).first()
+                        
+                        if not coauthor_user:
+                            # Créer le nouvel utilisateur
+                            coauthor_user = User(
+                                email=email,
+                                first_name=first_name,
+                                last_name=last_name,
+                                is_active=True,
+                                is_activated=False
+                            )
+                            coauthor_user.set_password(secrets.token_urlsafe(16))
+                            db.session.add(coauthor_user)
+                            db.session.flush()
+                            
+                            # Associer l'affiliation si fournie
+                            if affiliation_id:
+                                affiliation = Affiliation.query.get(affiliation_id)
+                                if affiliation:
+                                    coauthor_user.affiliations.append(affiliation)
+                    else:
+                        # Utilisateur existant
+                        coauthor_user = User.query.get(int(coauthor_value))
+                    
+                    if coauthor_user:
+                        # Vérifier si pas déjà auteur
+                        existing_assoc = CommunicationAuthor.query.filter_by(
+                            communication_id=comm.id,
+                            user_id=coauthor_user.id
+                        ).first()
+                        
+                        if not existing_assoc:
+                            coauthor_assoc = CommunicationAuthor(
+                                communication_id=comm.id,
+                                user_id=coauthor_user.id,
+                                author_order=author_order,
+                                is_corresponding=False
+                            )
+                            db.session.add(coauthor_assoc)
+                            author_order += 1
+                            
+                            # Envoyer notification au nouveau co-auteur
+                            try:
+                                if coauthor_user.is_activated:
+                                    current_app.send_existing_coauthor_notification_email(coauthor_user, comm)
+                                else:
+                                    activation_token = secrets.token_urlsafe(32)
+                                    coauthor_user.activation_token = activation_token
+                                    current_app.send_coauthor_notification_email(coauthor_user, comm, activation_token)
+                            except Exception as e:
+                                current_app.logger.error(f"Erreur envoi email co-auteur {coauthor_user.email}: {e}")
+            
+            comm.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            flash("Communication modifiée avec succès.", "success")
+            return redirect(url_for("main.update_submission", comm_id=comm.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Erreur modification communication: {e}")
+            flash("Erreur lors de la modification.", "danger")
+    
+    # Pré-remplir le formulaire avec les données actuelles
+    if request.method == 'GET':
+        form.title.data = comm.title
+    
+    # Récupérer tous les utilisateurs pour la liste des co-auteurs
+    users = User.query.filter(User.id != current_user.id).order_by(User.last_name, User.first_name).all()
+    all_affiliations = Affiliation.query.filter_by(is_active=True).order_by(Affiliation.sigle).all()
+    
+    return render_template("edit_communication.html", 
+                         comm=comm, 
+                         form=form,
+                         users=users,
+                         all_affiliations=all_affiliations)
+
+
+    
 @main.route("/soumission/<int:comm_id>/resend-coauthor-invitation/<int:coauthor_id>", methods=["POST"])
 @login_required
 def resend_coauthor_invitation(comm_id, coauthor_id):

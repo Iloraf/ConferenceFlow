@@ -475,3 +475,17 @@ class MessageModerationForm(FlaskForm):
     )
     
     submit = SubmitField('Appliquer la modération')
+
+
+class EditCommunicationForm(FlaskForm):
+    """Formulaire pour éditer le titre et les co-auteurs d'une communication."""
+    
+    title = StringField(
+        'Titre de la communication',
+        validators=[
+            DataRequired('Le titre est obligatoire'),
+            Length(min=10, max=200, message='Le titre doit faire entre 10 et 200 caractères')
+        ]
+    )
+    
+    submit = SubmitField('Enregistrer les modifications')

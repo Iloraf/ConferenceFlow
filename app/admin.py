@@ -19,8 +19,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from .models import db, Affiliation, Communication, User, ThematiqueHelper, ReviewAssignment, CommunicationStatus, SubmissionFile, Review, HALDeposit
+from .forms import EditCommunicationForm
+from .models import db, Affiliation, Communication, User, ThematiqueHelper, ReviewAssignment, CommunicationStatus, SubmissionFile, Review, HALDeposit, CommunicationAuthor
 from io import StringIO
+import secrets
 import csv
 import os
 from datetime import datetime, timedelta
@@ -153,6 +155,102 @@ def promote_reviewer(user_id):
     db.session.commit()
     flash(f"{user.email} promu relecteur", "success")
     return redirect(url_for("admin.manage_users"))
+
+
+@admin.route("/communication/<int:comm_id>/edit", methods=["GET", "POST"])
+@login_required
+def admin_edit_communication(comm_id):
+    """Permet à un admin de modifier n'importe quelle communication."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    comm = Communication.query.get_or_404(comm_id)
+    form = EditCommunicationForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Mettre à jour le titre
+            comm.title = form.title.data.strip()
+            
+            # Traiter les nouveaux co-auteurs (même code que ci-dessus)
+            new_coauthors = request.form.getlist("new_coauthors")
+            
+            if new_coauthors:
+                max_order = max([assoc.author_order for assoc in comm.author_associations], default=0)
+                author_order = max_order + 1
+                
+                for coauthor_value in new_coauthors:
+                    coauthor_user = None
+                    
+                    if coauthor_value.startswith('new:'):
+                        parts = coauthor_value.split(':')
+                        email = parts[1]
+                        first_name = parts[2] if len(parts) > 2 else ''
+                        last_name = parts[3] if len(parts) > 3 else ''
+                        affiliation_id = parts[4] if len(parts) > 4 else None
+                        
+                        coauthor_user = User.query.filter_by(email=email).first()
+                        
+                        if not coauthor_user:
+                            coauthor_user = User(
+                                email=email,
+                                first_name=first_name,
+                                last_name=last_name,
+                                is_active=True,
+                                is_activated=False
+                            )
+                            coauthor_user.set_password(secrets.token_urlsafe(16))
+                            db.session.add(coauthor_user)
+                            db.session.flush()
+                            
+                            if affiliation_id:
+                                affiliation = Affiliation.query.get(affiliation_id)
+                                if affiliation:
+                                    coauthor_user.affiliations.append(affiliation)
+                    else:
+                        coauthor_user = User.query.get(int(coauthor_value))
+                    
+                    if coauthor_user:
+                        existing_assoc = CommunicationAuthor.query.filter_by(
+                            communication_id=comm.id,
+                            user_id=coauthor_user.id
+                        ).first()
+                        
+                        if not existing_assoc:
+                            coauthor_assoc = CommunicationAuthor(
+                                communication_id=comm.id,
+                                user_id=coauthor_user.id,
+                                author_order=author_order,
+                                is_corresponding=False
+                            )
+                            db.session.add(coauthor_assoc)
+                            author_order += 1
+            
+            comm.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            flash("Communication modifiée avec succès.", "success")
+            return redirect(url_for("admin.view_communication_details", comm_id=comm.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Erreur modification communication par admin: {e}")
+            flash("Erreur lors de la modification.", "danger")
+    
+    if request.method == 'GET':
+        form.title.data = comm.title
+    
+    users = User.query.order_by(User.last_name, User.first_name).all()
+    all_affiliations = Affiliation.query.filter_by(is_active=True).order_by(Affiliation.sigle).all()
+    
+    return render_template("admin/edit_communication.html", 
+                         comm=comm, 
+                         form=form,
+                         users=users,
+                         all_affiliations=all_affiliations)
+
+
 
 @admin.route("/admin/users/revoke-admin/<int:user_id>", methods=["POST"])
 @login_required

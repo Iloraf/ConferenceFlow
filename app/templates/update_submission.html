@@ -10,7 +10,19 @@
                 <h4><i class="fas fa-file-text me-2"></i>{{ comm.title }}</h4>
             </div>
             <div class="card-body">
-                <!-- Informations -->
+<!-- Bouton pour modifier la communication (si auteur principal) -->
+                {% if comm.authors and comm.authors[0].id == current_user.id %}
+                    {% if comm.status not in [CommunicationStatus.EN_REVIEW, CommunicationStatus.ARTICLE_ACCEPTE, CommunicationStatus.ARTICLE_ACCEPTE_SOUS_RESERVE] %}
+                        <div class="alert alert-light border mb-3">
+                            <a href="{{ url_for('main.edit_communication', comm_id=comm.id) }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-edit me-2"></i>Modifier le titre et ajouter des co-auteurs
+                            </a>
+                        </div>
+                    {% endif %}
+                {% endif %}
+
+
+	      <!-- Informations -->
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <p><strong>Type :</strong> 
