@@ -517,7 +517,8 @@ def start_submission(type):
                     parts = coauthor_value.split(':')
                     _, email, first_name, last_name = parts[:4]
                     affiliation_id = parts[4] if len(parts) > 4 and parts[4] else None
-    
+                    email = email.strip().lower()
+                    
                     # Vérifier si l'utilisateur existe déjà
                     existing_user = User.query.filter_by(email=email).first()
                     if existing_user:
@@ -1053,6 +1054,7 @@ def activate_account(token):
             flash('Les mots de passe ne correspondent pas.', 'danger')
         else:
             # Activer le compte
+            user.email = user.email.lower()
             user.set_password(password)
             user.is_activated = True
             user.is_active = True
@@ -1062,7 +1064,6 @@ def activate_account(token):
             flash('Compte activé avec succès ! Vous pouvez maintenant vous connecter.', 'success')
             return redirect(url_for('auth.login'))
     
-    # ✅ NOUVEAU : Déterminer le type d'utilisateur pour le template
     account_type = 'reviewer' if user.is_reviewer else 'auteur'
     
     return render_template('activate_account.html', user=user, account_type=account_type)

@@ -531,7 +531,25 @@ function addNewAuthor() {
         alert('Email obligatoire');
         return;
     }
+
+    email = email.toLowerCase();
     
+    // Validation complète avec regex
+    const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
+    if (!emailRegex.test(email)) {
+        // Déterminer l'erreur spécifique
+        if (!email.includes('@')) {
+            alert('L\'adresse email doit contenir un "@".\nExemple : prenom.nom@universite.fr');
+        } else if (email.indexOf('@') !== email.lastIndexOf('@')) {
+            alert('L\'adresse email ne doit contenir qu\'un seul "@".');
+        } else if (!email.split('@')[1].includes('.')) {
+            alert('Le domaine doit contenir un point.\nExemple : nom@universite.fr');
+        } else {
+            alert('Format d\'email invalide.\nExemple valide : prenom.nom@universite.fr');
+        }
+        return;
+    }
+
     // Créer un nouvel élément dans la liste
     const authorsList = document.getElementById('authors-list');
     const newAuthorDiv = document.createElement('div');

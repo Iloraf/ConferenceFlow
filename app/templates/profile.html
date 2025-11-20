@@ -80,7 +80,7 @@
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <input type="text" id="affiliation-search" class="form-control me-2" 
                                    placeholder="Rechercher une affiliation (acronyme ou nom)..."
-				   autocomplete="off">
+				   autocomplete="new-password">
                             <a href="{{ url_for('main.create_affiliation') }}" class="btn btn-outline-success btn-sm flex-shrink-0" title="Créer une nouvelle affiliation">
                                 <i class="fas fa-plus me-1"></i>Nouvelle
                             </a>
@@ -110,7 +110,7 @@
     
     {% if affiliations|length > 20 %}
     <div id="show-more-container" class="text-center p-3" style="background: linear-gradient(to bottom, transparent, #fff);">
-        <button id="show-more-btn" class="btn btn-outline-primary btn-sm">
+	<button type="button" id="show-more-btn" class="btn btn-outline-primary btn-sm">
             <i class="fas fa-chevron-down me-2"></i>
             Afficher plus (<span id="remaining-count">{{ affiliations|length - 20 }}</span> restantes)
         </button>
