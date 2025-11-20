@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin - Modifier communication {{ comm.id }} - {{ conference.short_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.admin_dashboard') }}">Admin</a></li>
+	    <li class="breadcrumb-item"><a href="{{ url_for('admin.view_communication_details', comm_id=comm.id) }}">Communication {{ comm.id }}</a></li>
+            <li class="breadcrumb-item active">Modifier</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>Admin - Modifier la communication #{{ comm.id }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Mode administrateur :</strong> Vous pouvez modifier cette communication à tout moment, quel que soit son statut.
+                    </div>
+
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Informations actuelles -->
+                        <div class="alert alert-info mb-4">
+                            <h6>Informations actuelles :</h6>
+                            <ul class="mb-0">
+                                <li><strong>Type :</strong> {{ 'Article complet' if comm.type == 'article' else 'Work in Progress' }}</li>
+                                <li><strong>Statut :</strong> <span class="badge bg-secondary">{{ comm.status.value }}</span></li>
+                                <li><strong>Créé le :</strong> {{ comm.created_at.strftime('%d/%m/%Y %H:%M') }}</li>
+                                <li><strong>Modifié le :</strong> {{ comm.updated_at.strftime('%d/%m/%Y %H:%M') }}</li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Titre -->
+                        <div class="mb-4">
+                            <label for="title" class="form-label fw-bold">
+                                <i class="fas fa-heading me-2"></i>Titre de la communication *
+                            </label>
+                            {{ form.title(class="form-control", placeholder="Titre de la communication") }}
+                            {% if form.title.errors %}
+                                <div class="text-danger mt-2">
+                                    {% for error in form.title.errors %}
+                                        <small><i class="fas fa-exclamation-triangle me-1"></i>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Co-auteurs actuels -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-users me-2"></i>Co-auteurs actuels
+                            </label>
+                            <div class="card">
+                                <div class="card-body">
+                                    {% for author in comm.authors %}
+                                        <div class="mb-2 pb-2 {% if not loop.last %}border-bottom{% endif %}">
+                                            <i class="fas fa-user-check text-success me-2"></i>
+                                            <strong>{{ author.full_name or author.email }}</strong>
+                                            {% if loop.index == 1 %}
+                                                <span class="badge bg-primary ms-2">Auteur principal</span>
+                                            {% endif %}
+                                            {% if comm.corresponding_author and comm.corresponding_author.id == author.id %}
+                                                <span class="badge bg-info ms-2">Correspondant</span>
+                                            {% endif %}
+                                            {% if author.affiliations %}
+                                                <br><small class="text-muted ms-4">
+                                                    {% for aff in author.affiliations %}
+                                                        <span class="badge bg-light text-dark">{{ aff.sigle }}</span>
+                                                    {% endfor %}
+                                                </small>
+                                            {% endif %}
+                                            <br><small class="text-muted ms-4">{{ author.email }}</small>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ajouter de nouveaux co-auteurs -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-user-plus me-2"></i>Ajouter de nouveaux co-auteurs
+                            </label>
+                            
+                            <div class="mb-3">
+                                <input type="text" id="author-search" class="form-control" 
+                                       placeholder="Rechercher un auteur par nom ou email..."
+                                       autocomplete="new-password">
+                                <small class="text-muted">
+                                    <span id="author-count">{{ users|length }}</span> auteur(s) disponible(s)
+                                </small>
+                            </div>
+                            
+                            <div id="authors-list" style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem; padding: 0.5rem;">
+                                {% for user in users %}
+                                    {% set is_already_author = user in comm.authors %}
+                                    <div class="form-check author-item" data-letter="{{ (user.last_name or user.email)[0]|upper }}" 
+                                         {% if is_already_author %}style="display: none;"{% endif %}>
+                                        <input class="form-check-input" type="checkbox" name="new_coauthors" 
+                                               value="{{ user.id }}" id="author_{{ user.id }}"
+                                               {% if is_already_author %}disabled{% endif %}>
+                                        <label class="form-check-label" for="author_{{ user.id }}">
+                                            <strong>{{ user.full_name or user.email }}</strong>
+                                            {% if user.full_name and user.email %}
+                                                <small class="text-muted">({{ user.email }})</small>
+                                            {% endif %}
+                                            {% if user.affiliations %}
+                                                <br><small class="text-muted">
+                                                    {% for aff in user.affiliations %}
+                                                        <span class="badge bg-light text-dark">{{ aff.sigle }}</span>
+                                                    {% endfor %}
+                                                </small>
+                                            {% endif %}
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="mt-3">
+                                <small class="text-muted">L'auteur n'est pas dans la liste ?</small><br>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newAuthorModal">
+                                    <i class="fas fa-plus"></i> Ajouter un nouvel auteur
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Boutons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin.view_communication_details', comm_id=comm.id) }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-save me-2"></i>Enregistrer les modifications (Admin)
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour ajouter un nouvel auteur -->
+<div class="modal fade" id="newAuthorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un nouvel auteur</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="new-author-form">
+                    <div class="mb-3">
+                        <label for="new-author-email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="new-author-email" required autocomplete="new-password">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="new-author-first-name" class="form-label">Prénom</label>
+                            <input type="text" class="form-control" id="new-author-first-name" autocomplete="new-password">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new-author-last-name" class="form-label">Nom</label>
+                            <input type="text" class="form-control" id="new-author-last-name" autocomplete="new-password">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 mt-3">
+                        <label for="new-author-affiliation" class="form-label">
+                            Affiliation <span class="text-muted">(optionnel)</span>
+                        </label>
+                        <select class="form-select" id="new-author-affiliation">
+                            <option value="">-- Sélectionner une affiliation --</option>
+                            {% for aff in all_affiliations %}
+                                <option value="{{ aff.id }}">{{ aff.sigle }} - {{ aff.nom_complet }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="addNewAuthor()">
+                    <i class="fas fa-plus"></i> Ajouter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Script recherche auteurs
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('author-search');
+    const authorItems = document.querySelectorAll('.author-item');
+    const countElement = document.getElementById('author-count');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            let visibleCount = 0;
+            
+            authorItems.forEach(function(item) {
+                if (item.style.display === 'none') return;
+                
+                const text = item.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    item.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            countElement.textContent = visibleCount;
+        });
+    }
+});
+
+// Fonction ajout nouvel auteur
+function addNewAuthor() {
+    const email = document.getElementById('new-author-email').value.trim();
+    const firstName = document.getElementById('new-author-first-name').value.trim();
+    const lastName = document.getElementById('new-author-last-name').value.trim();
+    const affiliationId = document.getElementById('new-author-affiliation') ? 
+                         document.getElementById('new-author-affiliation').value : '';
+    
+    if (!email) {
+        alert('Email obligatoire');
+        return;
+    }
+    
+    const authorsList = document.getElementById('authors-list');
+    const newAuthorDiv = document.createElement('div');
+    newAuthorDiv.className = 'form-check author-item';
+    
+    const fullName = `${firstName} ${lastName}`.trim() || email;
+    const newId = 'new_' + Date.now();
+    
+    let authorValue = `new:${email}:${firstName}:${lastName}`;
+    if (affiliationId) {
+        authorValue += `:${affiliationId}`;
+    }
+    
+    newAuthorDiv.innerHTML = `
+        <input class="form-check-input" type="checkbox" name="new_coauthors" 
+               value="${authorValue}" id="${newId}" checked>
+        <label class="form-check-label" for="${newId}">
+            <strong>${fullName}</strong>
+            ${fullName !== email ? `<small class="text-muted">(${email})</small>` : ''}
+            <span class="badge bg-warning">Nouveau</span>
+        </label>
+    `;
+    
+    authorsList.appendChild(newAuthorDiv);
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('newAuthorModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
+    document.getElementById('new-author-email').value = '';
+    document.getElementById('new-author-first-name').value = '';
+    document.getElementById('new-author-last-name').value = '';
+    if (document.getElementById('new-author-affiliation')) {
+        document.getElementById('new-author-affiliation').value = '';
+    }
+    
+    const countElement = document.getElementById('author-count');
+    countElement.textContent = parseInt(countElement.textContent) + 1;
+}
+</script>
+{% endblock %}
