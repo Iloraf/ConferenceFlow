@@ -76,8 +76,12 @@
 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead class="table-light">
-                            <tr>
-                                <th>Titre</th>
+                          <tr>
+			    <th>
+			      <input type="checkbox" class="form-check-input" id="selectAllArticles" 
+				     onchange="toggleSelectAll('articles')">
+			    </th>
+			    <th>Titre</th>
                                 <th>Auteur principal</th>
                                 <th>Statut</th>
                                 <th>Reviewers assignés</th>

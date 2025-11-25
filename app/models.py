@@ -466,6 +466,34 @@ class Communication(db.Model):
         
         return True
 
+    def convert_wip_to_resume(self, admin_user):
+        """
+        Convertit un WIP en résumé (article).
+        Change le type et adapte le statut.
+    
+        Args:
+        admin_user (User): L'administrateur qui effectue la conversion
+        
+        Returns:
+        bool: True si la conversion a réussi, False sinon
+        """
+        if self.type != 'wip':
+            return False  # On ne peut convertir que des WIP
+    
+        # Changer le type vers article
+        self.type = 'article'
+    
+        # Adapter le statut
+        if self.status == CommunicationStatus.WIP_SOUMIS:
+            self.status = CommunicationStatus.RESUME_SOUMIS
+        elif self.status == CommunicationStatus.POSTER_SOUMIS:
+            # Si le poster est déjà soumis, on reste sur résumé soumis
+            self.status = CommunicationStatus.RESUME_SOUMIS
+    
+        # Mettre à jour la date de modification
+        self.updated_at = datetime.utcnow()
+    
+        return True
     
     def can_submit_poster(self):
         """Vérifie si on peut soumettre le poster."""

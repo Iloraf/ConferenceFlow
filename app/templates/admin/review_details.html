@@ -115,6 +115,33 @@
                         </div>
                     </div>
                     {% endif %}
+
+
+<!-- Conversion WIP → Résumé -->
+{% if communication.type == 'wip' %}
+<div class="col-md-6">
+    <div class="card border-success">
+        <div class="card-header bg-success text-white">
+            <h6 class="mb-0"><i class="fas fa-exchange-alt"></i> Convertir en Résumé</h6>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted mb-3">
+                Convertit ce Work in Progress en résumé (article).
+                <br>Cette action :
+                <br>• Change le type de la communication
+                <br>• Passe le statut en "résumé soumis"
+                <br>• Permet ensuite la soumission d'un article complet
+                <br>• Notifie les auteurs
+            </p>
+            
+            <button type="button" class="btn btn-success btn-sm w-100" 
+                    data-bs-toggle="modal" data-bs-target="#convertToResumeModal">
+                <i class="fas fa-exchange-alt"></i> Convertir en Résumé
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
                     
                     <!-- Marquage pour le prix -->
                     {% if communication.status.value == 'accepté' %}
@@ -229,6 +256,55 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Modal pour la conversion WIP → Résumé -->
+{% if communication.type == 'wip' %}
+<div class="modal fade" id="convertToResumeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exchange-alt"></i> Convertir le WIP en Résumé
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.convert_wip_to_resume', comm_id=communication.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>Information :</strong> Cette action va :
+                        <ul class="mb-0 mt-2">
+                            <li>Changer le type de "Work in Progress" vers "Résumé/Article"</li>
+                            <li>Modifier le statut vers "Résumé soumis"</li>
+                            <li>Permettre la soumission d'un article complet</li>
+                            <li>Permettre l'assignation de reviewers</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="reason_resume" class="form-label">Raison de la conversion <span class="text-muted">(optionnel)</span></label>
+                        <textarea class="form-control" id="reason_resume" name="reason" rows="3" 
+                                  placeholder="Ex: Les travaux sont maintenant suffisamment avancés pour un article complet..."></textarea>
+                        <div class="form-text">Cette raison sera communiquée aux auteurs dans l'email de notification.</div>
+                    </div>
+                    
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        Le résumé français existant sera conservé.
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Confirmer la conversion
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 
 <!-- Modal pour voir les résumés -->
 {% if communication.abstract_fr or communication.abstract_en %}

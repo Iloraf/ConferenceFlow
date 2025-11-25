@@ -1,5 +1,5 @@
 <!-- templates/emails/bulk_email.html -->
-{% extends 'emails/base_email.html' %}
+{% extends 'emails/base_emails.html' %}
 
 {% block title %}{{ email_subject }}{% endblock %}
 
@@ -18,22 +18,32 @@
     <div style="margin: 10px 0; padding: 10px; border-left: 3px solid #007bff; background-color: #f8f9fa;">
         <div class="communication-title">{{ communication.title }}</div>
         <p><strong>ID :</strong> {{ communication.id }} | <strong>Type :</strong> {{ communication.type.title() }}</p>
-        
-        {% if communication.thematiques %}
-        <div class="thematiques">
-            <strong>Thématiques :</strong>
-            {% set theme_names = communication.thematiques | convert_theme_codes %}
-            <span style="color: #007bff;">{{ theme_names }}</span>
-        </div>
-        {% endif %}
+
+	{% if communication.thematiques %}
+	<div class="thematiques">
+	  <strong>Thématiques :</strong>
+	  <span style="color: #007bff;">
+            {% if communication.thematiques is iterable and communication.thematiques is not string %}
+            {# C'est déjà une liste d'objets #}
+            {% for theme in communication.thematiques %}
+            {{ theme.nom if theme.nom else theme.code }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            {% else %}
+            {# C'est une chaîne de codes #}
+            {{ communication.thematiques | convert_theme_codes }}
+            {% endif %}
+	  </span>
+	</div>
+	{% endif %}
+	
     </div>
     {% endfor %}
 </div>
 {% endif %}
 
 <div style="text-align: center; margin: 30px 0;">
-    {% if recipient.is_reviewer %}
-    <a href="{{ url_for('reviewer.dashboard', _external=True) }}" class="btn">
+  {% if recipient.is_reviewer %}
+  <a href="{{ url_for('main.reviewer_dashboard', _external=True) }}" class="btn">
         Mon tableau de bord reviewer
     </a>
     {% else %}

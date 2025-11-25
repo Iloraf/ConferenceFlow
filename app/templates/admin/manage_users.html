@@ -133,6 +133,12 @@
                                     Actions
                                 </button>
                                 <ul class="dropdown-menu">
+				  <li>
+				    <a class="dropdown-item" href="{{ url_for('admin.edit_user', user_id=user.id) }}">
+				      <i class="fas fa-edit text-primary me-2"></i>Éditer
+				    </a>
+				  </li>
+				  <li><hr class="dropdown-divider"></li>
                                     {% if not user.is_reviewer %}
                                     <li>
                                         <form method="POST" action="{{ url_for('admin.promote_reviewer', user_id=user.id) }}" 

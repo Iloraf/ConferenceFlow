@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, abort
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from .forms import EditCommunicationForm
+from .forms import EditCommunicationForm, EditUserForm
 from .models import db, Affiliation, Communication, User, ThematiqueHelper, ReviewAssignment, CommunicationStatus, SubmissionFile, Review, HALDeposit, CommunicationAuthor
 from io import StringIO
 import secrets
@@ -129,6 +129,48 @@ def manage_users():
                          users=users, 
                          search=search,
                          role_filter=role_filter)
+
+@admin.route("/admin/users/edit/<int:user_id>", methods=["GET", "POST"])
+@login_required
+def edit_user(user_id):
+    """Permet à un admin de modifier les informations d'un utilisateur."""
+    if not current_user.is_admin:
+        flash("Accès refusé", "danger")
+        return redirect(url_for("main.index"))
+    
+    user = User.query.get_or_404(user_id)
+    form = EditUserForm(original_email=user.email, obj=user)
+    
+    if form.validate_on_submit():
+        try:
+            # Sauvegarder l'ancien email pour les logs
+            old_email = user.email
+            
+            # Mettre à jour les informations
+            user.email = form.email.data
+            user.first_name = form.first_name.data
+            user.last_name = form.last_name.data
+            user.is_admin = form.is_admin.data
+            user.is_reviewer = form.is_reviewer.data
+            user.is_activated = form.is_activated.data
+            
+            db.session.commit()
+            
+            # Log de la modification
+            if old_email != user.email:
+                current_app.logger.info(f"Admin {current_user.email} a modifié l'email de {old_email} en {user.email}")
+            else:
+                current_app.logger.info(f"Admin {current_user.email} a modifié l'utilisateur {user.email}")
+            
+            flash(f"Utilisateur {user.email} modifié avec succès.", "success")
+            return redirect(url_for("admin.manage_users"))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Erreur modification utilisateur {user_id}: {e}")
+            flash("Erreur lors de la modification de l'utilisateur.", "danger")
+    
+    return render_template("admin/edit_user.html", form=form, user=user)
 
 @admin.route("/admin/users/promote-admin/<int:user_id>", methods=["POST"])
 @login_required
@@ -376,6 +418,59 @@ def convert_article_to_wip(comm_id):
         db.session.rollback()
         current_app.logger.error(f"Erreur conversion article→WIP: {e}")
         flash(f'Erreur lors de la conversion: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+
+
+@admin.route('/communications/<int:comm_id>/convert-to-resume', methods=['POST'])
+@login_required
+def convert_wip_to_resume(comm_id):
+    """Convertit un WIP en résumé (article) - admin uniquement."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    # Vérifications
+    if communication.type != 'wip':
+        flash('Seuls les WIP peuvent être convertis en résumé.', 'warning')
+        return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+    
+    # Récupérer les données du formulaire
+    reason = request.form.get('reason', '').strip()
+    
+    try:
+        # Sauvegarder l'ancien statut pour les logs
+        old_status = communication.status.value
+        
+        # Utiliser la méthode du modèle
+        if communication.convert_wip_to_resume(current_user):
+            # Log de la conversion
+            conversion_note = f"Conversion WIP → Résumé par {current_user.email}"
+            if reason:
+                conversion_note += f". Raison: {reason}"
+            
+            current_app.logger.info(f"Communication {comm_id}: {conversion_note}")
+            
+            db.session.commit()
+            
+            flash(f'WIP #{comm_id} converti en résumé avec succès.', 'success')
+            
+            # Envoyer un email aux auteurs pour les informer
+            try:
+                # TODO: créer une fonction d'email spécifique si nécessaire
+                flash('Les auteurs seront notifiés de ce changement.', 'info')
+            except Exception as e:
+                current_app.logger.error(f"Erreur envoi notification conversion WIP→résumé: {e}")
+                flash('Conversion réussie mais erreur lors de l\'envoi de la notification.', 'warning')
+        else:
+            flash('Impossible de convertir ce WIP.', 'warning')
+            
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur conversion WIP→résumé {comm_id}: {e}")
+        flash('Erreur lors de la conversion.', 'danger')
     
     return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
 

@@ -489,3 +489,49 @@ class EditCommunicationForm(FlaskForm):
     )
     
     submit = SubmitField('Enregistrer les modifications')
+
+
+class EditUserForm(FlaskForm):
+    """Formulaire pour éditer les informations d'un utilisateur (admin)."""
+    
+    email = StringField(
+        'Email',
+        validators=[
+            DataRequired('L\'email est obligatoire'),
+            Length(max=120, message='L\'email ne peut pas dépasser 120 caractères')
+        ]
+    )
+    
+    first_name = StringField(
+        'Prénom',
+        validators=[
+            Optional(),
+            Length(max=50, message='Le prénom ne peut pas dépasser 50 caractères')
+        ]
+    )
+    
+    last_name = StringField(
+        'Nom',
+        validators=[
+            Optional(),
+            Length(max=50, message='Le nom ne peut pas dépasser 50 caractères')
+        ]
+    )
+    
+    is_admin = BooleanField('Administrateur')
+    is_reviewer = BooleanField('Relecteur')
+    is_activated = BooleanField('Compte activé')
+    
+    submit = SubmitField('Enregistrer les modifications')
+    
+    def __init__(self, original_email, *args, **kwargs):
+        super(EditUserForm, self).__init__(*args, **kwargs)
+        self.original_email = original_email
+    
+    def validate_email(self, email):
+        """Vérifie que l'email n'est pas déjà utilisé par un autre utilisateur."""
+        if email.data != self.original_email:
+            from .models import User
+            existing = User.query.filter_by(email=email.data).first()
+            if existing:
+                raise ValidationError('Cet email est déjà utilisé par un autre utilisateur.')

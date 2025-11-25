@@ -567,6 +567,13 @@
 			  <i class="fas fa-exchange-alt me-2"></i>Reclasser en WIP
 			</button>
 			{% endif %}
+		      	
+			{% if communication.type == 'wip' %}
+			<button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#convertWipToResumeModal">
+			  <i class="fas fa-exchange-alt me-2"></i>Convertir en Résumé
+			</button>
+			{% endif %}
+			
                         <hr>
                         
                         <a href="{{ url_for('admin.communications_dashboard') }}" class="btn btn-secondary">
@@ -703,6 +710,52 @@
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-exchange-alt me-2"></i>
                         Confirmer le reclassement
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+
+<!-- Modal pour convertir WIP en Résumé -->
+{% if communication.type == 'wip' %}
+<div class="modal fade" id="convertWipToResumeModal" tabindex="-1" aria-labelledby="convertWipToResumeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="convertWipToResumeModalLabel">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Confirmer la conversion en Résumé
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Information :</strong> Vous êtes sur le point de convertir ce Work in Progress en résumé (article).</p>
+                <p>Cette action va :</p>
+                <ul>
+                    <li>Changer le type de "wip" vers "article"</li>
+                    <li>Adapter le statut (WIP soumis → résumé soumis)</li>
+                    <li>Permettre la soumission d'un article complet</li>
+                    <li>Permettre l'assignation de reviewers</li>
+                </ul>
+                <p class="text-success">
+                    <i class="fas fa-check-circle"></i>
+                    Le résumé français existant sera conservé.
+                </p>
+                <p class="text-info mb-0">
+                    <i class="fas fa-info-circle"></i>
+                    L'auteur pourra ensuite soumettre un article complet et celui-ci pourra être évalué.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" action="{{ url_for('admin.convert_wip_to_resume', comm_id=communication.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-exchange-alt me-2"></i>
+                        Confirmer la conversion
                     </button>
                 </form>
             </div>

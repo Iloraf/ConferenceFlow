@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Éditer l'utilisateur - Admin {{ conference.short_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-user-edit me-2"></i>Éditer l'utilisateur</h2>
+                <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Informations de l'utilisateur</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="email" class="form-label">
+                                    <i class="fas fa-envelope me-1"></i>Email
+                                </label>
+                                {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
+                                {% if form.email.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.email.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="first_name" class="form-label">
+                                    <i class="fas fa-user me-1"></i>Prénom
+                                </label>
+                                {{ form.first_name(class="form-control" + (" is-invalid" if form.first_name.errors else "")) }}
+                                {% if form.first_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.first_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label for="last_name" class="form-label">
+                                    <i class="fas fa-user me-1"></i>Nom
+                                </label>
+                                {{ form.last_name(class="form-control" + (" is-invalid" if form.last_name.errors else "")) }}
+                                {% if form.last_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.last_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <h6 class="mb-3"><i class="fas fa-user-shield me-2"></i>Rôles et statut</h6>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.is_activated(class="form-check-input") }}
+                                <label class="form-check-label" for="is_activated">
+                                    <i class="fas fa-check-circle text-success me-1"></i>Compte activé
+                                </label>
+                                <div class="form-text">Si décoché, l'utilisateur ne pourra pas se connecter</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.is_admin(class="form-check-input") }}
+                                <label class="form-check-label" for="is_admin">
+                                    <i class="fas fa-user-shield text-danger me-1"></i>Administrateur
+                                </label>
+                                <div class="form-text">Accès complet à toutes les fonctionnalités d'administration</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.is_reviewer(class="form-check-input") }}
+                                <label class="form-check-label" for="is_reviewer">
+                                    <i class="fas fa-user-edit text-primary me-1"></i>Relecteur
+                                </label>
+                                <div class="form-text">Peut être assigné pour relire des communications</div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Informations supplémentaires :</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>ID utilisateur : {{ user.id }}</li>
+                                <li>Date de création : {{ user.created_at.strftime('%d/%m/%Y à %H:%M') if user.created_at else 'N/A' }}</li>
+                                <li>Communications en tant qu'auteur : {{ user.authored_communications|length }}</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('admin.manage_users') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Annuler
+                            </a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
