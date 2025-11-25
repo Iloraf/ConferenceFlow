@@ -104,7 +104,7 @@
                             {% if communication.thematiques %}
                             <p><strong>Thématiques :</strong><br>
                                 {% for theme in communication.thematiques %}
-                                <span class="badge thematique-badge" style="background-color: {{ theme.couleur }};">
+                                <span class="badge thematique-badge" style="background-color: {{ theme.couleur }}; color: #000;">
                                     {{ theme.code }} - {{ theme.nom }}
                                 </span>
                                 {% endfor %}
@@ -542,6 +542,10 @@
                 <div class="card-body">
                     <div class="d-grid gap-2">
 
+		      <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteCommModal">
+			<i class="fas fa-trash me-2"></i>Supprimer la communication
+		      </button>
+		      
 		       <a href="{{ url_for('admin.admin_edit_communication', comm_id=communication.id) }}" class="btn btn-warning">
                     <i class="fas fa-edit me-2"></i>Modifier la communication
                 </a>
@@ -718,6 +722,50 @@
 </div>
 {% endif %}
 
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteCommModal" tabindex="-1" aria-labelledby="deleteCommModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteCommModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>ATTENTION :</strong> Vous êtes sur le point de supprimer définitivement cette communication.</p>
+                
+                <div class="alert alert-warning">
+                    <strong>Communication :</strong> {{ communication.title }}
+                </div>
+                
+                <p>Cette action va :</p>
+                <ul>
+                    <li>Supprimer définitivement la communication</li>
+                    <li>Supprimer tous les fichiers associés (résumé, article, poster)</li>
+                    <li>Supprimer toutes les reviews et assignations de reviewers</li>
+                    <li>Cette action est <strong class="text-danger">IRREVERSIBLE</strong></li>
+                </ul>
+                
+                <p class="text-danger mb-0">
+                    <i class="fas fa-exclamation-circle"></i>
+                    Êtes-vous absolument certain de vouloir continuer ?
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" action="{{ url_for('admin.delete_communication', comm_id=communication.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>
+                        Oui, supprimer définitivement
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 
 <!-- Modal pour convertir WIP en Résumé -->

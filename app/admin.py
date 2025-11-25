@@ -6383,3 +6383,52 @@ def download_zones_yaml():
         return redirect(url_for("admin.manage_content"))
     
     return send_file(zones_file, as_attachment=True, download_name="zones.yml")
+
+
+
+@admin.route('/communications/<int:comm_id>/delete', methods=['POST'])
+@login_required
+def delete_communication(comm_id):
+    """Supprime une communication (admin uniquement)."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    try:
+        # Sauvegarder les infos pour le log
+        comm_title = communication.title
+        comm_type = communication.type
+        comm_id_log = communication.id
+        
+        # Supprimer les fichiers associés
+        for file in communication.submission_files:
+            if file.file_path and os.path.exists(file.file_path):
+                try:
+                    os.remove(file.file_path)
+                    current_app.logger.info(f"Fichier supprimé : {file.file_path}")
+                except Exception as e:
+                    current_app.logger.error(f"Erreur suppression fichier {file.file_path}: {e}")
+        
+        # Supprimer les reviews associées
+        Review.query.filter_by(communication_id=comm_id).delete()
+        
+        # Supprimer les assignations de reviewers
+        ReviewAssignment.query.filter_by(communication_id=comm_id).delete()
+        
+        # Supprimer la communication
+        db.session.delete(communication)
+        db.session.commit()
+        
+        # Log de la suppression
+        current_app.logger.info(f"Communication supprimée par {current_user.email}: ID={comm_id_log}, Titre='{comm_title}', Type={comm_type}")
+        
+        flash(f'Communication "{comm_title}" supprimée avec succès.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur suppression communication {comm_id}: {e}")
+        flash("Erreur lors de la suppression de la communication.", "danger")
+    
+    return redirect(url_for('admin.communications_dashboard'))
