@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, timedelta
 import secrets
 import os
 import csv
@@ -202,6 +202,7 @@ def profile():
         # Mise à jour du profil
         first_name = request.form.get("first_name", current_user.first_name)
         last_name = request.form.get("last_name", current_user.last_name)
+        email = request.form.get('email', '').strip()
         idhal = request.form.get('idhal', '').strip()
         orcid = request.form.get('orcid', '').strip()
 
@@ -209,6 +210,33 @@ def profile():
         if not first_name or not last_name:
             flash('Le prénom et le nom sont obligatoires.', 'error')
             return redirect(url_for('main.profile'))
+    
+        if not email:
+            flash('L\'adresse email est obligatoire.', 'error')
+            return redirect(url_for('main.profile'))
+    
+        # Vérification de l'unicité de l'email si modifié
+        if email != current_user.email:
+            existing_user = User.query.filter(
+                User.email == email,
+                User.id != current_user.id
+            ).first()
+            if existing_user:
+                flash('Cette adresse email est déjà utilisée par un autre utilisateur.', 'error')
+                return redirect(url_for('main.profile'))
+    
+
+    # if request.method == "POST":
+    #     # Mise à jour du profil
+    #     first_name = request.form.get("first_name", current_user.first_name)
+    #     last_name = request.form.get("last_name", current_user.last_name)
+    #     idhal = request.form.get('idhal', '').strip()
+    #     orcid = request.form.get('orcid', '').strip()
+
+    #     # Validation des champs obligatoires
+    #     if not first_name or not last_name:
+    #         flash('Le prénom et le nom sont obligatoires.', 'error')
+    #         return redirect(url_for('main.profile'))
             
         # Validation ORCID si fourni
         if orcid:
@@ -247,6 +275,7 @@ def profile():
         # Mise à jour des informations utilisateur
         current_user.first_name = first_name
         current_user.last_name = last_name
+        current_user.email = email
         current_user.idhal = idhal if idhal else None
         current_user.orcid = orcid if orcid else None
 
@@ -367,36 +396,26 @@ def choose_type():
 @login_required
 def start_submission(type):
     if type not in ['article', 'wip']:
-        flash("Type invalide.", "danger")
-        return redirect(url_for("main.choose_type"))
+        flash("Type de soumission invalide.", "danger")
+        return redirect(url_for("main.index"))
     
-    # ========= VÉRIFICATION AFFILIATION OBLIGATOIRE =========
-    if not current_user.affiliations:
-        flash("Vous devez avoir au moins une affiliation pour soumettre une communication. "
-              "Veuillez compléter votre profil avant de continuer.", "warning")
-        return redirect(url_for("main.profile"))
-    # ========================================================
-    
-    
-    # Vérifier si la zone de soumission est ouverte (sauf pour les admins)                      #
-    if not current_user.is_admin:                                                               #
-        try:                                                                                    #
-            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'       #
-            if zones_file.exists():                                                             #
-                with open(zones_file, 'r', encoding='utf-8') as f:                              #
-                    zones = yaml.safe_load(f)['zones']                                          #
-                    if not zones['submission']['is_open']:                                      #
-                        return render_template('simple_closed.html',                            #
-                                             zone_name='submission',                            #
-                                             message=zones['submission']['message'],            #
-                                             display_name=zones['submission']['display_name'])  #
-        except Exception as e:                                                                  #
-            current_app.logger.error(f"Erreur lecture zones.yml: {e}")                          #
-            return render_template('simple_closed.html',                                        #
-                                 zone_name='submission',                                        #
-                                 message="Le dépôt de communications n'est pas encore ouvert.", #
-                                 display_name="Dépôt de communications")                        #
-    
+    if not current_user.is_admin:
+        try:
+            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+            if zones_file.exists():
+                with open(zones_file, 'r', encoding='utf-8') as f:
+                    zones = yaml.safe_load(f)['zones']
+                    if not zones['submission']['is_open']:
+                        return render_template('simple_closed.html',
+                                             zone_name='submission',
+                                             message=zones['submission']['message'],
+                                             display_name=zones['submission']['display_name'])
+        except Exception as e:
+            current_app.logger.error(f"Erreur lecture zones.yml: {e}")
+            return render_template('simple_closed.html',
+                                 zone_name='submission',
+                                 message="Le dépôt de communications n'est pas encore ouvert.",
+                                 display_name="Dépôt de communications")
         
     if request.method == "POST":
         title = request.form.get("title", "").strip()
@@ -419,7 +438,7 @@ def start_submission(type):
         # Afficher les avertissements de nettoyage
         all_warnings = warnings_fr + (warnings_en or [])
         if all_warnings:
-            for warning in all_warnings[:3]:  # Limiter à 3 avertissements
+            for warning in all_warnings[:3]:
                 flash(f"⚠️ {warning}", "info")
 
         # Validation pour HAL si autorisé
@@ -468,15 +487,29 @@ def start_submission(type):
         if abstract_en and len(abstract_en) > 3000:
             flash(f"Résumé anglais trop long ({len(abstract_en)} caractères, maximum 3000).", "danger")
             return redirect(url_for("main.start_submission", type=type))
-        
+
         try:
+            # Protection contre les doubles soumissions
+            # Vérifier si une communication avec le même titre vient d'être créée (dans les 10 dernières secondes)
+            recent_comm = Communication.query.filter(
+                Communication.authors.any(User.id == current_user.id),
+                Communication.title == title,
+                Communication.created_at >= datetime.utcnow() - timedelta(seconds=10)
+            ).first()
+            
+            if recent_comm:
+                current_app.logger.warning(f"Double soumission détectée pour communication {recent_comm.id}")
+                flash("Cette communication a déjà été soumise.", "info")
+                return redirect(url_for("main.update_submission", comm_id=recent_comm.id))
+            
             # Déterminer le statut initial selon le type
             initial_status = CommunicationStatus.RESUME_SOUMIS if type == 'article' else CommunicationStatus.WIP_SOUMIS
+        
             
             comm = Communication(
                 title=title,
-                abstract_fr=abstract_fr,  # Utiliser le texte nettoyé
-                abstract_en=abstract_en,  # Utiliser le texte nettoyé
+                abstract_fr=abstract_fr,
+                abstract_en=abstract_en,
                 keywords=keywords,
                 type=type,
                 status=initial_status,
@@ -491,175 +524,192 @@ def start_submission(type):
             db.session.add(comm)
             db.session.flush()
             
-            # === NOUVEAU : Gérer les auteurs avec ordre et corresponding ===
-            from app.models import CommunicationAuthor
-
-            author_order = 0
-
-            # Ajouter l'auteur principal (current_user) en premier avec corresponding=True
-            main_author_assoc = CommunicationAuthor(
-                communication_id=comm.id,
-                user_id=current_user.id,
-                author_order=author_order,
-                is_corresponding=(corresponding_author_value == "main")  # MODIFIÉ
-            )
-            db.session.add(main_author_assoc)
-            author_order += 1
-
+            # === GÉRER LES AUTEURS AVEC ORDRE ET CORRESPONDING ===
             
-            # Traiter les co-auteurs
-            for coauthor_value in coauthors:
-                coauthor_user = None
+            # Récupérer l'ordre personnalisé des auteurs (si fourni)
+            authors_order_str = request.form.get('authors_order', '').strip()
+            
+            if authors_order_str:
+                # Parser l'ordre : "12,45,78" devient [12, 45, 78]
+                try:
+                    ordered_user_ids = [int(user_id) if user_id.isdigit() else user_id 
+                                       for user_id in authors_order_str.split(',') if user_id]
+                except ValueError:
+                    ordered_user_ids = None
+                    current_app.logger.warning(f"Format d'ordre des auteurs invalide: {authors_order_str}")
+            else:
+                ordered_user_ids = None
+            
+            # Si pas d'ordre personnalisé, utiliser l'ordre par défaut
+            if not ordered_user_ids:
+                author_order = 0
                 
-
-
-                if coauthor_value.startswith('new:'):
-                    # Nouveau co-auteur créé via le modal
-                    parts = coauthor_value.split(':')
-                    _, email, first_name, last_name = parts[:4]
-                    affiliation_id = parts[4] if len(parts) > 4 and parts[4] else None
-                    email = email.strip().lower()
+                # Ajouter l'auteur principal (current_user) en premier
+                main_author_assoc = CommunicationAuthor(
+                    communication_id=comm.id,
+                    user_id=current_user.id,
+                    author_order=author_order,
+                    is_corresponding=(corresponding_author_value == "main")
+                )
+                db.session.add(main_author_assoc)
+                author_order += 1
+                
+                # Traiter les co-auteurs dans l'ordre d'ajout
+                for coauthor_value in coauthors:
+                    coauthor_user = None
                     
-                    # Vérifier si l'utilisateur existe déjà
-                    existing_user = User.query.filter_by(email=email).first()
-                    if existing_user:
-                        coauthor_user = existing_user
-                    else:
-                        # Créer le nouvel utilisateur sans mot de passe (à activer plus tard)
-                        new_user = User(
-                            email=email,
-                            first_name=first_name.strip(),
-                            last_name=last_name.strip(),
-                            is_active=False,  # Compte inactif jusqu'à activation
-                            is_activated=False
-                        )
-                        # Générer un mot de passe temporaire vide (sera défini lors de l'activation)
-                        import secrets
-                        new_user.set_password(secrets.token_urlsafe(32))  # Mot de passe temporaire aléatoire
+                    if coauthor_value.startswith('new:'):
+                        parts = coauthor_value.split(':')
+                        email = parts[1]
+                        first_name = parts[2] if len(parts) > 2 else ''
+                        last_name = parts[3] if len(parts) > 3 else ''
+                        affiliation_id = parts[4] if len(parts) > 4 else None
                         
-                        db.session.add(new_user)
-                        db.session.flush()
-        
-                        # Associer l'affiliation si fournie
-                        if affiliation_id:
-                            try:
-                                affiliation = Affiliation.query.get(int(affiliation_id))
-                                if affiliation:
-                                    new_user.affiliations.append(affiliation)
-                            except (ValueError, AttributeError):
-                                pass  # Ignorer si l'affiliation est invalide
-        
-                        coauthor_user = new_user
-
-
-                #################################################################################################
-                # if coauthor_value.startswith('new:'):                                                         #
-                #     # Nouvel auteur ajouté via le modal                                                       #
-                #     _, email, first_name, last_name = coauthor_value.split(':')                               #
-                #                                                                                               #
-                #     # Vérifier si l'utilisateur existe déjà                                                   #
-                #     existing_user = User.query.filter_by(email=email).first()                                 #
-                #     if existing_user:                                                                         #
-                #         coauthor_user = existing_user                                                         #
-                #     else:                                                                                     #
-                #         # Créer le nouvel utilisateur sans mot de passe (à activer plus tard)                 #
-                #         new_user = User(                                                                      #
-                #             email=email,                                                                      #
-                #             first_name=first_name.strip(),                                                    #
-                #             last_name=last_name.strip(),                                                      #
-                #             is_active=False,  # Compte inactif jusqu'à activation                             #
-                #             is_activated=False                                                                #
-                #         )                                                                                     #
-                #         # Générer un mot de passe temporaire vide (sera défini lors de l'activation)          #
-                #         import secrets                                                                        #
-                #         new_user.set_password(secrets.token_urlsafe(32))  # Mot de passe temporaire aléatoire #
-                #                                                                                               #
-                #         db.session.add(new_user)                                                              #
-                #         db.session.flush()                                                                    #
-                #         coauthor_user = new_user                                                              #
-                #################################################################################################
-
-                else:
-                    # Utilisateur existant sélectionné
-                    coauthor_user = User.query.get(int(coauthor_value))
-                
-                # Ajouter le co-auteur s'il est valide et pas déjà dans la liste
-                if coauthor_user and coauthor_user.id != current_user.id:
-                    # Vérifier qu'il n'est pas déjà ajouté
-                    existing_assoc = CommunicationAuthor.query.filter_by(
-                        communication_id=comm.id,
-                        user_id=coauthor_user.id
-                    ).first()
-
-
-                    if not existing_assoc:
-                        # Vérifier si ce co-auteur est le corresponding author sélectionné
-                        is_corresponding = False
-                        if corresponding_author_value.startswith('new:'):
-                            # Pour un nouvel auteur, comparer l'email
-                            _, selected_email, _, _ = corresponding_author_value.split(':')
-                            is_corresponding = (coauthor_user.email == selected_email)
-                        else:
-                            # Pour un auteur existant, comparer l'ID
-                            is_corresponding = (str(coauthor_user.id) == corresponding_author_value)
+                        coauthor_user = User.query.filter_by(email=email).first()
+                        
+                        if not coauthor_user:
+                            coauthor_user = User(
+                                email=email,
+                                first_name=first_name,
+                                last_name=last_name,
+                                is_active=True,
+                                is_activated=False
+                            )
+                            coauthor_user.set_password(secrets.token_urlsafe(16))
+                            db.session.add(coauthor_user)
+                            db.session.flush()
                             
-                        coauthor_assoc = CommunicationAuthor(
-                            communication_id=comm.id,
-                            user_id=coauthor_user.id,
-                            author_order=author_order,
-                            is_corresponding=is_corresponding  # MODIFIÉ
-                        )
-                        db.session.add(coauthor_assoc)
-                        author_order += 1
+                            if affiliation_id:
+                                affiliation = Affiliation.query.get(affiliation_id)
+                                if affiliation:
+                                    coauthor_user.affiliations.append(affiliation)
+                    else:
+                        coauthor_user = User.query.get(int(coauthor_value))
                     
+                    if coauthor_user:
+                        existing_assoc = CommunicationAuthor.query.filter_by(
+                            communication_id=comm.id,
+                            user_id=coauthor_user.id
+                        ).first()
+                        
+                        if not existing_assoc:
+                            is_corresponding = False
+                            if corresponding_author_value.startswith('new:'):
+                                _, selected_email, _, _ = corresponding_author_value.split(':')
+                                is_corresponding = (coauthor_user.email == selected_email)
+                            else:
+                                is_corresponding = (str(coauthor_user.id) == corresponding_author_value)
+                            
+                            coauthor_assoc = CommunicationAuthor(
+                                communication_id=comm.id,
+                                user_id=coauthor_user.id,
+                                author_order=author_order,
+                                is_corresponding=is_corresponding
+                            )
+                            db.session.add(coauthor_assoc)
+                            author_order += 1
+            
+            else:
+                # === ORDRE PERSONNALISÉ FOURNI ===
+                # Créer un mapping des co-auteurs
+                coauthors_map = {}
+                
+                for coauthor_value in coauthors:
+                    coauthor_user = None
+                    
+                    if coauthor_value.startswith('new:'):
+                        parts = coauthor_value.split(':')
+                        email = parts[1]
+                        first_name = parts[2] if len(parts) > 2 else ''
+                        last_name = parts[3] if len(parts) > 3 else ''
+                        affiliation_id = parts[4] if len(parts) > 4 else None
+                        
+                        coauthor_user = User.query.filter_by(email=email).first()
+                        
+                        if not coauthor_user:
+                            coauthor_user = User(
+                                email=email,
+                                first_name=first_name,
+                                last_name=last_name,
+                                is_active=True,
+                                is_activated=False
+                            )
+                            coauthor_user.set_password(secrets.token_urlsafe(16))
+                            db.session.add(coauthor_user)
+                            db.session.flush()
+                            
+                            if affiliation_id:
+                                affiliation = Affiliation.query.get(affiliation_id)
+                                if affiliation:
+                                    coauthor_user.affiliations.append(affiliation)
+                        
+                        coauthors_map[coauthor_value] = coauthor_user
+                    else:
+                        coauthor_user = User.query.get(int(coauthor_value))
+                        if coauthor_user:
+                            coauthors_map[coauthor_value] = coauthor_user
+                
+                # Créer les associations dans l'ordre spécifié
+                for position, user_identifier in enumerate(ordered_user_ids):
+                    user_to_add = None
+                    
+                    if user_identifier == current_user.id or str(user_identifier) == str(current_user.id):
+                        user_to_add = current_user
+                    elif isinstance(user_identifier, str) and user_identifier.startswith('new:'):
+                        user_to_add = coauthors_map.get(user_identifier)
+                    else:
+                        try:
+                            user_id_int = int(user_identifier)
+                            user_to_add = User.query.get(user_id_int)
+                        except (ValueError, TypeError):
+                            continue
+                    
+                    if user_to_add:
+                        existing_assoc = CommunicationAuthor.query.filter_by(
+                            communication_id=comm.id,
+                            user_id=user_to_add.id
+                        ).first()
+                        
+                        if not existing_assoc:
+                            is_corresponding = False
+                            if user_to_add.id == current_user.id:
+                                is_corresponding = (corresponding_author_value == "main")
+                            else:
+                                if corresponding_author_value.startswith('new:'):
+                                    _, selected_email, _, _ = corresponding_author_value.split(':')
+                                    is_corresponding = (user_to_add.email == selected_email)
+                                else:
+                                    is_corresponding = (str(user_to_add.id) == corresponding_author_value)
+                            
+                            assoc = CommunicationAuthor(
+                                communication_id=comm.id,
+                                user_id=user_to_add.id,
+                                author_order=position,
+                                is_corresponding=is_corresponding
+                            )
+                            db.session.add(assoc)
+                
+                current_app.logger.info(f"Communication {comm.id}: ordre personnalisé appliqué - {ordered_user_ids}")
+            # === FIN GESTION AUTEURS ===
             
             # Mettre à jour les dates de soumission
             if type == 'article':
                 comm.resume_submitted_at = datetime.utcnow()
-            else:  # WIP
-                comm.resume_submitted_at = datetime.utcnow()  # On garde le même champ pour la logique
+            else:
+                comm.resume_submitted_at = datetime.utcnow()
             
             db.session.commit()
-            
-            # Envoi email de confirmation
+
+
+
+                # Envoi email de confirmation
             try:
                 email_type = 'résumé' if type == 'article' else 'wip'
                 current_app.send_submission_confirmation_email(comm, email_type, None)
                 flash(f"Communication créée. Email de confirmation envoyé.", "success")
             except Exception as e:
-                # Ne pas faire échouer la soumission si l'email échoue
                 current_app.logger.error(f"Erreur envoi email confirmation: {e}")
-                flash(f"Communication créée. Erreur envoi email.", "warning")
-
-
-            coauthors_list = [author for author in comm.authors if author.id != current_user.id]
-            if coauthors_list:
-                for coauthor in coauthors_list:
-                    try:
-                        # Vérifier si le co-auteur a un compte actif
-                        if coauthor.is_active and coauthor.is_activated:
-                            # Co-auteur existant et actif - pas de token
-                            current_app.send_existing_coauthor_notification_email(coauthor, comm)
-                        else:
-                            # Nouveau co-auteur ou compte inactif - envoyer avec token d'activation
-                            activation_token = coauthor.generate_activation_token()  # ✅ Utilise la méthode qui définit aussi activation_sent_at
-                            db.session.commit()
-                            current_app.send_coauthor_notification_email(coauthor, comm, activation_token)
-
-
-                        # else:                                                                       #
-                        #     # Nouveau co-auteur ou compte inactif - envoyer avec token d'activation #
-                        #     import secrets                                                          #
-                        #     activation_token = secrets.token_urlsafe(32)                            #
-                        #     coauthor.activation_token = activation_token                            #
-                        #     db.session.commit()                                                     #
-                        #     current_app.send_coauthor_notification_email(coauthor, comm, activation_token)
-                    except Exception as e:
-                        current_app.logger.error(f"Erreur envoi email co-auteur {coauthor.email}: {e}")
-                        # Ne pas bloquer la soumission si un email échoue
-    
-                flash(f"Notifications envoyées à {len(coauthors_list)} co-auteur(s).", "info")
-                
+                flash(f"Communication créée. Erreur envoi email.", "info")
                 
             return redirect(url_for("main.update_submission", comm_id=comm.id))
 
@@ -673,7 +723,7 @@ def start_submission(type):
     
     # GET : Récupérer tous les utilisateurs pour la sélection
     users = User.query.filter(User.id != current_user.id).order_by(User.last_name, User.first_name).all()
-    all_affiliations = Affiliation.query.order_by(Affiliation.sigle).all()  # ← NOUVEAU
+    all_affiliations = Affiliation.query.order_by(Affiliation.sigle).all()
 
     return render_template("submit_abstract.html", 
                            type=type, 
@@ -681,13 +731,7 @@ def start_submission(type):
                            users=users,
                            all_affiliations=all_affiliations)
 
-    
-    ####################################################################
-    # return render_template("submit_abstract.html",                   #
-    #                      type=type,                                  #
-    #                      all_thematiques=ThematiqueHelper.get_all(), #
-    #                      users=users)                                #
-    ####################################################################
+
 
 @main.route("/soumission/<int:comm_id>/abstracts", methods=["POST"])
 @login_required
@@ -882,6 +926,40 @@ def edit_communication(comm_id):
         try:
             # Mettre à jour le titre
             comm.title = form.title.data.strip()
+
+            # === TRAITER LA RÉORGANISATION DES AUTEURS ===
+            authors_order_str = request.form.get('authors_order', '').strip()
+        
+            if authors_order_str:
+                # Parser l'ordre des auteurs (format: "12,45,78,23")
+                try:
+                    new_order_ids = [int(user_id) for user_id in authors_order_str.split(',') if user_id]
+                
+                    # Vérifier que tous les IDs correspondent aux auteurs de la communication
+                    current_author_ids = {assoc.user_id for assoc in comm.author_associations}
+                    new_order_ids_set = set(new_order_ids)
+                
+                    if new_order_ids_set == current_author_ids:
+                        # Mettre à jour l'ordre de chaque auteur
+                        for new_position, user_id in enumerate(new_order_ids):
+                            assoc = CommunicationAuthor.query.filter_by(
+                                communication_id=comm.id,
+                                user_id=user_id
+                            ).first()
+                            
+                            if assoc:
+                                assoc.author_order = new_position
+                    
+                        current_app.logger.info(f"Communication {comm.id}: ordre des auteurs mis à jour - {new_order_ids}")
+                    else:
+                        current_app.logger.warning(f"Communication {comm.id}: ordre des auteurs invalide - attendu {current_author_ids}, reçu {new_order_ids_set}")
+                        flash("Erreur lors de la réorganisation des auteurs.", "warning")
+                    
+                except (ValueError, AttributeError) as e:
+                    current_app.logger.error(f"Communication {comm.id}: erreur parsing ordre auteurs - {e}")
+                    flash("Format d'ordre des auteurs invalide.", "warning")
+        
+                    # === FIN TRAITEMENT RÉORGANISATION ===
             
             # Traiter les nouveaux co-auteurs ajoutés
             new_coauthors = request.form.getlist("new_coauthors")

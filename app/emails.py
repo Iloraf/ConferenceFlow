@@ -528,11 +528,11 @@ def send_review_reminder_email(reviewer, assignments):
         logger.error(f"Erreur envoi rappel review à {reviewer.email}: {e}")
         raise
 def send_decision_email(communication, decision_type, additional_info=''):
-    """Envoie un email de notification de décision à l'auteur principal."""
+    """Envoie un email de notification de décision à l'auteur correspondant."""
     try:
-        main_author = communication.authors[0] if communication.authors else None
-        if not main_author:
-            logger.error(f"Aucun auteur trouvé pour la communication {communication.id}")
+        corresponding = communication.corresponding_author
+        if not corresponding:
+            logger.error(f"Aucun corresponding author trouvé pour la communication {communication.id}")
             return
         
         # Mapper les types de décision vers les templates
@@ -557,28 +557,29 @@ def send_decision_email(communication, decision_type, additional_info=''):
         
         template_name = decision_templates.get(decision_type.lower(), 'decision_notification')
         color_scheme = decision_colors.get(decision_type.lower(), 'blue')
-        
+
         base_context = {
-            'USER_FIRST_NAME': main_author.first_name or main_author.email.split('@')[0],
-            'USER_LAST_NAME': main_author.last_name or '',
-            'AUTHOR_NAME': main_author.full_name or main_author.email,
+            'USER_FIRST_NAME': corresponding.first_name or corresponding.email.split('@')[0],
+            'USER_LAST_NAME': corresponding.last_name or '',
+            'AUTHOR_NAME': corresponding.full_name or corresponding.email,
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
             'DECISION_TYPE': decision_type.upper(),
             'DECISION_INFO': additional_info,
             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
         }
-        
+
         send_any_email_with_themes(
             template_name=template_name,
-            recipient_email=main_author.email,
+            recipient_email=corresponding.email,
             base_context=base_context,
             communication=communication,
-            user=main_author,
+            user=corresponding,
             color_scheme=color_scheme
         )
+
+        logger.info(f"Email de décision {decision_type} envoyé à {corresponding.email} pour communication {communication.id}")
         
-        logger.info(f"Email de décision {decision_type} envoyé à {main_author.email} pour communication {communication.id}")
         
     except Exception as e:
         logger.error(f"Erreur envoi décision {decision_type} pour communication {communication.id}: {e}")

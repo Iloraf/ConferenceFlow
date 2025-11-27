@@ -67,12 +67,12 @@
                     </div>
 
 
-		    
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" value="{{ current_user.email }}" disabled>
-                        <div class="form-text">L'email ne peut pas être modifié</div>
-                    </div>
+		    <div class="mb-3">
+		      <label for="email" class="form-label">Email</label>
+		      <input type="email" class="form-control" id="email" name="email" 
+			     value="{{ current_user.email }}" required>
+		      <div class="form-text">Vous pouvez modifier votre adresse email si nécessaire</div>
+		    </div>
 
 <div class="mb-3">
                         <label for="affiliation" class="form-label">Affiliation</label>

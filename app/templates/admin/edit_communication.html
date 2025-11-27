@@ -3,6 +3,59 @@
 {% block title %}Admin - Modifier communication {{ comm.id }} - {{ conference.short_name }}{% endblock %}
 
 {% block content %}
+
+<style>
+.authors-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.author-item {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    cursor: move;
+    transition: all 0.2s;
+}
+
+.author-item:hover {
+    background: #e9ecef;
+    border-color: #0d6efd;
+}
+
+.author-item.dragging {
+    opacity: 0.5;
+    background: #fff;
+}
+
+.author-item.drag-over {
+    border-color: #0d6efd;
+    border-style: dashed;
+    background: #cfe2ff;
+}
+
+.drag-handle {
+    cursor: grab;
+    user-select: none;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.author-position .badge {
+    font-size: 1rem;
+    min-width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+</style>
+
+
 <div class="container mt-4">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -56,36 +109,83 @@
                             {% endif %}
                         </div>
 
+			
                         <!-- Co-auteurs actuels -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">
-                                <i class="fas fa-users me-2"></i>Co-auteurs actuels
-                            </label>
-                            <div class="card">
-                                <div class="card-body">
-                                    {% for author in comm.authors %}
-                                        <div class="mb-2 pb-2 {% if not loop.last %}border-bottom{% endif %}">
-                                            <i class="fas fa-user-check text-success me-2"></i>
-                                            <strong>{{ author.full_name or author.email }}</strong>
-                                            {% if loop.index == 1 %}
-                                                <span class="badge bg-primary ms-2">Auteur principal</span>
-                                            {% endif %}
-                                            {% if comm.corresponding_author and comm.corresponding_author.id == author.id %}
-                                                <span class="badge bg-info ms-2">Correspondant</span>
-                                            {% endif %}
-                                            {% if author.affiliations %}
-                                                <br><small class="text-muted ms-4">
-                                                    {% for aff in author.affiliations %}
-                                                        <span class="badge bg-light text-dark">{{ aff.sigle }}</span>
-                                                    {% endfor %}
-                                                </small>
-                                            {% endif %}
-                                            <br><small class="text-muted ms-4">{{ author.email }}</small>
-                                        </div>
-                                    {% endfor %}
+<!-- Section réorganisation des auteurs -->
+<div class="mb-4">
+    <label class="form-label fw-bold">
+        <i class="fas fa-sort me-2"></i>Ordre des auteurs
+    </label>
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        Glissez-déposez les auteurs pour modifier leur ordre. Le premier auteur apparaîtra en premier dans toutes les publications.
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <div id="authors-sortable" class="authors-list">
+                {% for assoc in comm.author_associations|sort(attribute='author_order') %}
+                    {% set author = assoc.user %}
+                    <div class="author-item" data-user-id="{{ author.id }}" data-order="{{ assoc.author_order }}">
+                        <div class="d-flex align-items-center">
+                            <!-- Poignée de drag -->
+                            <div class="drag-handle me-3">
+                                <i class="fas fa-grip-vertical text-muted"></i>
+                            </div>
+                            
+                            <!-- Badge de position -->
+                            <div class="author-position me-3">
+                                <span class="badge bg-secondary">{{ loop.index }}</span>
+                            </div>
+                            
+                            <!-- Info auteur -->
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center">
+                                    <strong class="me-2">{{ author.full_name or author.email }}</strong>
+                                    
+                                    {% if loop.index == 1 %}
+                                        <span class="badge bg-primary me-1">Premier auteur</span>
+                                    {% endif %}
+                                    
+                                    {% if assoc.is_corresponding %}
+                                        <span class="badge bg-success me-1">
+                                            <i class="fas fa-envelope"></i> Correspondant
+                                        </span>
+                                    {% endif %}
+                                    
+                                    {% if author.id == current_user.id %}
+                                        <span class="badge bg-info">Vous</span>
+                                    {% endif %}
                                 </div>
+                                
+                                {% if author.email %}
+                                    <small class="text-muted d-block">{{ author.email }}</small>
+                                {% endif %}
+                                
+                                {% if author.affiliations %}
+                                    <small class="text-muted d-block">
+                                        {% for aff in author.affiliations %}
+                                            {{ aff.sigle }}{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </small>
+                                {% endif %}
                             </div>
                         </div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Champ caché pour stocker le nouvel ordre -->
+            <input type="hidden" id="authors-order" name="authors_order" value="">
+        </div>
+    </div>
+    
+    <div class="form-text mt-2">
+        <i class="fas fa-lightbulb me-1"></i>
+        <strong>Astuce :</strong> L'ordre sera enregistré lorsque vous cliquerez sur "Enregistrer les modifications".
+    </div>
+</div>
+
 
                         <!-- Ajouter de nouveaux co-auteurs -->
                         <div class="mb-4">
@@ -282,5 +382,126 @@ function addNewAuthor() {
     const countElement = document.getElementById('author-count');
     countElement.textContent = parseInt(countElement.textContent) + 1;
 }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const sortableList = document.getElementById('authors-sortable');
+    const orderInput = document.getElementById('authors-order');
+    let draggedElement = null;
+    
+    // Rendre les éléments draggables
+    const items = sortableList.querySelectorAll('.author-item');
+    items.forEach(item => {
+        item.setAttribute('draggable', 'true');
+        
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('drop', handleDrop);
+        item.addEventListener('dragleave', handleDragLeave);
+    });
+    
+    function handleDragStart(e) {
+        draggedElement = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', this.innerHTML);
+    }
+    
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        
+        // Retirer les classes drag-over de tous les éléments
+        items.forEach(item => {
+            item.classList.remove('drag-over');
+        });
+        
+        // Mettre à jour les numéros et l'ordre
+        updatePositions();
+    }
+    
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        
+        e.dataTransfer.dropEffect = 'move';
+        
+        if (this !== draggedElement) {
+            this.classList.add('drag-over');
+        }
+        
+        return false;
+    }
+    
+    function handleDragLeave(e) {
+        this.classList.remove('drag-over');
+    }
+    
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        
+        if (draggedElement !== this) {
+            // Déplacer l'élément
+            const allItems = Array.from(sortableList.querySelectorAll('.author-item'));
+            const draggedIndex = allItems.indexOf(draggedElement);
+            const targetIndex = allItems.indexOf(this);
+            
+            if (draggedIndex < targetIndex) {
+                this.parentNode.insertBefore(draggedElement, this.nextSibling);
+            } else {
+                this.parentNode.insertBefore(draggedElement, this);
+            }
+        }
+        
+        return false;
+    }
+    
+    function updatePositions() {
+        const items = sortableList.querySelectorAll('.author-item');
+        const orderArray = [];
+        
+        items.forEach((item, index) => {
+            const userId = item.dataset.userId;
+            orderArray.push(userId);
+            
+            // Mettre à jour le badge de position
+            const badge = item.querySelector('.author-position .badge');
+            badge.textContent = index + 1;
+            
+            // Mettre à jour le badge "Premier auteur"
+            const badges = item.querySelectorAll('.badge');
+            let firstAuthorBadge = null;
+            badges.forEach(badge => {
+                if (badge.textContent.includes('Premier auteur')) {
+                    firstAuthorBadge = badge;
+                }
+            });
+            
+            if (index === 0 && !firstAuthorBadge) {
+                // Ajouter le badge "Premier auteur"
+                const strongElement = item.querySelector('strong');
+                const newBadge = document.createElement('span');
+                newBadge.className = 'badge bg-primary me-1';
+                newBadge.textContent = 'Premier auteur';
+                strongElement.parentNode.insertBefore(newBadge, strongElement.nextSibling);
+            } else if (index !== 0 && firstAuthorBadge) {
+                // Retirer le badge "Premier auteur"
+                firstAuthorBadge.remove();
+            }
+        });
+        
+        // Stocker l'ordre dans le champ caché
+        orderInput.value = orderArray.join(',');
+        
+        console.log('Nouvel ordre des auteurs:', orderArray);
+    }
+    
+    // Initialiser l'ordre au chargement
+    updatePositions();
+});
 </script>
+
+
 {% endblock %}

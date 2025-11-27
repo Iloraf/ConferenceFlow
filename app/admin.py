@@ -3090,8 +3090,7 @@ def send_decision_notification(comm_id):
         db.session.commit()
         
         # Compter les auteurs notifiés
-        author_count = len([a for a in communication.authors if a.email])
-        flash(f'Notification envoyée à {author_count} auteur(s).', 'success')
+        flash(f'Notification envoyée au corresponding author.', 'success')
         
     except Exception as e:
         # Enregistrer l'erreur
@@ -3514,12 +3513,12 @@ def send_bulk_email():
                 
             try:
                 if recipient_type == 'authors':
-                    # Envoyer aux auteurs
-                    for author in article.authors:
-                        if author.email:
-                            send_bulk_email_to_user(author, subject, content, [article])
-                            emails_sent += 1
-                            
+                    # Envoyer uniquement au corresponding author
+                    corresponding = article.corresponding_author
+                    if corresponding and corresponding.email:
+                        send_bulk_email_to_user(corresponding, subject, content, [article])
+                        emails_sent += 1
+                
                 elif recipient_type == 'reviewers':
                     # Envoyer aux reviewers
                     for review in article.reviews:
@@ -3538,12 +3537,11 @@ def send_bulk_email():
                 
             try:
                 if recipient_type == 'authors':
-                    # Envoyer aux auteurs (WIP n'ont pas de reviewers)
-                    for author in wip.authors:
-                        if author.email:
-                            send_bulk_email_to_user(author, subject, content, [wip])
-                            emails_sent += 1
-                            
+                    # Envoyer uniquement au corresponding author
+                    corresponding = wip.corresponding_author
+                    if corresponding and corresponding.email:
+                        send_bulk_email_to_user(corresponding, subject, content, [wip])
+                
             except Exception as e:
                 errors.append(f"WIP {wip_id}: {str(e)}")
         
@@ -4471,14 +4469,22 @@ def send_individual_email():
         communication = Communication.query.get_or_404(communication_id)
         emails_sent = 0
         recipients = []
-        
+
         if recipient_type == 'authors':
-            # Envoyer aux auteurs
-            for author in communication.authors:
-                if author.email:
-                    send_email_to_user(author, subject, content, communication)
-                    emails_sent += 1
-                    recipients.append(f"{author.first_name} {author.last_name} ({author.email})")
+            # Envoyer uniquement au corresponding author
+            corresponding = communication.corresponding_author
+            if corresponding and corresponding.email:
+                send_email_to_user(corresponding, subject, content, communication)
+                emails_sent += 1
+                recipients.append(f"{corresponding.first_name} {corresponding.last_name} ({corresponding.email})")
+        
+        # if recipient_type == 'authors':
+        #     # Envoyer aux auteurs
+        #     for author in communication.authors:
+        #         if author.email:
+        #             send_email_to_user(author, subject, content, communication)
+        #             emails_sent += 1
+        #             recipients.append(f"{author.first_name} {author.last_name} ({author.email})")
                     
         elif recipient_type == 'reviewers':
             # Envoyer aux reviewers sélectionnés
@@ -5525,21 +5531,35 @@ def send_qr_reminders():
         return redirect(url_for("main.index"))
     
     try:
-        
-        # Récupérer tous les auteurs principaux (premier auteur de chaque communication)
+        # Récupérer tous les corresponding authors
         communications = Communication.query.all()
         authors_communications = {}
-        
-        # Grouper les communications par auteur principal
+
+        # Grouper les communications par corresponding author
         for comm in communications:
-            if comm.authors:  # S'assurer qu'il y a des auteurs
-                main_author = comm.authors[0]  # Premier auteur = auteur principal
-                if main_author.id not in authors_communications:
-                    authors_communications[main_author.id] = {
-                        'user': main_author,
+            corresponding = comm.corresponding_author
+            if corresponding:  # S'assurer qu'il y a un corresponding author
+                if corresponding.id not in authors_communications:
+                    authors_communications[corresponding.id] = {
+                        'user': corresponding,
                         'communications': []
                     }
-                authors_communications[main_author.id]['communications'].append(comm)
+                    authors_communications[corresponding.id]['communications'].append(comm)
+        
+        # # Récupérer tous les auteurs principaux (premier auteur de chaque communication)
+        # communications = Communication.query.all()
+        # authors_communications = {}
+        
+        # # Grouper les communications par auteur principal
+        # for comm in communications:
+        #     if comm.authors:  # S'assurer qu'il y a des auteurs
+        #         main_author = comm.authors[0]  # Premier auteur = auteur principal
+        #         if main_author.id not in authors_communications:
+        #             authors_communications[main_author.id] = {
+        #                 'user': main_author,
+        #                 'communications': []
+        #             }
+        #         authors_communications[main_author.id]['communications'].append(comm)
         
         # Envoyer les emails
         sent_count = 0
@@ -6384,8 +6404,6 @@ def download_zones_yaml():
     
     return send_file(zones_file, as_attachment=True, download_name="zones.yml")
 
-
-
 @admin.route('/communications/<int:comm_id>/delete', methods=['POST'])
 @login_required
 def delete_communication(comm_id):
@@ -6402,24 +6420,27 @@ def delete_communication(comm_id):
         comm_type = communication.type
         comm_id_log = communication.id
         
-        # Supprimer les fichiers associés
+        # 1. Supprimer les fichiers physiques ET les entrées en base
         for file in communication.submission_files:
             if file.file_path and os.path.exists(file.file_path):
                 try:
                     os.remove(file.file_path)
-                    current_app.logger.info(f"Fichier supprimé : {file.file_path}")
+                    current_app.logger.info(f"Fichier physique supprimé : {file.file_path}")
                 except Exception as e:
-                    current_app.logger.error(f"Erreur suppression fichier {file.file_path}: {e}")
+                    current_app.logger.error(f"Erreur suppression fichier physique {file.file_path}: {e}")
+            # Supprimer l'entrée en base
+            db.session.delete(file)
         
-        # Supprimer les reviews associées
+        # 2. Supprimer les reviews associées
         Review.query.filter_by(communication_id=comm_id).delete()
         
-        # Supprimer les assignations de reviewers
+        # 3. Supprimer les assignations de reviewers
         ReviewAssignment.query.filter_by(communication_id=comm_id).delete()
         
-        # Supprimer la communication
+        # 4. Supprimer la communication elle-même
         db.session.delete(communication)
         db.session.commit()
+        
         
         # Log de la suppression
         current_app.logger.info(f"Communication supprimée par {current_user.email}: ID={comm_id_log}, Titre='{comm_title}', Type={comm_type}")
@@ -6430,5 +6451,7 @@ def delete_communication(comm_id):
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression communication {comm_id}: {e}")
         flash("Erreur lors de la suppression de la communication.", "danger")
-    
+        
     return redirect(url_for('admin.communications_dashboard'))
+
+        

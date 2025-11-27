@@ -1,8 +1,59 @@
-ç{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}Soumission {{ type }} - {{ conference.short_name }}{% endblock %}
 
 {% block content %}
+<style>
+.authors-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.author-item {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    cursor: move;
+    transition: all 0.2s;
+}
+
+.author-item:hover {
+    background: #e9ecef;
+    border-color: #0d6efd;
+}
+
+.author-item.dragging {
+    opacity: 0.5;
+    background: #fff;
+}
+
+.author-item.drag-over {
+    border-color: #0d6efd;
+    border-style: dashed;
+    background: #cfe2ff;
+}
+
+.drag-handle {
+    cursor: grab;
+    user-select: none;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.author-position .badge {
+    font-size: 1rem;
+    min-width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+</style>
+
 <div class="row justify-content-center">
     <div class="col-md-10">
         <div class="card shadow">
@@ -143,48 +194,97 @@
                         
                         <!-- Bouton pour ajouter un nouvel auteur -->
                         <div class="mt-3">
-                            <small class="text-muted">L'auteur n'est pas dans la liste ?</small><br>
-                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newAuthorModal">
-                                <i class="fas fa-plus"></i> Ajouter un nouvel auteur
-                            </button>
+                          <small class="text-muted">L'auteur n'est pas dans la liste ?</small><br>
+                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newAuthorModal">
+                            <i class="fas fa-plus"></i> Ajouter un nouvel auteur
+                          </button>
                         </div>
                     </div>
 
-<!-- NOUVEAU : Sélection de l'auteur correspondant -->
-                <div class="mb-4">
-                    <label class="form-label fw-bold">
+                    <!-- Auteur correspondant -->
+                    <div class="mb-4">
+                      <label class="form-label fw-bold">
                         <i class="fas fa-envelope me-2"></i>Auteur correspondant *
-                    </label>
-                    <div class="form-text mb-3">
+                      </label>
+                      <div class="form-text mb-3">
                         L'auteur correspondant sera le contact principal pour cette communication. 
                         Par défaut, vous êtes désigné comme auteur correspondant.
-                    </div>
-                    
-                    <div class="card">
+                      </div>
+                      <div class="card">
                         <div class="card-body">
-                            <!-- Vous (auteur principal) -->
-                            <div class="form-check mb-2">
-                                <input class="form-check-input corresponding-radio" type="radio" 
-                                       name="corresponding_author" value="main" id="corresponding_main" checked required>
-                                <label class="form-check-label" for="corresponding_main">
-                                    <strong>{{ current_user.full_name }}</strong> 
-                                    <span class="badge bg-primary ms-2">Vous</span>
-                                    <span class="badge bg-success ms-1">Par défaut</span>
-                                    {% if current_user.email %}
-                                    <br><small class="text-muted">{{ current_user.email }}</small>
-                                    {% endif %}
-                                </label>
-                            </div>
-                            
-                            <!-- Co-auteurs sélectionnés -->
-                            <div id="corresponding-coauthors-list">
-                                <small class="text-muted">Les co-auteurs sélectionnés apparaîtront ici</small>
+                          <!-- Vous (auteur principal) -->
+                          <div class="form-check mb-2">
+                            <input class="form-check-input corresponding-radio" type="radio" 
+                                   name="corresponding_author" value="main" id="corresponding_main" checked required>
+                            <label class="form-check-label" for="corresponding_main">
+                              <strong>{{ current_user.full_name }}</strong> 
+                              <span class="badge bg-primary ms-2">Vous</span>
+                              <span class="badge bg-success ms-1">Par défaut</span>
+                              {% if current_user.email %}
+                              <br><small class="text-muted">{{ current_user.email }}</small>
+                              {% endif %}
+                            </label>
+                          </div>
+                          <div id="corresponding-coauthors-list">
+                            <small class="text-muted">Les co-auteurs sélectionnés apparaîtront ici</small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Section ordre des auteurs -->
+                    <div class="mb-4" id="authors-order-section" style="display: none;">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-sort me-2"></i>Ordre des auteurs
+                        </label>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Glissez-déposez les auteurs pour définir leur ordre. Le premier auteur apparaîtra en premier dans toutes les publications.
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-body">
+                                <div id="selected-authors-sortable" class="authors-list">
+                                    <!-- L'auteur principal (vous) sera toujours en premier par défaut -->
+                                    <div class="author-item" data-user-id="{{ current_user.id }}" data-is-main="true">
+                                        <div class="d-flex align-items-center">
+                                            <div class="drag-handle me-3">
+                                                <i class="fas fa-grip-vertical text-muted"></i>
+                                            </div>
+                                            <div class="author-position me-3">
+                                                <span class="badge bg-secondary">1</span>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex align-items-center">
+                                                    <strong class="me-2">{{ current_user.full_name or current_user.email }}</strong>
+                                                    <span class="badge bg-primary me-1">Premier auteur</span>
+                                                    <span class="badge bg-info">Vous</span>
+                                                </div>
+                                                {% if current_user.email %}
+                                                    <small class="text-muted d-block">{{ current_user.email }}</small>
+                                                {% endif %}
+                                                {% if current_user.affiliations %}
+                                                    <small class="text-muted d-block">
+                                                        {% for aff in current_user.affiliations %}
+                                                            {{ aff.sigle }}{% if not loop.last %}, {% endif %}
+                                                        {% endfor %}
+                                                    </small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <input type="hidden" id="final-authors-order" name="authors_order" value="">
                             </div>
                         </div>
+                        
+                        <div class="form-text mt-2">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            <strong>Astuce :</strong> L'ordre sera enregistré lors de la soumission.
+                        </div>
                     </div>
-                </div>
-
-		    
+                    
                     <!-- Résumés textuels -->
                     <div class="mb-4">
                         <label for="abstract_fr" class="form-label fw-bold">
@@ -238,50 +338,46 @@
                         </div>
                     </div>
 
-
-<!-- Section HAL -->
-<div class="form-group mb-3">
-    <div class="card border-info">
-        <div class="card-header bg-info text-white">
-            <h6 class="mb-0"><i class="fas fa-archive"></i> Dépôt automatisé sur HAL</h6>
-        </div>
-        <div class="card-body">
-            <div class="form-check">
-                <input 
-                    class="form-check-input" 
-                    type="checkbox" 
-                    name="hal_authorization" 
-                    id="hal_authorization"
-                    {# SUPPRIMÉ: checked #}
-                >
-                <label class="form-check-label" for="hal_authorization">
-                    <strong>J'autorise le dépôt automatisé de ma communication sur HAL</strong>
-                </label>
-            </div>
-            <small class="text-muted mt-2 d-block">
-                <i class="fas fa-info-circle"></i>
-                <strong>Recommandé :</strong> HAL est l'archive ouverte nationale qui permet une diffusion 
-                gratuite et pérenne de vos travaux de recherche, augmentant leur visibilité et impact.
-                <br>
-                En cochant cette case, vous autorisez l'organisation à déposer votre communication 
-                sur HAL en votre nom après acceptation.
-            </small>
-            
-            <!-- Avertissement IDHAL affiché seulement si HAL coché -->
-            <div id="idhal-info" class="alert alert-info mt-2" style="display: none;">
-                <i class="fas fa-info-circle"></i>
-                <strong>Information :</strong> Pour le dépôt HAL, votre IDHAL doit être renseigné dans votre 
-                <a href="{{ url_for('main.profile') }}" target="_blank">profil utilisateur</a>.
-                {% if not current_user.idhal %}
-                    <br><span class="text-warning">⚠️ Votre IDHAL n'est pas encore renseigné.</span>
-                {% else %}
-                    <br><span class="text-success">✅ Votre IDHAL est renseigné : {{ current_user.idhal }}</span>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-		    
+                    <!-- Section HAL -->
+                    <div class="form-group mb-3">
+                        <div class="card border-info">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0"><i class="fas fa-archive"></i> Dépôt automatisé sur HAL</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input 
+                                        class="form-check-input" 
+                                        type="checkbox" 
+                                        name="hal_authorization" 
+                                        id="hal_authorization"
+                                    >
+                                    <label class="form-check-label" for="hal_authorization">
+                                        <strong>J'autorise le dépôt automatisé de ma communication sur HAL</strong>
+                                    </label>
+                                </div>
+                                <small class="text-muted mt-2 d-block">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>Recommandé :</strong> HAL est l'archive ouverte nationale qui permet une diffusion 
+                                    gratuite et pérenne de vos travaux de recherche, augmentant leur visibilité et impact.
+                                    <br>
+                                    En cochant cette case, vous autorisez l'organisation à déposer votre communication 
+                                    sur HAL en votre nom après acceptation.
+                                </small>
+                                
+                                <div id="idhal-info" class="alert alert-info mt-2" style="display: none;">
+                                    <i class="fas fa-info-circle"></i>
+                                    <strong>Information :</strong> Pour le dépôt HAL, votre IDHAL doit être renseigné dans votre 
+                                    <a href="{{ url_for('main.profile') }}" target="_blank">profil utilisateur</a>.
+                                    {% if not current_user.idhal %}
+                                        <br><span class="text-warning">⚠️ Votre IDHAL n'est pas encore renseigné.</span>
+                                    {% else %}
+                                        <br><span class="text-success">✅ Votre IDHAL est renseigné : {{ current_user.idhal }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Boutons -->
                     <div class="row">
@@ -302,7 +398,6 @@
     </div>
 </div>
 
-
 <!-- Modal pour ajouter un nouvel auteur -->
 <div class="modal fade" id="newAuthorModal" tabindex="-1">
     <div class="modal-dialog">
@@ -311,42 +406,39 @@
                 <h5 class="modal-title">Ajouter un nouvel auteur</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-<div class="modal-body">
-    <div id="new-author-form">
-        <div class="mb-3">
-            <label for="new-author-email" class="form-label">Email *</label>
-            <input type="email" class="form-control" id="new-author-email" required>
-        </div>
-        <div class="row">
-            <div class="col-md-6">
-                <label for="new-author-first-name" class="form-label">Prénom</label>
-                <input type="text" class="form-control" id="new-author-first-name">
+            <div class="modal-body">
+                <div id="new-author-form">
+                    <div class="mb-3">
+                        <label for="new-author-email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="new-author-email" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="new-author-first-name" class="form-label">Prénom</label>
+                            <input type="text" class="form-control" id="new-author-first-name">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new-author-last-name" class="form-label">Nom</label>
+                            <input type="text" class="form-control" id="new-author-last-name">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 mt-3">
+                        <label for="new-author-affiliation" class="form-label">
+                            Affiliation <span class="text-muted">(optionnel)</span>
+                        </label>
+                        <select class="form-select" id="new-author-affiliation">
+                            <option value="">-- Sélectionner une affiliation --</option>
+                            {% for aff in all_affiliations %}
+                                <option value="{{ aff.id }}">{{ aff.sigle }} - {{ aff.nom_complet }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            <small>Vous pouvez associer une affiliation si elle est connue</small>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-6">
-                <label for="new-author-last-name" class="form-label">Nom</label>
-                <input type="text" class="form-control" id="new-author-last-name">
-            </div>
-        </div>
-        
-        <!-- NOUVEAU : Champ affiliation -->
-        <div class="mb-3 mt-3">
-            <label for="new-author-affiliation" class="form-label">
-                Affiliation <span class="text-muted">(optionnel)</span>
-            </label>
-            <select class="form-select" id="new-author-affiliation">
-                <option value="">-- Sélectionner une affiliation --</option>
-                {% for aff in all_affiliations %}
-                    <option value="{{ aff.id }}">{{ aff.sigle }} - {{ aff.nom_complet }}</option>
-                {% endfor %}
-            </select>
-            <div class="form-text">
-                <small>Vous pouvez associer une affiliation si elle est connue</small>
-            </div>
-        </div>
-    </div>
-</div>
-
-
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                 <button type="button" class="btn btn-primary" onclick="addNewAuthor()">
@@ -357,45 +449,6 @@
     </div>
 </div>
 
-
-<!-------------------------------------------------------------------------------------------------------------->
-<!-- <\!-- Modal pour ajouter un nouvel auteur -\->							      -->
-<!-- <div class="modal fade" id="newAuthorModal" tabindex="-1">						      -->
-<!--     <div class="modal-dialog">									      -->
-<!--         <div class="modal-content">								      -->
-<!--             <div class="modal-header">								      -->
-<!--                 <h5 class="modal-title">Ajouter un nouvel auteur</h5>				      -->
-<!--                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>		      -->
-<!--             </div>											      -->
-<!--             <div class="modal-body">								      -->
-<!--                 <form id="new-author-form">							      -->
-<!--                     <div class="mb-3">								      -->
-<!--                         <label for="new-author-email" class="form-label">Email *</label>		      -->
-<!--                         <input type="email" class="form-control" id="new-author-email" required>	      -->
-<!--                     </div>										      -->
-<!--                     <div class="row">								      -->
-<!--                         <div class="col-md-6">							      -->
-<!--                             <label for="new-author-first-name" class="form-label">Prénom</label>	      -->
-<!--                             <input type="text" class="form-control" id="new-author-first-name">	      -->
-<!--                         </div>									      -->
-<!--                         <div class="col-md-6">							      -->
-<!--                             <label for="new-author-last-name" class="form-label">Nom</label>	      -->
-<!--                             <input type="text" class="form-control" id="new-author-last-name">	      -->
-<!--                         </div>									      -->
-<!--                     </div>										      -->
-<!--                 </form>										      -->
-<!--             </div>											      -->
-<!--             <div class="modal-footer">								      -->
-<!--                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button> -->
-<!--                 <button type="button" class="btn btn-primary" onclick="addNewAuthor()">		      -->
-<!--                     <i class="fas fa-plus"></i> Ajouter						      -->
-<!--                 </button>										      -->
-<!--             </div>											      -->
-<!--         </div>											      -->
-<!--     </div>												      -->
-<!-- </div>												      -->
-<!-------------------------------------------------------------------------------------------------------------->
-
 {% endblock %}
 
 {% block extra_js %}
@@ -403,7 +456,6 @@
 <!-- Script compteurs de caractères -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Résumé français
     const abstractFr = document.getElementById('abstract_fr');
     const countFr = document.getElementById('count-fr');
     const maxFr = {{ 3000 if type == 'article' else 2000 }};
@@ -415,7 +467,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     {% if type == 'article' %}
-    // Résumé anglais
     const abstractEn = document.getElementById('abstract_en');
     const countEn = document.getElementById('count-en');
     
@@ -426,7 +477,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     {% endif %}
     
-    // Mots-clés
     const keywords = document.getElementById('keywords');
     const countKeywords = document.getElementById('count-keywords');
     
@@ -442,13 +492,12 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('author-search');
-    const authorItems = document.querySelectorAll('.author-item');
+    const authorItems = document.querySelectorAll('#authors-list .author-item');
     const countElement = document.getElementById('author-count');
     const filterButtons = document.querySelectorAll('[id^="filter-"]');
     
     let currentFilter = 'all';
     
-    // Fonction de filtrage
     function filterAuthors() {
         const searchTerm = searchInput.value.toLowerCase();
         let visibleCount = 0;
@@ -471,26 +520,19 @@ document.addEventListener('DOMContentLoaded', function() {
         countElement.textContent = visibleCount;
     }
     
-    // Événement de recherche
     searchInput.addEventListener('input', filterAuthors);
     
-    // Événements des boutons de filtrage
     filterButtons.forEach(function(button) {
         button.addEventListener('click', function() {
-            // Retirer la classe active de tous les boutons
             filterButtons.forEach(b => b.classList.remove('active'));
-            
-            // Ajouter la classe active au bouton cliqué
             this.classList.add('active');
             
-            // Mettre à jour le filtre courant
             if (this.id === 'filter-all') {
                 currentFilter = 'all';
             } else {
                 currentFilter = this.id.replace('filter-', '');
             }
             
-            // Appliquer le filtrage
             filterAuthors();
         });
     });
@@ -511,13 +553,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Vérifier au chargement de la page
     toggleIdhalInfo();
-    
-    // Vérifier quand la case est cochée/décochée
     halCheckbox.addEventListener('change', toggleIdhalInfo);
-    
-    // SUPPRIMÉ: Plus de validation bloquante pour l'IDHAL
 });
 </script>
 
@@ -535,7 +572,6 @@ function addNewAuthor() {
         return;
     }
     
-    // Créer un nouvel élément dans la liste
     const authorsList = document.getElementById('authors-list');
     const newAuthorDiv = document.createElement('div');
     newAuthorDiv.className = 'form-check author-item';
@@ -543,7 +579,6 @@ function addNewAuthor() {
     const fullName = `${firstName} ${lastName}`.trim() || email;
     const newId = 'new_' + Date.now();
     
-    // Construire la valeur avec l'affiliation si présente
     let authorValue = `new:${email}:${firstName}:${lastName}`;
     if (affiliationId) {
         authorValue += `:${affiliationId}`;
@@ -561,13 +596,11 @@ function addNewAuthor() {
     
     authorsList.appendChild(newAuthorDiv);
     
-    // Fermer le modal et réinitialiser les champs
     const modal = bootstrap.Modal.getInstance(document.getElementById('newAuthorModal'));
     if (modal) {
         modal.hide();
     }
     
-    // Réinitialiser manuellement les champs (au lieu de .reset())
     document.getElementById('new-author-email').value = '';
     document.getElementById('new-author-first-name').value = '';
     document.getElementById('new-author-last-name').value = '';
@@ -575,29 +608,18 @@ function addNewAuthor() {
         document.getElementById('new-author-affiliation').value = '';
     }
     
-    // Mettre à jour le compteur
     const countElement = document.getElementById('author-count');
     countElement.textContent = parseInt(countElement.textContent) + 1;
-    
-    // Déclencher la mise à jour de la liste des auteurs correspondants
-    const newCheckbox = document.getElementById(newId);
-    if (newCheckbox) {
-        newCheckbox.addEventListener('change', updateCorrespondingOptions);
-        updateCorrespondingOptions();
-    }
 }
-  
-
-	
 </script>
+
 <!-- Script gestion auteur correspondant -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const authorCheckboxes = document.querySelectorAll('input[name="coauthors"]');
     const correspondingList = document.getElementById('corresponding-coauthors-list');
     
     function updateCorrespondingOptions() {
-        // Récupérer tous les co-auteurs cochés
+        const authorCheckboxes = document.querySelectorAll('input[name="coauthors"]');
         const selectedAuthors = Array.from(authorCheckboxes).filter(cb => cb.checked);
         
         if (selectedAuthors.length === 0) {
@@ -605,7 +627,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // Construire la liste des options
         let html = '<hr class="my-3"><small class="text-muted mb-2 d-block">Ou choisir un co-auteur :</small>';
         
         selectedAuthors.forEach(checkbox => {
@@ -630,36 +651,17 @@ document.addEventListener('DOMContentLoaded', function() {
         correspondingList.innerHTML = html;
     }
     
-    // Mettre à jour quand on coche/décoche un co-auteur
-    authorCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateCorrespondingOptions);
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.name === 'coauthors') {
+            updateCorrespondingOptions();
+        }
     });
-    
-    // Observer les nouveaux auteurs ajoutés via le modal
-    const authorsList = document.getElementById('authors-list');
-    const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.addedNodes.length) {
-                mutation.addedNodes.forEach(function(node) {
-                    if (node.nodeType === 1 && node.classList.contains('author-item')) {
-                        const checkbox = node.querySelector('input[name="coauthors"]');
-                        if (checkbox) {
-                            checkbox.addEventListener('change', updateCorrespondingOptions);
-                            updateCorrespondingOptions(); // Mettre à jour immédiatement
-                        }
-                    }
-                });
-            }
-        });
-    });
-    
-    observer.observe(authorsList, { childList: true });
 });
 </script>
+
 <!-- Script validation caractères spéciaux -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Mappage des caractères mathématiques problématiques
     const mathSymbols = {
         'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'δ': 'delta', 'ε': 'epsilon',
         'θ': 'theta', 'λ': 'lambda', 'μ': 'mu', 'π': 'pi', 'σ': 'sigma',
@@ -672,28 +674,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function checkSpecialChars(textarea, warningElementId) {
         const text = textarea.value;
-        const warningDiv = document.getElementById(warningElementId);
+        let warningDiv = document.getElementById(warningElementId);
         
         if (!warningDiv) {
-            // Créer l'élément d'avertissement s'il n'existe pas
-            const warning = document.createElement('div');
-            warning.id = warningElementId;
-            warning.className = 'alert alert-warning mt-2';
-            warning.style.display = 'none';
-            textarea.parentNode.appendChild(warning);
+            warningDiv = document.createElement('div');
+            warningDiv.id = warningElementId;
+            warningDiv.className = 'alert alert-warning mt-2';
+            warningDiv.style.display = 'none';
+            textarea.parentNode.appendChild(warningDiv);
         }
         
         const foundSymbols = [];
         const problematicChars = [];
         
-        // Détecter les symboles mathématiques
         for (const [symbol, replacement] of Object.entries(mathSymbols)) {
             if (text.includes(symbol)) {
                 foundSymbols.push(`${symbol} → ${replacement}`);
             }
         }
         
-        // Détecter d autres caractères non-ASCII
         for (const char of text) {
             if (char.charCodeAt(0) > 127 && !mathSymbols[char]) {
                 if (!problematicChars.includes(char)) {
@@ -701,8 +700,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         }
-        
-        const warning = document.getElementById(warningElementId);
         
         if (foundSymbols.length > 0 || problematicChars.length > 0) {
             let message = '<i class="fas fa-exclamation-triangle"></i> <strong>Caractères détectés:</strong><br>';
@@ -721,14 +718,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             message += '<small class="text-muted">Ces caractères seront automatiquement traités lors de la soumission.</small>';
             
-            warning.innerHTML = message;
-            warning.style.display = 'block';
+            warningDiv.innerHTML = message;
+            warningDiv.style.display = 'block';
         } else {
-            warning.style.display = 'none';
+            warningDiv.style.display = 'none';
         }
     }
     
-    // Attacher la validation aux zones de texte
     const abstractFr = document.getElementById('abstract_fr');
     const abstractEn = document.getElementById('abstract_en');
     
@@ -743,10 +739,239 @@ document.addEventListener('DOMContentLoaded', function() {
             checkSpecialChars(this, 'warning-en');
         });
     }
-    
 });
 </script>
 
+<!-- Script réorganisation des auteurs -->
+<script>
+(function() {
+    const orderSection = document.getElementById('authors-order-section');
+    const sortableList = document.getElementById('selected-authors-sortable');
+    const finalOrderInput = document.getElementById('final-authors-order');
+    
+    if (!orderSection || !sortableList || !finalOrderInput) {
+        console.warn('Éléments de réorganisation des auteurs non trouvés');
+        return;
+    }
+    
+    let draggedElement = null;
+    
+    function updateSelectedAuthorsList() {
+        const authorCheckboxes = document.querySelectorAll('input[name="coauthors"]');
+        const selectedCoauthors = Array.from(authorCheckboxes).filter(cb => cb.checked);
+        
+        if (selectedCoauthors.length > 0) {
+            orderSection.style.display = 'block';
+        } else {
+            orderSection.style.display = 'none';
+            return;
+        }
+        
+        const existingItems = Array.from(sortableList.querySelectorAll('.author-item:not([data-is-main="true"])'));
+        const existingUserIds = existingItems.map(item => item.dataset.userId);
+        
+        selectedCoauthors.forEach((checkbox, index) => {
+            const userId = checkbox.value;
+            
+            if (existingUserIds.includes(userId)) {
+                return;
+            }
+            
+            const label = checkbox.nextElementSibling;
+            if (!label) return;
+            
+            const strongElement = label.querySelector('strong');
+            if (!strongElement) return;
+            
+            const authorName = strongElement.textContent;
+            const authorEmailElement = label.querySelector('small.text-muted');
+            const authorEmail = authorEmailElement ? 
+                               authorEmailElement.textContent.replace('(', '').replace(')', '') : '';
+            
+            const affiliationBadges = label.querySelectorAll('.badge');
+            let affiliationsHtml = '';
+            if (affiliationBadges.length > 0) {
+                affiliationsHtml = '<small class="text-muted d-block">';
+                affiliationBadges.forEach(badge => {
+                    affiliationsHtml += badge.textContent + ' ';
+                });
+                affiliationsHtml += '</small>';
+            }
+            
+            const isNewAuthor = checkbox.value.startsWith('new:');
+            const newBadge = isNewAuthor ? '<span class="badge bg-warning ms-1">Nouveau</span>' : '';
+            
+            const newItem = document.createElement('div');
+            newItem.className = 'author-item';
+            newItem.dataset.userId = userId;
+            newItem.setAttribute('draggable', 'true');
+            
+            newItem.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <div class="drag-handle me-3">
+                        <i class="fas fa-grip-vertical text-muted"></i>
+                    </div>
+                    <div class="author-position me-3">
+                        <span class="badge bg-secondary">${index + 2}</span>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center">
+                            <strong class="me-2">${authorName}</strong>
+                            ${newBadge}
+                        </div>
+                        ${authorEmail ? `<small class="text-muted d-block">${authorEmail}</small>` : ''}
+                        ${affiliationsHtml}
+                    </div>
+                </div>
+            `;
+            
+            sortableList.appendChild(newItem);
+            addDragEvents(newItem);
+        });
+        
+        existingItems.forEach(item => {
+            const userId = item.dataset.userId;
+            const isStillSelected = selectedCoauthors.some(cb => cb.value === userId);
+            if (!isStillSelected) {
+                item.remove();
+            }
+        });
+        
+        updatePositions();
+    }
+    
+    function addDragEvents(item) {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+        item.addEventListener('dragover', handleDragOver);
+        item.addEventListener('drop', handleDrop);
+        item.addEventListener('dragleave', handleDragLeave);
+    }
+    
+    function handleDragStart(e) {
+        draggedElement = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', this.innerHTML);
+    }
+    
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        const items = sortableList.querySelectorAll('.author-item');
+        items.forEach(item => {
+            item.classList.remove('drag-over');
+        });
+        updatePositions();
+    }
+    
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+        if (this !== draggedElement) {
+            this.classList.add('drag-over');
+        }
+        return false;
+    }
+    
+    function handleDragLeave(e) {
+        this.classList.remove('drag-over');
+    }
+    
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        
+        if (draggedElement !== this) {
+            const allItems = Array.from(sortableList.querySelectorAll('.author-item'));
+            const draggedIndex = allItems.indexOf(draggedElement);
+            const targetIndex = allItems.indexOf(this);
+            
+            if (draggedIndex < targetIndex) {
+                this.parentNode.insertBefore(draggedElement, this.nextSibling);
+            } else {
+                this.parentNode.insertBefore(draggedElement, this);
+            }
+        }
+        
+        return false;
+    }
+    
+    function updatePositions() {
+        const items = sortableList.querySelectorAll('.author-item');
+        const orderArray = [];
+        
+        items.forEach((item, index) => {
+            const userId = item.dataset.userId;
+            orderArray.push(userId);
+            
+            const positionBadge = item.querySelector('.author-position .badge');
+            if (positionBadge) {
+                positionBadge.textContent = index + 1;
+            }
+            
+            const badges = item.querySelectorAll('.badge');
+            let firstAuthorBadge = null;
+            badges.forEach(badge => {
+                if (badge.textContent.includes('Premier auteur')) {
+                    firstAuthorBadge = badge;
+                }
+            });
+            
+            if (index === 0 && !firstAuthorBadge) {
+                const strongElement = item.querySelector('strong');
+                if (strongElement && strongElement.parentNode) {
+                    const newBadge = document.createElement('span');
+                    newBadge.className = 'badge bg-primary me-1';
+                    newBadge.textContent = 'Premier auteur';
+                    strongElement.parentNode.insertBefore(newBadge, strongElement.nextSibling);
+                }
+            } else if (index !== 0 && firstAuthorBadge) {
+                firstAuthorBadge.remove();
+            }
+        });
+        
+        finalOrderInput.value = orderArray.join(',');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+    // Petite pause pour s'assurer que le DOM est bien chargé
+    setTimeout(function() {
+        const mainAuthorItem = sortableList.querySelector('.author-item[data-is-main="true"]');
+        if (mainAuthorItem) {
+            addDragEvents(mainAuthorItem);
+            console.log('Drag events ajoutés sur auteur principal');
+        } else {
+            console.warn('Auteur principal non trouvé');
+        }
+        
+        updatePositions();
+    }, 100);
+    
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.name === 'coauthors') {
+            updateSelectedAuthorsList();
+        }
+    });
+});
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const mainAuthorItem = sortableList.querySelector('.author-item[data-is-main="true"]');
+        if (mainAuthorItem) {
+            addDragEvents(mainAuthorItem);
+        }
+        
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.name === 'coauthors') {
+                updateSelectedAuthorsList();
+            }
+        });
+        
+        updatePositions();
+    });
+})();
+</script>
 
 {% endblock %}
-
