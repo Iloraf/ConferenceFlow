@@ -8,32 +8,38 @@ import unicodedata
 from typing import Dict, List, Tuple
 
 # Mappage des caractères mathématiques courants vers leurs équivalents ASCII/LaTeX
+# MATH_SYMBOLS_MAP = {
+#     # Lettres grecques
+#     'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'δ': 'delta', 'ε': 'epsilon',
+#     'ζ': 'zeta', 'η': 'eta', 'θ': 'theta', 'ι': 'iota', 'κ': 'kappa',
+#     'λ': 'lambda', 'μ': 'mu', 'ν': 'nu', 'ξ': 'xi', 'π': 'pi',
+#     'ρ': 'rho', 'σ': 'sigma', 'τ': 'tau', 'υ': 'upsilon', 'φ': 'phi',
+#     'χ': 'chi', 'ψ': 'psi', 'ω': 'omega',
+#     'Α': 'Alpha', 'Β': 'Beta', 'Γ': 'Gamma', 'Δ': 'Delta', 'Ε': 'Epsilon',
+#     'Ζ': 'Zeta', 'Η': 'Eta', 'Θ': 'Theta', 'Ι': 'Iota', 'Κ': 'Kappa',
+#     'Λ': 'Lambda', 'Μ': 'Mu', 'Ν': 'Nu', 'Ξ': 'Xi', 'Π': 'Pi',
+#     'Ρ': 'Rho', 'Σ': 'Sigma', 'Τ': 'Tau', 'Υ': 'Upsilon', 'Φ': 'Phi',
+#     'Χ': 'Chi', 'Ψ': 'Psi', 'Ω': 'Omega',
+    
+#     # Symboles mathématiques
+#     '∞': 'infinity', '∂': 'partial', '∆': 'Delta', '∇': 'nabla',
+#     '∫': 'integral', '∑': 'sum', '∏': 'product', '√': 'sqrt',
+#     '≤': '<=', '≥': '>=', '≠': '!=', '≈': '~=', '±': '+/-',
+#     '×': 'x', '÷': '/', '°': 'deg', '′': "'", '″': '"',
+    
+#     # Indices et exposants
+#     '₀': '_0', '₁': '_1', '₂': '_2', '₃': '_3', '₄': '_4',
+#     '₅': '_5', '₆': '_6', '₇': '_7', '₈': '_8', '₉': '_9',
+#     '⁰': '^0', '¹': '^1', '²': '^2', '³': '^3', '⁴': '^4',
+#     '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9',
+    
+#     # Autres caractères problématiques
+#     '"': '"', '"': '"', ''': "'", ''': "'",
+#     '–': '-', '—': '-', '…': '...',
+# }
+
 MATH_SYMBOLS_MAP = {
-    # Lettres grecques
-    'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'δ': 'delta', 'ε': 'epsilon',
-    'ζ': 'zeta', 'η': 'eta', 'θ': 'theta', 'ι': 'iota', 'κ': 'kappa',
-    'λ': 'lambda', 'μ': 'mu', 'ν': 'nu', 'ξ': 'xi', 'π': 'pi',
-    'ρ': 'rho', 'σ': 'sigma', 'τ': 'tau', 'υ': 'upsilon', 'φ': 'phi',
-    'χ': 'chi', 'ψ': 'psi', 'ω': 'omega',
-    'Α': 'Alpha', 'Β': 'Beta', 'Γ': 'Gamma', 'Δ': 'Delta', 'Ε': 'Epsilon',
-    'Ζ': 'Zeta', 'Η': 'Eta', 'Θ': 'Theta', 'Ι': 'Iota', 'Κ': 'Kappa',
-    'Λ': 'Lambda', 'Μ': 'Mu', 'Ν': 'Nu', 'Ξ': 'Xi', 'Π': 'Pi',
-    'Ρ': 'Rho', 'Σ': 'Sigma', 'Τ': 'Tau', 'Υ': 'Upsilon', 'Φ': 'Phi',
-    'Χ': 'Chi', 'Ψ': 'Psi', 'Ω': 'Omega',
-    
-    # Symboles mathématiques
-    '∞': 'infinity', '∂': 'partial', '∆': 'Delta', '∇': 'nabla',
-    '∫': 'integral', '∑': 'sum', '∏': 'product', '√': 'sqrt',
-    '≤': '<=', '≥': '>=', '≠': '!=', '≈': '~=', '±': '+/-',
-    '×': 'x', '÷': '/', '°': 'deg', '′': "'", '″': '"',
-    
-    # Indices et exposants
-    '₀': '_0', '₁': '_1', '₂': '_2', '₃': '_3', '₄': '_4',
-    '₅': '_5', '₆': '_6', '₇': '_7', '₈': '_8', '₉': '_9',
-    '⁰': '^0', '¹': '^1', '²': '^2', '³': '^3', '⁴': '^4',
-    '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9',
-    
-    # Autres caractères problématiques
+    # On garde seulement les guillemets typographiques qui peuvent poser problème
     '"': '"', '"': '"', ''': "'", ''': "'",
     '–': '-', '—': '-', '…': '...',
 }

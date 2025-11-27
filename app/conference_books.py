@@ -2396,7 +2396,7 @@ def compile_latex_book(title, communications_by_theme, book_type):
                 ["lualatex", "-halt-on-error", "livre.tex"],
                 cwd=temp_dir,
                 capture_output=True,
-                text=True,
+                #text=True,
             )
             
             # === COPIE DU LOG TEMPORAIRE ===
@@ -2430,7 +2430,7 @@ def compile_latex_book(title, communications_by_theme, book_type):
                 ["lualatex", "livre.tex"],
                 cwd=temp_dir,
                 capture_output=True,
-                text=True,
+                #text=True,
             )
             
             # === COPIE DU LOG FINAL ===
@@ -2456,7 +2456,7 @@ def compile_latex_book(title, communications_by_theme, book_type):
                     cwd=temp_dir,
                     check=True,
                     capture_output=True,
-                    text=True,
+                    #text=True,
                 )
                 print("✅ Index généré avec succès")
             else:
@@ -2469,7 +2469,7 @@ def compile_latex_book(title, communications_by_theme, book_type):
                 cwd=temp_dir,
                 check=True,
                 capture_output=True,
-                text=True,
+                #text=True,
             )
             
             print("✅ Compilation terminée avec succès")
@@ -3685,25 +3685,60 @@ def escape_latex(text):
     if not text:
         return ""
     
+    # S'assurer que le texte est bien une chaîne
+    if isinstance(text, bytes):
+        text = text.decode('utf-8', errors='ignore')
+    
+    text = str(text)
+    
+    # Normaliser Unicode
+    import unicodedata
+    text = unicodedata.normalize('NFC', text)
+    
     # Dictionnaire des caractères à échapper
+    # On n'échappe PAS ^ car LuaLaTeX gère l'UTF-8 nativement
     latex_chars = {
         '\\': r'\textbackslash{}', 
         '&': r'\&',
         '%': r'\%', 
         '$': r'\$',
         '#': r'\#',
-        '^': r'\textasciicircum{}',
         '_': r'\_',
         '{': r'\{',
         '}': r'\}',
         '~': r'\textasciitilde{}',
     }
     
-    escaped_text = str(text)
+    escaped_text = text
     for char, replacement in latex_chars.items():
         escaped_text = escaped_text.replace(char, replacement)
     
-    return escaped_text
+    return escaped_text           
+
+# def escape_latex(text):
+#     """Échappe les caractères spéciaux pour LaTeX."""
+#     if not text:
+#         return ""
+    
+#     # Dictionnaire des caractères à échapper
+#     latex_chars = {
+#         '\\': r'\textbackslash{}', 
+#         '&': r'\&',
+#         '%': r'\%', 
+#         '$': r'\$',
+#         '#': r'\#',
+#         '^': r'\textasciicircum{}',
+#         '_': r'\_',
+#         '{': r'\{',
+#         '}': r'\}',
+#         '~': r'\textasciitilde{}',
+#     }
+    
+#     escaped_text = str(text)
+#     for char, replacement in latex_chars.items():
+#         escaped_text = escaped_text.replace(char, replacement)
+    
+#     return escaped_text
 
 
 # def generate_remerciements_tex(temp_dir, config):
@@ -4274,9 +4309,9 @@ def escape_latex(text):
         '\\': r'\textbackslash{}', 
         '&': r'\&',
         '%': r'\%', 
-        '$': r'\$',
+        #'$': r'\$',
         '#': r'\#',
-        '^': r'\textasciicircum{}',
+        #'^': r'\textasciicircum{}',
         '_': r'\_',
         '{': r'\{',
         '}': r'\}',
