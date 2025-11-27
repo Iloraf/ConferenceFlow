@@ -192,36 +192,50 @@
 <div class="col-md-6 mb-3">
     <div class="card border-light">
         <div class="card-body p-3">
-            <h6 class="card-title mb-1">
-                {{ author.first_name }} {{ author.last_name }}
-                {% if loop.index == 1 %}
-                <span class="badge bg-primary">Auteur principal</span>
-                {% endif %}
-                {% if communication.corresponding_author and author.id == communication.corresponding_author.id %}
-                <span class="badge bg-success">
-                    <i class="fas fa-envelope me-1"></i>Corresponding Author
-                </span>
-                {% endif %}
-            </h6>
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <h6 class="card-title mb-1">
+                        {{ author.first_name }} {{ author.last_name }}
+                        {% if loop.index == 1 %}
+                        <span class="badge bg-primary">Auteur principal</span>
+                        {% endif %}
+                        {% if communication.corresponding_author and author.id == communication.corresponding_author.id %}
+                        <span class="badge bg-success">
+                            <i class="fas fa-envelope me-1"></i>Corresponding Author
+                        </span>
+                        {% endif %}
+                    </h6>
 
-
-
-				    <p class="card-text mb-1">
-                                        <i class="fas fa-envelope me-1"></i>{{ author.email }}
-                                    </p>
-                                    {% if author.affiliations %}
-                                    <p class="card-text mb-0">
-                                        <i class="fas fa-building me-1"></i>
-                                        {% for affiliation in author.affiliations %}
-                                        {{ affiliation.nom }}{% if not loop.last %}, {% endif %}
-                                        {% endfor %}
-                                    </p>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
+                    <p class="card-text mb-1">
+                        <i class="fas fa-envelope me-1"></i>{{ author.email }}
+                    </p>
+                    {% if author.affiliations %}
+                    <p class="card-text mb-0">
+                        <i class="fas fa-building me-1"></i>
+                        {% for affiliation in author.affiliations %}
+                        {{ affiliation.nom }}{% if not loop.last %}, {% endif %}
                         {% endfor %}
-
+                    </p>
+                    {% endif %}
+                </div>
+                
+                {% if loop.index > 1 %}
+                <div class="ms-2">
+                    <form method="POST" 
+                          action="{{ url_for('admin.remove_coauthor', comm_id=communication.id, author_id=author.id) }}"
+                          style="display: inline;"
+                          onsubmit="return confirm('Voulez-vous vraiment retirer {{ author.first_name }} {{ author.last_name }} de cette communication ?');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Retirer ce co-auteur">
+                            <i class="fas fa-user-times"></i>
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 
 			

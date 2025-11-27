@@ -5707,6 +5707,43 @@ def hal_enrich_affiliations():
     
     return results
 
+@admin.route("/admin/communication/<int:comm_id>/remove-coauthor/<int:author_id>", methods=["POST"])
+@login_required
+def remove_coauthor(comm_id, author_id):
+    """Permet à l'admin de retirer un co-auteur d'une communication."""
+    if not current_user.is_admin:
+        flash("Accès refusé", "danger")
+        return redirect(url_for("main.index"))
+    
+    communication = Communication.query.get_or_404(comm_id)
+    author = User.query.get_or_404(author_id)
+    
+    # Vérifier que l'auteur fait partie de la communication
+    if author not in communication.authors:
+        flash("Cet utilisateur n'est pas auteur de cette communication.", "warning")
+        return redirect(url_for("admin.view_communication_details", comm_id=comm_id))
+    
+    # Empêcher la suppression de l'auteur principal (premier auteur)
+    if communication.authors and communication.authors[0].id == author_id:
+        flash("Impossible de retirer l'auteur principal de la communication.", "danger")
+        return redirect(url_for("admin.view_communication_details", comm_id=comm_id))
+    
+    try:
+        # Retirer l'auteur de la communication
+        communication.authors.remove(author)
+        db.session.commit()
+        
+        flash(f"Co-auteur {author.full_name or author.email} retiré avec succès de la communication.", "success")
+        current_app.logger.info(f"Admin {current_user.email} a retiré {author.email} de la communication {comm_id}")
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur suppression co-auteur {author_id} de communication {comm_id}: {e}")
+        flash("Erreur lors de la suppression du co-auteur.", "danger")
+    
+    return redirect(url_for("admin.view_communication_details", comm_id=comm_id))
+
+
 def search_hal_structure(search_term):
     """Recherche une structure dans HAL via l'API avec une meilleure précision."""
     import requests
