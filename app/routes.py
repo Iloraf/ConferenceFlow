@@ -35,6 +35,76 @@ main = Blueprint("main", __name__)
 
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'}
 
+def check_maintenance():
+    """Vérifie si le mode maintenance est actif et redirige si nécessaire"""
+    # Ne pas rediriger si on est déjà sur la page maintenance
+    if request.endpoint == 'main.maintenance':
+        return None
+    
+    # Ne pas bloquer les routes d'authentification et les fichiers statiques
+    if request.endpoint and (request.endpoint.startswith('auth.') or request.endpoint.startswith('static')):
+        return None
+    
+    # Ne pas rediriger les administrateurs
+    if current_user.is_authenticated and current_user.is_admin:
+        return None
+    
+    # Charger directement depuis le fichier zones.yml
+    try:
+        zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+        if zones_file.exists():
+            with open(zones_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+                zones = config.get('zones', {})
+                maintenance_config = zones.get('maintenance', {})
+                
+                # Si le mode maintenance est actif, rediriger
+                if maintenance_config.get('is_open', False):
+                    return redirect(url_for('main.maintenance'))
+    except Exception as e:
+        current_app.logger.error(f"Erreur vérification maintenance: {e}")
+    
+    return None
+
+
+
+@main.before_request
+def before_request_maintenance_check():
+    """Vérifie le mode maintenance avant chaque requête"""
+    maintenance_redirect = check_maintenance()
+    if maintenance_redirect:
+        return maintenance_redirect
+
+@main.route('/maintenance')
+def maintenance():
+    """Affiche la page de maintenance"""
+    try:
+        zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+        if zones_file.exists():
+            with open(zones_file, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+                zones = config.get('zones', {})
+                maintenance_config = zones.get('maintenance', {})
+        else:
+            maintenance_config = {}
+        
+        # Si le mode maintenance n'est pas actif, rediriger vers l'accueil
+        if not maintenance_config.get('is_open', False):
+            return redirect(url_for('main.index'))
+        
+        # Si l'utilisateur est admin, le rediriger vers l'accueil
+        if current_user.is_authenticated and current_user.is_admin:
+            return redirect(url_for('main.index'))
+        
+        return render_template('maintenance.html',
+                             maintenance_message=maintenance_config.get('message', 'Site en maintenance'),
+                             maintenance_detail=maintenance_config.get('message_detail', 'Le site sera de nouveau accessible prochainement.'))
+    
+    except Exception as e:
+        current_app.logger.error(f"Erreur page maintenance: {e}")
+        return redirect(url_for('main.index'))
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 

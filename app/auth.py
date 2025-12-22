@@ -26,6 +26,8 @@ from pathlib import Path
 
 auth = Blueprint("auth", __name__)
 
+
+
 @auth.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -41,14 +43,63 @@ def login():
         
         user = User.query.filter_by(email=email).first()
         
-        if user and user.check_password(password):
-            login_user(user, remember=bool(request.form.get("remember")))
-            flash(f"Bienvenue {user.full_name} !", "success")
-            return redirect(url_for('main.index'))
+        # DEBUG: Logs détaillés
+        current_app.logger.info(f"=== TENTATIVE DE CONNEXION ===")
+        current_app.logger.info(f"Email: {email}")
+        current_app.logger.info(f"User trouvé: {user is not None}")
+        
+        if user:
+            password_valid = user.check_password(password)
+            current_app.logger.info(f"Password hash existe: {user.password_hash is not None}")
+            current_app.logger.info(f"Password valide: {password_valid}")
+            current_app.logger.info(f"user.is_active: {user.is_active}")
+            current_app.logger.info(f"user.is_authenticated (avant login): {user.is_authenticated}")
+            current_app.logger.info(f"user.is_anonymous: {user.is_anonymous}")
+            current_app.logger.info(f"user.get_id(): {user.get_id()}")
+            
+            if password_valid:
+                login_result = login_user(user, remember=bool(request.form.get("remember")))
+                current_app.logger.info(f"login_user résultat: {login_result}")
+                current_app.logger.info(f"current_user.is_authenticated après login: {current_user.is_authenticated}")
+                current_app.logger.info(f"current_user.id après login: {current_user.id if current_user.is_authenticated else 'N/A'}")
+                
+                flash(f"Bienvenue {user.full_name} !", "success")
+                return redirect(url_for('main.index'))
+            else:
+                current_app.logger.warning(f"Mot de passe incorrect pour {email}")
         else:
-            flash("Email ou mot de passe incorrect.", "danger")
+            current_app.logger.warning(f"Utilisateur {email} non trouvé")
+        
+        flash("Email ou mot de passe incorrect.", "danger")
     
     return render_template("auth/login.html")
+
+
+#############################################################################
+# @auth.route("/login", methods=["GET", "POST"])                            #
+# def login():                                                              #
+#     if current_user.is_authenticated:                                     #
+#         return redirect(url_for("main.index"))                            #
+#                                                                           #
+#     if request.method == "POST":                                          #
+#         email = request.form.get("email", "").strip().lower()             #
+#         password = request.form.get("password", "")                       #
+#                                                                           #
+#         if not email or not password:                                     #
+#             flash("Veuillez remplir tous les champs.", "danger")          #
+#             return render_template("auth/login.html")                     #
+#                                                                           #
+#         user = User.query.filter_by(email=email).first()                  #
+#                                                                           #
+#         if user and user.check_password(password):                        #
+#             login_user(user, remember=bool(request.form.get("remember"))) #
+#             flash(f"Bienvenue {user.full_name} !", "success")             #
+#             return redirect(url_for('main.index'))                        #
+#         else:                                                             #
+#             flash("Email ou mot de passe incorrect.", "danger")           #
+#                                                                           #
+#     return render_template("auth/login.html")                             #
+#############################################################################
 
 @auth.route("/register", methods=["GET", "POST"])
 def register():
@@ -196,12 +247,49 @@ def reset_password(token):
             user.set_password(password)
             user.reset_password_token = None
             user.reset_password_expires = None
+            user.is_active = True  # AJOUT: Réactiver le compte
             db.session.commit()
             
             flash("Mot de passe réinitialisé avec succès ! Vous pouvez vous connecter.", "success")
             return redirect(url_for("auth.login"))
     
     return render_template("auth/reset_password.html", token=token)
+
+
+##########################################################################################################
+# @auth.route("/reset-password/<token>", methods=["GET", "POST"])                                        #
+# def reset_password(token):                                                                             #
+#     """Page pour réinitialiser le mot de passe avec le token."""                                       #
+#     if current_user.is_authenticated:                                                                  #
+#         return redirect(url_for("main.index"))                                                         #
+#                                                                                                        #
+#     # Vérifier le token                                                                                #
+#     user = User.query.filter_by(reset_password_token=token).first()                                    #
+#                                                                                                        #
+#     if not user or not user.reset_password_expires or user.reset_password_expires < datetime.utcnow(): #
+#         flash("Lien de réinitialisation invalide ou expiré.", "danger")                                #
+#         return redirect(url_for("auth.forgot_password"))                                               #
+#                                                                                                        #
+#     if request.method == "POST":                                                                       #
+#         password = request.form.get("password", "")                                                    #
+#         confirm_password = request.form.get("confirm_password", "")                                    #
+#                                                                                                        #
+#         if not password or len(password) < 8:                                                          #
+#             flash("Le mot de passe doit contenir au moins 8 caractères.", "danger")                    #
+#         elif password != confirm_password:                                                             #
+#             flash("Les mots de passe ne correspondent pas.", "danger")                                 #
+#         else:                                                                                          #
+#             # Mettre à jour le mot de passe                                                            #
+#             user.set_password(password)                                                                #
+#             user.reset_password_token = None                                                           #
+#             user.reset_password_expires = None                                                         #
+#             db.session.commit()                                                                        #
+#                                                                                                        #
+#             flash("Mot de passe réinitialisé avec succès ! Vous pouvez vous connecter.", "success")    #
+#             return redirect(url_for("auth.login"))                                                     #
+#                                                                                                        #
+#     return render_template("auth/reset_password.html", token=token)                                    #
+##########################################################################################################
 
 def send_password_reset_email(user, token):
     """Envoie un email de réinitialisation de mot de passe via le système centralisé."""
