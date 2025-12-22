@@ -81,14 +81,14 @@ def convert_theme_codes_filter(codes_string):
 def create_app():
     app = Flask(__name__)
 
-    from werkzeug.middleware.proxy_fix import ProxyFix
-    app.wsgi_app = ProxyFix(
-        app.wsgi_app,
-        x_for=1,      # X-Forwarded-For
-        x_proto=1,    # X-Forwarded-Proto
-        x_host=1,     # X-Forwarded-Host
-        x_port=1      # X-Forwarded-Port
-    )
+#    from werkzeug.middleware.proxy_fix import ProxyFix
+#    app.wsgi_app = ProxyFix(
+#        app.wsgi_app,
+#        x_for=1,      # X-Forwarded-For
+#        x_proto=1,    # X-Forwarded-Proto
+#        x_host=1,     # X-Forwarded-Host
+#        x_port=1      # X-Forwarded-Port
+#    )
 
     
     # Configuration directe depuis les variables d'environnement (remplace config.py)
