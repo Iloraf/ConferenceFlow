@@ -3505,45 +3505,56 @@ def send_bulk_email():
         emails_sent = 0
         errors = []
         
-        # Traiter les articles
-        for article_id in article_ids:
-            article = Communication.query.get(article_id)
-            if not article:
-                continue
-                
-            try:
-                if recipient_type == 'authors':
-                    # Envoyer uniquement au corresponding author
-                    corresponding = article.corresponding_author
-                    if corresponding and corresponding.email:
-                        send_bulk_email_to_user(corresponding, subject, content, [article])
-                        emails_sent += 1
-                
-                elif recipient_type == 'reviewers':
-                    # Envoyer aux reviewers
-                    for review in article.reviews:
-                        if review.reviewer.email:
-                            send_bulk_email_to_user(review.reviewer, subject, content, [article])
+        # CHANGEMENT PRINCIPAL : Ouvrir UNE SEULE connexion SMTP pour tous les emails
+        from app import mail
+        with mail.connect() as conn:
+            # Traiter les articles
+            for article_id in article_ids:
+                article = Communication.query.get(article_id)
+                if not article:
+                    continue
+                    
+                try:
+                    if recipient_type == 'authors':
+                        # Envoyer uniquement au corresponding author
+                        corresponding = article.corresponding_author
+                        if corresponding and corresponding.email:
+                            send_bulk_email_to_user(corresponding, subject, content, [article], connection=conn)
                             emails_sent += 1
-                            
-            except Exception as e:
-                errors.append(f"Article {article_id}: {str(e)}")
-        
-        # Traiter les WIPs
-        for wip_id in wip_ids:
-            wip = Communication.query.get(wip_id)
-            if not wip:
-                continue
-                
-            try:
-                if recipient_type == 'authors':
-                    # Envoyer uniquement au corresponding author
-                    corresponding = wip.corresponding_author
-                    if corresponding and corresponding.email:
-                        send_bulk_email_to_user(corresponding, subject, content, [wip])
-                
-            except Exception as e:
-                errors.append(f"WIP {wip_id}: {str(e)}")
+                    
+                    elif recipient_type == 'reviewers':
+                        # Envoyer aux reviewers
+                        for review in article.reviews:
+                            if review.reviewer.email:
+                                send_bulk_email_to_user(review.reviewer, subject, content, [article], connection=conn)
+                                emails_sent += 1
+                                
+                except Exception as e:
+                    errors.append(f"Article {article_id}: {str(e)}")
+            
+            # Traiter les WIPs
+            for wip_id in wip_ids:
+                wip = Communication.query.get(wip_id)
+                if not wip:
+                    continue
+                    
+                try:
+                    if recipient_type == 'authors':
+                        # Envoyer uniquement au corresponding author
+                        corresponding = wip.corresponding_author
+                        if corresponding and corresponding.email:
+                            send_bulk_email_to_user(corresponding, subject, content, [wip], connection=conn)
+                            emails_sent += 1
+                    
+                    elif recipient_type == 'reviewers':
+                        # Envoyer aux reviewers
+                        for review in wip.reviews:
+                            if review.reviewer.email:
+                                send_bulk_email_to_user(review.reviewer, subject, content, [wip], connection=conn)
+                                emails_sent += 1
+                                
+                except Exception as e:
+                    errors.append(f"WIP {wip_id}: {str(e)}")
         
         # Log de l'action
         current_app.logger.info(f"Email groupé envoyé par {current_user.email}: {emails_sent} emails")
@@ -3565,8 +3576,98 @@ def send_bulk_email():
         return jsonify({'success': False, 'message': f'Erreur serveur: {str(e)}'})
 
 
-def send_bulk_email_to_user(user, subject, content, communications=None):
-    """Fonction utilitaire pour envoyer un email groupé avec template HTML."""
+##########################################################################################################
+# @admin.route('/send-bulk-email', methods=['POST'])                                                     #
+# @login_required                                                                                        #
+# def send_bulk_email():                                                                                 #
+#     """Envoi d'emails groupés aux auteurs ou reviewers."""                                             #
+#     if not current_user.is_admin:                                                                      #
+#         abort(403)                                                                                     #
+#                                                                                                        #
+#     try:                                                                                               #
+#         data = request.get_json()                                                                      #
+#         recipient_type = data.get('recipient')  # 'authors' ou 'reviewers'                             #
+#         subject = data.get('subject')                                                                  #
+#         content = data.get('content')                                                                  #
+#         article_ids = data.get('articles', [])                                                         #
+#         wip_ids = data.get('wips', [])                                                                 #
+#                                                                                                        #
+#         if not subject or not content:                                                                 #
+#             return jsonify({'success': False, 'message': 'Sujet et contenu requis'})                   #
+#                                                                                                        #
+#         emails_sent = 0                                                                                #
+#         errors = []                                                                                    #
+#                                                                                                        #
+#         # Traiter les articles                                                                         #
+#         for article_id in article_ids:                                                                 #
+#             article = Communication.query.get(article_id)                                              #
+#             if not article:                                                                            #
+#                 continue                                                                               #
+#                                                                                                        #
+#             try:                                                                                       #
+#                 if recipient_type == 'authors':                                                        #
+#                     # Envoyer uniquement au corresponding author                                       #
+#                     corresponding = article.corresponding_author                                       #
+#                     if corresponding and corresponding.email:                                          #
+#                         send_bulk_email_to_user(corresponding, subject, content, [article])            #
+#                         emails_sent += 1                                                               #
+#                                                                                                        #
+#                 elif recipient_type == 'reviewers':                                                    #
+#                     # Envoyer aux reviewers                                                            #
+#                     for review in article.reviews:                                                     #
+#                         if review.reviewer.email:                                                      #
+#                             send_bulk_email_to_user(review.reviewer, subject, content, [article])      #
+#                             emails_sent += 1                                                           #
+#                                                                                                        #
+#             except Exception as e:                                                                     #
+#                 errors.append(f"Article {article_id}: {str(e)}")                                       #
+#                                                                                                        #
+#         # Traiter les WIPs                                                                             #
+#         for wip_id in wip_ids:                                                                         #
+#             wip = Communication.query.get(wip_id)                                                      #
+#             if not wip:                                                                                #
+#                 continue                                                                               #
+#                                                                                                        #
+#             try:                                                                                       #
+#                 if recipient_type == 'authors':                                                        #
+#                     # Envoyer uniquement au corresponding author                                       #
+#                     corresponding = wip.corresponding_author                                           #
+#                     if corresponding and corresponding.email:                                          #
+#                         send_bulk_email_to_user(corresponding, subject, content, [wip])                #
+#                                                                                                        #
+#             except Exception as e:                                                                     #
+#                 errors.append(f"WIP {wip_id}: {str(e)}")                                               #
+#                                                                                                        #
+#         # Log de l'action                                                                              #
+#         current_app.logger.info(f"Email groupé envoyé par {current_user.email}: {emails_sent} emails") #
+#                                                                                                        #
+#         if errors:                                                                                     #
+#             return jsonify({                                                                           #
+#                 'success': True,                                                                       #
+#                 'message': f'{emails_sent} emails envoyés avec {len(errors)} erreurs',                 #
+#                 'errors': errors                                                                       #
+#             })                                                                                         #
+#         else:                                                                                          #
+#             return jsonify({                                                                           #
+#                 'success': True,                                                                       #
+#                 'message': f'{emails_sent} emails envoyés avec succès'                                 #
+#             })                                                                                         #
+#                                                                                                        #
+#     except Exception as e:                                                                             #
+#         current_app.logger.error(f"Erreur envoi email groupé: {str(e)}")                               #
+#         return jsonify({'success': False, 'message': f'Erreur serveur: {str(e)}'})                     #
+##########################################################################################################
+
+def send_bulk_email_to_user(user, subject, content, communications=None, connection=None):
+    """Fonction utilitaire pour envoyer un email groupé avec template HTML.
+    
+    Args:
+        user: L'utilisateur destinataire
+        subject: Sujet de l'email
+        content: Contenu de l'email
+        communications: Liste des communications concernées
+        connection: Connexion SMTP à réutiliser (optionnel)
+    """
     from flask_mail import Message
     from app import mail
     from flask import render_template
@@ -3591,16 +3692,60 @@ def send_bulk_email_to_user(user, subject, content, communications=None):
         msg = Message(
             subject=subject,
             recipients=[user.email],
-            body=personalized_content,  # Version texte
-            html=html_body,  # Version HTML avec template
+            body=personalized_content,
+            html=html_body,
             sender=current_app.config.get('MAIL_DEFAULT_SENDER')
         )
         
-        mail.send(msg)
+        # Utiliser la connexion fournie si disponible, sinon créer une nouvelle
+        if connection:
+            connection.send(msg)
+        else:
+            mail.send(msg)
         
     except Exception as e:
         current_app.logger.error(f"Erreur envoi email groupé à {user.email}: {str(e)}")
         raise
+
+
+#######################################################################################################
+# def send_bulk_email_to_user(user, subject, content, communications=None, connection=None):          #
+#     """Fonction utilitaire pour envoyer un email groupé avec template HTML."""                      #
+#     from flask_mail import Message                                                                  #
+#     from app import mail                                                                            #
+#     from flask import render_template                                                               #
+#                                                                                                     #
+#     try:                                                                                            #
+#         # Utiliser le template d'email groupé                                                       #
+#         html_body = render_template('emails/bulk_email.html',                                       #
+#                                   recipient=user,                                                   #
+#                                   email_subject=subject,                                            #
+#                                   email_content=content,                                            #
+#                                   communications=communications or [])                              #
+#                                                                                                     #
+#         # Personnaliser le contenu texte                                                            #
+#         personalized_content = content.replace('[NOM]', user.last_name or '')                       #
+#         personalized_content = personalized_content.replace('[PRENOM]', user.first_name or '')      #
+#                                                                                                     #
+#         # Ajouter les titres des communications pour la version texte                               #
+#         if communications:                                                                          #
+#             comm_titles = '\n'.join([f"- {comm.title} (ID: {comm.id})" for comm in communications]) #
+#             personalized_content += f"\n\nCommunication(s) concernée(s):\n{comm_titles}"            #
+#                                                                                                     #
+#         msg = Message(                                                                              #
+#             subject=subject,                                                                        #
+#             recipients=[user.email],                                                                #
+#             body=personalized_content,  # Version texte                                             #
+#             html=html_body,  # Version HTML avec template                                           #
+#             sender=current_app.config.get('MAIL_DEFAULT_SENDER')                                    #
+#         )                                                                                           #
+#                                                                                                     #
+#         mail.send(msg)                                                                              #
+#                                                                                                     #
+#     except Exception as e:                                                                          #
+#         current_app.logger.error(f"Erreur envoi email groupé à {user.email}: {str(e)}")             #
+#         raise                                                                                       #
+#######################################################################################################
 
 def send_email_to_user(user, subject, content, communication=None):
     """Fonction utilitaire pour envoyer un email à un utilisateur avec le nouveau système centralisé."""

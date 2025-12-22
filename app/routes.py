@@ -879,29 +879,12 @@ def update_submission(comm_id):
             file_type=file_type
         ).order_by(SubmissionFile.version.desc()).all()
 
-
-    from datetime import datetime
-
-    # return render_template("update_submission.html", 
-    #                        comm=comm, 
-    #                        files_by_type=files_by_type,
-    #                        allowed_uploads={ft: comm.can_upload_file_type(ft) for ft in file_types},
-    #                        now=datetime.utcnow())
-
     return render_template("update_submission.html", 
                      comm=comm, 
                      files_by_type=files_by_type,
                      allowed_uploads={ft: comm.can_upload_file_type(ft) for ft in file_types},
                      now=datetime.utcnow(),
                      CommunicationStatus=CommunicationStatus)
-
-    ##################################################################################################
-    # return render_template("update_submission.html",                                               #
-    #                      comm=comm,                                                                #
-    #                      files_by_type=files_by_type,                                              #
-    #                      allowed_uploads={ft: comm.can_upload_file_type(ft) for ft in file_types}) #
-    ##################################################################################################
-
 
 @main.route("/soumission/<int:comm_id>/edit", methods=["GET", "POST"])
 @login_required
