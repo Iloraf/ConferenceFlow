@@ -219,27 +219,61 @@ def index():
             return str(date_str)
 
     # Chargement des données CSV
-    sponsors_data = load_csv_data('sponsors.csv')
+    #sponsors_data = load_csv_data('sponsors.csv')
+    # Chargement des sponsors depuis sponsors.yml
+    import yaml
+    sponsors_file = os.path.join(current_app.root_path, 'static', 'content', 'sponsors.yml')
+    all_sponsors = []
     
+    try:
+        if os.path.exists(sponsors_file):
+            with open(sponsors_file, 'r', encoding='utf-8') as f:
+                sponsors_yaml = yaml.safe_load(f)
+                
+                # Charger les sponsors institutionnels
+                institutional = sponsors_yaml.get('institutional_sponsors', [])
+                for sponsor in institutional:
+                    all_sponsors.append({
+                        'name': sponsor.get('name', ''),
+                        'level': sponsor.get('level', '').lower(),
+                        'logo': sponsor.get('logo', ''),
+                        'url': sponsor.get('url', ''),
+                        'type': 'institutional'
+                    })
+                    
+                # Charger les sponsors de financement
+                funding = sponsors_yaml.get('funding_sponsors', [])
+                for sponsor in funding:
+                    all_sponsors.append({
+                        'name': sponsor.get('name', ''),
+                        'level': sponsor.get('level', '').lower(),
+                        'logo': sponsor.get('logo', ''),
+                        'url': sponsor.get('url', ''),
+                        'type': 'funding'
+                    })
+            
+                # Charger les sponsors industriels
+                industrial = sponsors_yaml.get('industrial_sponsors', [])
+                for sponsor in industrial:
+                    all_sponsors.append({
+                        'name': sponsor.get('name', ''),
+                        'level': sponsor.get('level', '').lower(),
+                        'logo': sponsor.get('logo', ''),
+                        'url': sponsor.get('url', ''),
+                        'type': 'industrial'
+                    })
+    except Exception as e:
+        current_app.logger.error(f"Erreur lors du chargement de sponsors.yml: {e}")
+
     # Construction de la structure de données
     committees = {
-        'sponsors': []
+        'sponsors': all_sponsors
     }
     
-    # Traitement des sponsors
-    for sponsor in sponsors_data:
-        sponsor_data = {
-            'name': sponsor.get('nom', ''),
-            'level': sponsor.get('niveau', 'bronze').lower(),
-            'logo': sponsor.get('logo', 'default.png'),
-            'url': sponsor.get('url', ''),  # Site web du sponsor
-            'description': sponsor.get('description', '')
-        }
-        committees['sponsors'].append(sponsor_data)
+    # Tri des sponsors par niveau (principal > exposant)
+    level_order = {'principal': 1, 'exposant': 2}
+    committees['sponsors'].sort(key=lambda x: level_order.get(x['level'], 3))
     
-    # Tri des sponsors par niveau (or > argent > bronze)
-    level_order = {'or': 1, 'gold': 1, 'argent': 2, 'silver': 2, 'bronze': 3}
-    committees['sponsors'].sort(key=lambda x: level_order.get(x['level'], 4))
 
     # Récupérer et formater les dates depuis conference.yml
     dates_info = current_app.conference_config.get('dates', {})
@@ -425,41 +459,81 @@ def mes_communications():
     
     return render_template("mes_communications.html", communications=result)
 
+#@main.route("/soumettre", methods=["GET", "POST"])
+#@login_required
+#def choose_type():
+#    if not current_user.is_admin:
+        
+#        try:     
+#            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+#            if zones_file.exists():
+#                with open(zones_file, 'r', encoding='utf-8') as f:
+#                    zones = yaml.safe_load(f)['zones']
+                    # Vérifier la zone selon le type de soumission
+#                    zone_key = f'submission_{type}'
+#                    if zone_key in zones and not zones[zone_key]['is_open']:
+#                        return render_template('simple_closed.html',
+#                                     zone_name=zone_key,
+#                                     message=zones[zone_key]['message'],
+#                                     display_name=zones[zone_key]['display_name'])
+#        except Exception as e:                                                                  #
+#            current_app.logger.error(f"Erreur lecture zones.yml: {e}")                          #
+#            return render_template('simple_closed.html',                                        #
+#                                 zone_name='submission',                                        #
+#                                 message="Le dépôt de communications n'est pas encore ouvert.", #
+#                                 display_name="Dépôt de communications")                        #
+        
+    
+    # Vérifier les affiliations pour l'affichage
+#    has_affiliations = bool(current_user.affiliations)
+
+#    if request.method == "POST":
+#        type_choice = request.form.get("type")
+#        if type_choice not in ['article', 'wip']:
+#            flash("Type invalide.", "danger")
+#            return redirect(url_for("main.choose_type"))
+        
+#        return redirect(url_for("main.start_submission", type=type_choice))
+    
+#    return render_template("choose_type.html", has_affiliations=has_affiliations)
+
 @main.route("/soumettre", methods=["GET", "POST"])
 @login_required
 def choose_type():
     if not current_user.is_admin:
-        
-        try:                                                                                    #
-            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'       #
-            if zones_file.exists():                                                             #
-                with open(zones_file, 'r', encoding='utf-8') as f:                              #
-                    zones = yaml.safe_load(f)['zones']                                          #
-                    if not zones['submission']['is_open']:                                      #
-                        return render_template('simple_closed.html',                            #
-                                             zone_name='submission',                            #
-                                             message=zones['submission']['message'],            #
-                                             display_name=zones['submission']['display_name'])  #
-        except Exception as e:                                                                  #
-            current_app.logger.error(f"Erreur lecture zones.yml: {e}")                          #
-            return render_template('simple_closed.html',                                        #
-                                 zone_name='submission',                                        #
-                                 message="Le dépôt de communications n'est pas encore ouvert.", #
-                                 display_name="Dépôt de communications")                        #
-        
+        try:
+            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+            if zones_file.exists():
+                with open(zones_file, 'r', encoding='utf-8') as f:
+                    zones = yaml.safe_load(f)['zones']
+                    # Vérifier si au moins une zone de soumission est ouverte
+                    article_open = zones.get('submission_article', {}).get('is_open', False)
+                    wip_open = zones.get('submission_wip', {}).get('is_open', False)
+                    
+                    if not article_open and not wip_open:
+                        return render_template('simple_closed.html',
+                                             zone_name='submission',
+                                             message='Le dépôt de communications n\'est pas encore ouvert.',
+                                             display_name='Dépôt de communications')
+        except Exception as e:
+            current_app.logger.error(f"Erreur lecture zones.yml: {e}")
+            return render_template('simple_closed.html',
+                                 zone_name='submission',
+                                 message="Le dépôt de communications n'est pas encore ouvert.",
+                                 display_name="Dépôt de communications")
     
     # Vérifier les affiliations pour l'affichage
     has_affiliations = bool(current_user.affiliations)
-
+    
     if request.method == "POST":
         type_choice = request.form.get("type")
         if type_choice not in ['article', 'wip']:
             flash("Type invalide.", "danger")
             return redirect(url_for("main.choose_type"))
-        
         return redirect(url_for("main.start_submission", type=type_choice))
     
     return render_template("choose_type.html", has_affiliations=has_affiliations)
+
 
 
 @main.route("/soumettre/<type>", methods=["GET", "POST"])
@@ -469,17 +543,37 @@ def start_submission(type):
         flash("Type de soumission invalide.", "danger")
         return redirect(url_for("main.index"))
     
+#    if not current_user.is_admin:
+#        try:
+#            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+#            if zones_file.exists():
+#                with open(zones_file, 'r', encoding='utf-8') as f:
+#                    zones = yaml.safe_load(f)['zones']
+#                    if not zones['submission']['is_open']:
+#                        return render_template('simple_closed.html',
+#                                             zone_name='submission',
+#                                             message=zones['submission']['message'],
+#                                             display_name=zones['submission']['display_name'])
+#        except Exception as e:
+#            current_app.logger.error(f"Erreur lecture zones.yml: {e}")
+#            return render_template('simple_closed.html',
+#                                 zone_name='submission',
+#                                 message="Le dépôt de communications n'est pas encore ouvert.",
+#                                 display_name="Dépôt de communications")
+
     if not current_user.is_admin:
         try:
             zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
             if zones_file.exists():
                 with open(zones_file, 'r', encoding='utf-8') as f:
                     zones = yaml.safe_load(f)['zones']
-                    if not zones['submission']['is_open']:
+                    # Vérifier la zone selon le type de soumission
+                    zone_key = f'submission_{type}'
+                    if zone_key in zones and not zones[zone_key]['is_open']:
                         return render_template('simple_closed.html',
-                                             zone_name='submission',
-                                             message=zones['submission']['message'],
-                                             display_name=zones['submission']['display_name'])
+                                             zone_name=zone_key,
+                                             message=zones[zone_key]['message'],
+                                             display_name=zones[zone_key]['display_name'])
         except Exception as e:
             current_app.logger.error(f"Erreur lecture zones.yml: {e}")
             return render_template('simple_closed.html',
@@ -489,6 +583,7 @@ def start_submission(type):
         
     if request.method == "POST":
         title = request.form.get("title", "").strip()
+        title_en = request.form.get("title_en", "").strip() if type == 'article' else None
         thematiques = request.form.getlist("thematique")
         coauthors = request.form.getlist("coauthors")
         corresponding_author_value = request.form.get("corresponding_author", "main")
@@ -549,7 +644,7 @@ def start_submission(type):
             return redirect(url_for("main.start_submission", type=type))
         
         # Validation longueur résumés
-        max_length_fr = 3000 if type == 'article' else 2000
+        max_length_fr = 3000
         if len(abstract_fr) > max_length_fr:
             flash(f"Résumé français trop long ({len(abstract_fr)} caractères, maximum {max_length_fr}).", "danger")
             return redirect(url_for("main.start_submission", type=type))
@@ -578,6 +673,7 @@ def start_submission(type):
             
             comm = Communication(
                 title=title,
+                title_en=title_en,
                 abstract_fr=abstract_fr,
                 abstract_en=abstract_en,
                 keywords=keywords,
@@ -815,17 +911,24 @@ def update_abstracts(comm_id):
         return redirect(url_for("main.mes_communications"))
     
     # Récupérer les données du formulaire
+    title = request.form.get("title", "").strip()
+    title_en = request.form.get("title_en", "").strip() if comm.type == 'article' else None
     abstract_fr = request.form.get("abstract_fr", "").strip()
     abstract_en = request.form.get("abstract_en", "").strip() if comm.type == 'article' else None
     keywords = request.form.get("keywords", "").strip()
     
+    # Validation du titre
+    if not title:
+        flash("Le titre est obligatoire.", "danger")
+        return redirect(url_for("main.update_submission", comm_id=comm.id))
+
     # Validation des résumés
     if not abstract_fr:
         flash("Le résumé français est obligatoire.", "danger")
         return redirect(url_for("main.update_submission", comm_id=comm.id))
     
     # Validation longueur selon le type
-    max_length_fr = 3000 if comm.type == 'article' else 2000
+    max_length_fr = 3000
     if len(abstract_fr) > max_length_fr:
         flash(f"Résumé français trop long ({len(abstract_fr)} caractères, maximum {max_length_fr}).", "danger")
         return redirect(url_for("main.update_submission", comm_id=comm.id))
@@ -840,6 +943,9 @@ def update_abstracts(comm_id):
     
     try:
         # Mettre à jour les données
+        comm.title = title
+        if comm.type == 'article':
+            comm.title_en = title_en
         comm.abstract_fr = abstract_fr
         if comm.type == 'article':
             comm.abstract_en = abstract_en
@@ -894,13 +1000,31 @@ def update_submission(comm_id):
         
         try:
             submission_file = save_file(file, file_type, comm.id)
-            
- # Faire avancer le statut selon le nouveau système
+ 
+  # Faire avancer le statut selon le nouveau système
             new_status = comm.get_next_status_after_upload(file_type)
             status_changed = new_status != comm.status
             
             if status_changed:
                 comm.status = new_status
+            
+            # Si la communication etait en revision demandee et qu'un article est re-depose,
+            # reinitialiser la decision pour qu'elle repasse en attente de decision
+            if comm.final_decision == 'reviser' and file_type == 'article':
+                comm.final_decision = None
+                comm.decision_date = None
+                comm.decision_by_id = None
+                comm.decision_comments = None
+                comm.decision_notification_sent = False
+                comm.decision_notification_sent_at = None
+                comm.decision_notification_error = None
+                comm.status = CommunicationStatus.EN_REVIEW
+ # Faire avancer le statut selon le nouveau système
+ #           new_status = comm.get_next_status_after_upload(file_type)
+ #           status_changed = new_status != comm.status
+            
+ #           if status_changed:
+ #               comm.status = new_status
                 
                 # Mettre à jour les dates selon le type
                 if file_type == 'résumé':
@@ -1282,8 +1406,16 @@ def edit_specialites():
         current_user.set_specialites(valid_codes)
         db.session.commit()
         
+        #flash(f'{len(valid_codes)} spécialités enregistrées', 'success')
+        #return redirect(url_for('main.profile'))
         flash(f'{len(valid_codes)} spécialités enregistrées', 'success')
-        return redirect(url_for('main.profile'))
+        
+        # Si c'est un reviewer, le rediriger vers son dashboard reviewer
+        if current_user.is_reviewer:
+            return redirect(url_for('main.reviewer_dashboard'))
+        else:
+            return redirect(url_for('main.profile'))
+
     
     # Pré-remplir le formulaire avec les spécialités actuelles
     if request.method == 'GET':
@@ -1323,8 +1455,38 @@ def activate_account(token):
             user.activation_token = None
             db.session.commit()
             
-            flash('Compte activé avec succès ! Vous pouvez maintenant vous connecter.', 'success')
-            return redirect(url_for('auth.login'))
+            # NOUVEAU : Connecter automatiquement l'utilisateur
+            from flask_login import login_user
+            login_user(user)
+            
+            # NOUVEAU : Rediriger selon le type d'utilisateur
+            if user.is_reviewer:
+                flash('Compte reviewer activé avec succès ! Veuillez compléter vos spécialités et affiliations.', 'success')
+                # Rediriger vers la page de profil pour compléter les informations
+                return redirect(url_for('main.edit_specialites'))
+            else:
+                flash('Compte activé avec succès !', 'success')
+                # Pour les auteurs, rediriger vers le dashboard normal
+                return redirect(url_for('main.index'))
+    # if request.method == 'POST':
+    #     password = request.form.get('password')
+    #     confirm_password = request.form.get('confirm_password')
+        
+    #     if not password or len(password) < 8:
+    #         flash('Le mot de passe doit contenir au moins 8 caractères.', 'danger')
+    #     elif password != confirm_password:
+    #         flash('Les mots de passe ne correspondent pas.', 'danger')
+    #     else:
+    #         # Activer le compte
+    #         user.email = user.email.lower()
+    #         user.set_password(password)
+    #         user.is_activated = True
+    #         user.is_active = True
+    #         user.activation_token = None
+    #         db.session.commit()
+            
+    #         flash('Compte activé avec succès ! Vous pouvez maintenant vous connecter.', 'success')
+    #         return redirect(url_for('auth.login'))
     
     account_type = 'reviewer' if user.is_reviewer else 'auteur'
     
@@ -1468,7 +1630,7 @@ def submit_review(comm_id):
             return redirect(url_for('main.submit_review', comm_id=comm_id))
         
         try:
-            score = int(score)
+            score = float(score)
             if score < 0 or score > 10:
                 raise ValueError("Score invalide")
         except ValueError:
@@ -1479,13 +1641,26 @@ def submit_review(comm_id):
         review_file = request.files.get('review_file')
         if review_file and review_file.filename:
             try:
-                # Sauvegarder le fichier de review
+            # Sauvegarder le fichier de review
                 review_file_path = save_review_file(review_file, comm_id, current_user.id)
                 review.review_file_path = review_file_path
             except ValueError as e:
+                # Les ValueError contiennent déjà des messages explicites de save_review_file
                 flash(str(e), 'danger')
                 return redirect(url_for('main.submit_review', comm_id=comm_id))
-        
+            except PermissionError as e:
+                current_app.logger.error(f"Erreur de permission lors de la sauvegarde du fichier de review: {e}")
+                flash("Erreur : impossible de sauvegarder le fichier (problème de permissions serveur). Contactez l'administrateur.", 'danger')
+                return redirect(url_for('main.submit_review', comm_id=comm_id))
+            except OSError as e:
+                current_app.logger.error(f"Erreur système lors de la sauvegarde du fichier de review: {e}")
+                flash("Erreur : impossible de sauvegarder le fichier (problème d'espace disque ou d'accès). Contactez l'administrateur.", 'danger')
+                return redirect(url_for('main.submit_review', comm_id=comm_id))
+            except Exception as e:
+                current_app.logger.error(f"Erreur inattendue lors de la sauvegarde du fichier de review: {e}")
+                flash(f"Erreur inattendue lors de la sauvegarde du fichier : {str(e)}. Veuillez réessayer ou contacter l'administrateur.", 'danger')
+                return redirect(url_for('main.submit_review', comm_id=comm_id))
+
         # Mettre à jour la review
         review.score = score
         review.recommendation = ReviewRecommendation(recommendation)
@@ -1509,11 +1684,21 @@ def submit_review(comm_id):
                          assignment=assignment,
                          review=review)
 
+#def save_review_file(file, communication_id, reviewer_id):
+#    """Sauvegarde un fichier de review."""
+#    if not allowed_file(file.filename):
+#        raise ValueError("Type de fichier non autorisé")
+ 
 def save_review_file(file, communication_id, reviewer_id):
     """Sauvegarde un fichier de review."""
-    if not allowed_file(file.filename):
-        raise ValueError("Type de fichier non autorisé")
+    if not file or not file.filename:
+        raise ValueError("Aucun fichier sélectionné")
     
+    if not allowed_file(file.filename):
+        extension = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'aucune'
+        raise ValueError(f"Type de fichier non autorisé (extension : .{extension}). Formats acceptés : PDF, DOC, DOCX uniquement.")
+
+
     from flask import current_app
     static_folder = current_app.static_folder
     

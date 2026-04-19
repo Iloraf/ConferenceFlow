@@ -16,6 +16,8 @@ services:
       - "443:443"
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt
+    depends_on:
+      - app
 
   app:
     container_name: cflow_app
@@ -32,6 +34,9 @@ services:
       - 8080:8080
     restart: unless-stopped
     command: ["sh", "-c", "python init_app.py || true && gunicorn -c gunicorn.conf.py wsgi:app"]
+    volumes:
+      - ./data/uploads:/home/appuser/app/static/uploads
+      - ./content:/home/appuser/app/static/content
 
   db:
     image: postgres:15
@@ -40,7 +45,8 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
       - POSTGRES_DB=${DB_NAME:-myapp_db}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./data/pg_data:/var/lib/postgresql/data
+      - ./data/pg_backup:/tmp/pg_backup
     restart: unless-stopped
 
 volumes:

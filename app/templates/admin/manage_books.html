@@ -50,14 +50,13 @@
                            class="btn btn-outline-success" target="_blank">
                             <i class="fas fa-eye"></i> Prévisualiser
                         </a>
-                        <a href="{{ url_for('books.generate_tome1') }}" 
-                           class="btn btn-success"
-                           {% if not weasyprint_available %}disabled{% endif %}>
-                            <i class="fas fa-download"></i> Générer PDF
-                        </a>
+			<a href="{{ url_for('books.generate_provisional_tome1' ) }}"
+   			   class="btn btn-success">
+    			   <i class="fas fa-download"></i> Générer PDF (provisoire)
+			</a>
 			<a href="{{ url_for('books.generate_book_latex', book_type='tome1') }}" 
        class="btn btn-primary">
-        <i class="fas fa-file-pdf"></i> Générer PDF (LaTeX)
+        <i class="fas fa-file-pdf"></i> Générer PDF (final)
     </a>
                     </div>
                 </div>
@@ -88,20 +87,19 @@
                     </p>
                     
                     <div class="d-grid gap-2">
-                        <a href="{{ url_for('books.preview_book', book_type='tome2') }}" 
+                        <a href="{{ url_for('books.preview_book', book_type='tome2') }}"
                            class="btn btn-outline-success" target="_blank">
                             <i class="fas fa-eye"></i> Prévisualiser
                         </a>
-                        <a href="{{ url_for('books.generate_tome2') }}" 
-                           class="btn btn-success"
-                           {% if not weasyprint_available %}disabled{% endif %}>
-                            <i class="fas fa-download"></i> Générer PDF
+                        <a href="{{ url_for('books.generate_provisional_tome2') }}"
+			<a href="{{ url_for('books.generate_book_latex', book_type='tome2') }}" 
+                           class="btn btn-success">
+                           <i class="fas fa-download"></i> Générer PDF (provisoire)
                         </a>
-<a href="{{ url_for('books.generate_book_latex', book_type='tome2') }}" 
-       class="btn btn-primary">
-        <i class="fas fa-file-pdf"></i> Générer PDF (LaTeX)
-    </a>
-			
+			<a href="{{ url_for('books.generate_book_latex', book_type='tome2') }}" 
+       			   class="btn btn-primary">
+        		   <i class="fas fa-file-pdf"></i> Générer PDF (final)
+    			</a>
                     </div>
                 </div>
             </div>
@@ -139,15 +137,14 @@
                            class="btn btn-outline-primary" target="_blank">
                             <i class="fas fa-eye"></i> Prévisualiser
                         </a>
-                        <a href="{{ url_for('books.generate_resumes_wip') }}" 
-                           class="btn btn-primary"
-                           {% if not weasyprint_available %}disabled{% endif %}>
-                            <i class="fas fa-download"></i> Générer PDF
-                        </a>
-			<a href="{{ url_for('books.generate_book_latex', book_type='resumes-wip') }}" 
-       class="btn btn-primary">
-        <i class="fas fa-file-pdf"></i> Générer PDF (LaTeX)
-    </a>
+			<a href="{{ url_for('books.generate_book_latex', book_type='resumes-wip') }}"
+   				class="btn btn-primary">
+    			    <i class="fas fa-file-pdf"></i> Générer PDF (LaTeX)
+			</a>
+			<a href="{{ url_for('books.download_latex_source', book_type='resumes-wip') }}"
+   				class="btn btn-outline-secondary">
+    			    <i class="fas fa-file-code"></i> Télécharger source .tex
+			</a>
                     </div>
                 </div>
             </div>

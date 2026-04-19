@@ -1,0 +1,89 @@
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h5 class="mb-1">{{ data.communication.title }}</h5>
+                <small class="text-muted">
+                    ID: {{ data.communication.id }} • 
+                    Type: {{ data.communication.type|title }} • 
+                    Auteur principal: {{ data.communication.corresponding_author.full_name if data.communication.corresponding_author else 'N/A' }}
+                </small>
+            </div>
+            <div class="col-md-4 text-end">
+                <span class="badge bg-primary fs-6">Score: {{ data.avg_score }}/10</span>
+                {% if data.biot_fourier_nominations > 0 %}
+                    <span class="badge bg-warning fs-6"><i class="fas fa-trophy"></i> {{ data.biot_fourier_nominations }} nomination(s) Biot-Fourier</span>
+                {% endif %}
+                
+                <!-- Indicateur de décision -->
+                {% if data.communication.final_decision == 'accepter' %}
+                    <span class="badge bg-success"><i class="fas fa-check"></i> Accepté</span>
+                {% elif data.communication.final_decision == 'reviser' %}
+                    <span class="badge bg-info"><i class="fas fa-edit"></i> Révision demandée</span>
+                {% elif data.communication.final_decision == 'rejeter' %}
+                    <span class="badge bg-danger"><i class="fas fa-times"></i> Rejeté</span>
+                {% else %}
+                    <span class="badge bg-warning"><i class="fas fa-clock"></i> En attente</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h6><i class="fas fa-star"></i> Reviews ({{ data.total_reviews }})</h6>
+                <div class="row">
+                    {% for review in data.reviews %}
+                    <div class="col-md-6 mb-2">
+                        <div class="border-start border-3 border-{% if review.recommendation.value == 'accepter' %}success{% elif review.recommendation.value == 'rejeter' %}danger{% else %}warning{% endif %} ps-3">
+                            <strong>Reviewer {{ loop.index }} - {{ review.reviewer.first_name }} {{ review.reviewer.last_name }}</strong><br>
+                            <small>
+                                Score: {{ review.score or 'N/A' }}/10 • 
+                                {% if review.recommendation %}
+                                    <span class="badge bg-{% if review.recommendation.value == 'accepter' %}success{% elif review.recommendation.value == 'rejeter' %}danger{% else %}warning{% endif %} badge-sm">
+                                        {{ review.recommendation.value|title }}
+                                    </span>
+                                {% endif %}
+                                {% if review.recommend_for_biot_fourier %}
+                                    <span class="badge bg-warning badge-sm"><i class="fas fa-trophy"></i></span>
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Résumé des recommandations -->
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <strong>Recommandations:</strong>
+                        {% set recommendation_counts = {} %}
+                        {% for rec in data.recommendations %}
+                            {% if recommendation_counts.update({rec: (recommendation_counts[rec] | default(0)) + 1}) %}{% endif %}
+                        {% endfor %}
+                        {% for rec, count in recommendation_counts.items() %}
+                            <span class="badge bg-{% if rec == 'accepter' %}success{% elif rec == 'rejeter' %}danger{% else %}warning{% endif %} me-1">
+                                {{ count }}x {{ rec|title }}
+                            </span>
+                        {% endfor %}
+                    </small>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <h6><i class="fas fa-tools"></i> Actions</h6>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('admin.review_communication_details', comm_id=data.communication.id) }}" class="btn btn-primary">
+                        <i class="fas fa-eye"></i> Voir détails & Décider
+                    </a>
+                    <button class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-envelope"></i> Contacter les auteurs
+                    </button>
+                    <button class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-file-export"></i> Exporter rapport
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -10,7 +10,7 @@
                 <h4><i class="fas fa-file-text me-2"></i>{{ comm.title }}</h4>
             </div>
             <div class="card-body">
-<!-- Bouton pour modifier la communication (si auteur principal) -->
+                <!-- Bouton pour modifier la communication (si auteur principal) -->
                 {% if comm.authors and comm.authors[0].id == current_user.id %}
                     {% if comm.status not in [CommunicationStatus.EN_REVIEW, CommunicationStatus.ARTICLE_ACCEPTE, CommunicationStatus.ARTICLE_ACCEPTE_SOUS_RESERVE] %}
                         <div class="alert alert-light border mb-3">
@@ -279,16 +279,36 @@
     <div class="card-body">
         <form method="POST" action="{{ url_for('main.update_abstracts', comm_id=comm.id) }}">
             
+            <!-- Titre -->
+            <div class="mb-3">
+                <label for="title" class="form-label fw-bold">Titre de la communication *</label>
+                <input type="text" class="form-control" id="title" name="title" 
+                       value="{{ comm.title }}" required maxlength="220">
+                <div class="form-text">Maximum 220 caractères.</div>
+            </div>
+            
+            {% if comm.type == 'article' %}
+            <!-- Titre anglais pour les articles -->
+            <div class="mb-3">
+                <label for="title_en" class="form-label fw-bold">
+                    Titre en anglais <span class="text-muted">(optionnel)</span>
+                </label>
+                <input type="text" class="form-control" id="title_en" name="title_en" 
+                       value="{{ comm.title_en or '' }}" maxlength="220">
+                <div class="form-text">Optionnel. Maximum 220 caractères.</div>
+            </div>
+            {% endif %}
+
             <!-- Résumé français -->
             <div class="mb-3">
                 <label for="abstract_fr" class="form-label fw-bold">
                     {{ 'Résumé en français' if comm.type == 'article' else 'Work in Progress - Résumé' }} *
                 </label>
                 <textarea class="form-control" id="abstract_fr" name="abstract_fr" rows="6" 
-                          maxlength="{{ 3000 if comm.type == 'article' else 2000 }}" required>{{ comm.abstract_fr or '' }}</textarea>
+                          maxlength="3000" required>{{ comm.abstract_fr or '' }}</textarea>
                 <div class="form-text">
-                    Maximum {{ 3000 if comm.type == 'article' else 2000 }} caractères.
-                    <span id="count-fr" class="float-end text-muted">{{ (comm.abstract_fr|length) if comm.abstract_fr else 0 }}/{{ 3000 if comm.type == 'article' else 2000 }}</span>
+                    Maximum 3000 caractères.
+                    <span id="count-fr" class="float-end text-muted">{{ (comm.abstract_fr|length) if comm.abstract_fr else 0 }}/3000</span>
                 </div>
             </div>
             
@@ -330,7 +350,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const abstractFr = document.getElementById('abstract_fr');
     const countFr = document.getElementById('count-fr');
-    const maxFr = {{ 3000 if comm.type == 'article' else 2000 }};
+    const maxFr = 3000;
     
     abstractFr.addEventListener('input', function() {
         const count = this.value.length;

@@ -395,7 +395,32 @@
                                             </div>
                                             {% endif %}
                                         </td>
-                                        <td>
+
+<td>
+    <div class="btn-group btn-group-sm">
+        <a href="{{ url_for('admin.email_reviewers', comm_id=communication.id) }}" 
+           class="btn btn-outline-primary" title="Email reviewer">
+            <i class="fas fa-envelope"></i>
+        </a>
+        {% if assignment.status == 'assigned' and not assignment.notification_sent_at %}
+        <form method="POST" action="{{ url_for('admin.send_review_notifications', comm_id=communication.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-outline-success" 
+                    title="Envoyer notification">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin.unassign_reviewer', assignment_id=assignment.id) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir désassigner ce reviewer ?');">
+            <button type="submit" class="btn btn-outline-danger" 
+                    title="Désassigner ce reviewer">
+                <i class="fas fa-user-times"></i>
+            </button>
+        </form>
+    </div>
+</td>
+
+
+     <!--                                   <td>
                                             <div class="btn-group btn-group-sm">
                                                 <a href="{{ url_for('admin.email_reviewers', comm_id=communication.id) }}" 
                                                    class="btn btn-outline-primary" title="Email reviewer">
@@ -411,6 +436,11 @@
                                                 {% endif %}
                                             </div>
                                         </td>
+
+-->
+
+
+
                                     </tr>
                                     {% endfor %}
                                 </tbody>

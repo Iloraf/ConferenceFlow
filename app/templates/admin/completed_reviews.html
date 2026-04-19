@@ -16,165 +16,132 @@
         <div class="col-md-3">
             <div class="card text-center">
                 <div class="card-body">
-                    <h4 class="text-primary">{{ communications_data|length }}</h4>
-                    <small class="text-muted">Communications reviewées</small>
+                    <h4 class="text-warning">{{ pending_decision|length }}</h4>
+                    <small class="text-muted">En attente de décision</small>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card text-center">
                 <div class="card-body">
-                    <h4 class="text-success">{{ communications_data|selectattr('biot_fourier_nominations', 'gt', 0)|list|length }}</h4>
-                    <small class="text-muted">Nominations Biot-Fourier</small>
+                    <h4 class="text-success">{{ accepted|length }}</h4>
+                    <small class="text-muted">Acceptés</small>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card text-center">
                 <div class="card-body">
-                    <h4 class="text-warning">{{ communications_data|rejectattr('decision_made')|list|length }}</h4>
-                    <small class="text-muted">Décisions en attente</small>
+                    <h4 class="text-info">{{ revision_requested|length }}</h4>
+                    <small class="text-muted">Révisions demandées</small>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card text-center">
                 <div class="card-body">
-                    <h4 class="text-info">{{ (communications_data|map(attribute='avg_score')|sum / communications_data|length)|round(1) if communications_data else 0 }}</h4>
-                    <small class="text-muted">Score moyen global</small>
+                    <h4 class="text-primary">{{ pending_decision|length + accepted|length + revision_requested|length }}</h4>
+                    <small class="text-muted">Total</small>
                 </div>
             </div>
         </div>
     </div>
 
-    {% if communications_data %}
-        {% for data in communications_data %}
-        <div class="card mb-4">
-            <div class="card-header">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <h5 class="mb-1">{{ data.communication.title }}</h5>
-                        <small class="text-muted">
-                            ID: {{ data.communication.id }} • 
-                            Type: {{ data.communication.type|title }} • 
-                            Auteur principal: {{ data.communication.authors[0].full_name if data.communication.authors else 'N/A' }}
-                        </small>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <span class="badge bg-primary fs-6">Score: {{ data.avg_score }}/10</span>
-                        {% if data.biot_fourier_nominations > 0 %}
-                            <span class="badge bg-warning fs-6"><i class="fas fa-trophy"></i> {{ data.biot_fourier_nominations }} nomination(s) Biot-Fourier</span>
-                        {% endif %}
-                        
-                        <!-- Indicateur de statut de décision -->
-                        {% if data.decision_made %}
-                            <span class="badge bg-success"><i class="fas fa-check"></i> Décision prise</span>
-                        {% else %}
-                            <span class="badge bg-warning"><i class="fas fa-clock"></i> En attente</span>
-                        {% endif %}
-                    </div>
+    <!-- Onglets -->
+    <ul class="nav nav-tabs" id="reviewTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">
+                <i class="fas fa-clock"></i> En attente de décision <span class="badge bg-warning">{{ pending_decision|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="accepted-tab" data-bs-toggle="tab" data-bs-target="#accepted" type="button" role="tab">
+                <i class="fas fa-check-circle"></i> Acceptés <span class="badge bg-success">{{ accepted|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="revision-tab" data-bs-toggle="tab" data-bs-target="#revision" type="button" role="tab">
+                <i class="fas fa-edit"></i> Révisions demandées <span class="badge bg-info">{{ revision_requested|length }}</span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-3" id="reviewTabsContent">
+        <!-- Onglet 1: En attente de décision -->
+        <div class="tab-pane fade show active" id="pending" role="tabpanel">
+            {% if pending_decision %}
+                {% for data in pending_decision %}
+                    {% include 'admin/_communication_review_card.html' %}
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-check-double fa-3x text-muted"></i>
+                    <h4 class="text-muted mt-3">Aucune communication en attente</h4>
+                    <p class="text-muted">Toutes les décisions ont été prises.</p>
                 </div>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-8">
-                        <h6><i class="fas fa-star"></i> Reviews ({{ data.total_reviews }})</h6>
-                        <div class="row">
-                            {% for review in data.reviews %}
-                            <div class="col-md-6 mb-2">
-                                <div class="border-start border-3 border-{% if review.recommendation.value == 'accepter' %}success{% elif review.recommendation.value == 'rejeter' %}danger{% else %}warning{% endif %} ps-3">
-                                    <strong>Reviewer {{ loop.index }}</strong><br>
-                                    <small>
-                                        Score: {{ review.score or 'N/A' }}/10 • 
-                                        {% if review.recommendation %}
-                                            <span class="badge bg-{% if review.recommendation.value == 'accepter' %}success{% elif review.recommendation.value == 'rejeter' %}danger{% else %}warning{% endif %} badge-sm">
-                                                {{ review.recommendation.value|title }}
-                                            </span>
-                                        {% endif %}
-                                        {% if review.recommend_for_biot_fourier %}
-                                            <span class="badge bg-warning badge-sm"><i class="fas fa-trophy"></i></span>
-                                        {% endif %}
-                                    </small>
-                                </div>
-                            </div>
-                            {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- Onglet 2: Acceptés -->
+        <div class="tab-pane fade" id="accepted" role="tabpanel">
+            {% if accepted %}
+                {% for data in accepted %}
+                    {% include 'admin/_communication_review_card.html' %}
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted"></i>
+                    <h4 class="text-muted mt-3">Aucune communication acceptée</h4>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Onglet 3: Révisions demandées -->
+        <div class="tab-pane fade" id="revision" role="tabpanel">
+            {% if revision_requested %}
+                {% for data in revision_requested %}
+                    {% include 'admin/_communication_review_card.html' %}
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted"></i>
+                    <h4 class="text-muted mt-3">Aucune révision demandée</h4>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Actions en lot -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6><i class="fas fa-layer-group"></i> Actions en lot</h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-primary w-100 btn-sm">
+                                <i class="fas fa-file-export"></i> Exporter toutes les reviews
+                            </button>
                         </div>
-                        
-                        <!-- Résumé des recommandations -->
-                        <div class="mt-2">
-                            <small class="text-muted">
-                                <strong>Recommandations:</strong>
-                                {% set recommendation_counts = {} %}
-                                {% for rec in data.recommendations %}
-                                    {% if recommendation_counts.update({rec: (recommendation_counts[rec] | default(0)) + 1}) %}{% endif %}
-                                {% endfor %}
-                                {% for rec, count in recommendation_counts.items() %}
-                                    <span class="badge bg-{% if rec == 'accepter' %}success{% elif rec == 'rejeter' %}danger{% else %}warning{% endif %} me-1">
-                                        {{ count }}x {{ rec|title }}
-                                    </span>
-                                {% endfor %}
-                            </small>
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-info w-100 btn-sm">
+                                <i class="fas fa-chart-bar"></i> Rapport statistiques
+                            </button>
                         </div>
-                    </div>
-                    
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-tools"></i> Actions</h6>
-                        <div class="d-grid gap-2">
-                            <a href="{{ url_for('admin.review_communication_details', comm_id=data.communication.id) }}" class="btn btn-primary">
-                                <i class="fas fa-eye"></i> Voir détails & Décider
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-secondary w-100 btn-sm">
+                                <i class="fas fa-envelope-open-text"></i> Notifications auteurs
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('admin.biot_fourier_candidates') }}" class="btn btn-outline-warning w-100 btn-sm">
+                                <i class="fas fa-trophy"></i> Candidats Biot-Fourier
                             </a>
-                            <button class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-envelope"></i> Contacter les auteurs
-                            </button>
-                            <button class="btn btn-outline-info btn-sm">
-                                <i class="fas fa-file-export"></i> Exporter rapport
-                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        {% endfor %}
-        
-        <!-- Actions en lot -->
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card bg-light">
-                    <div class="card-body">
-                        <h6><i class="fas fa-layer-group"></i> Actions en lot</h6>
-                        <div class="row">
-                            <div class="col-md-3">
-                                <button class="btn btn-outline-primary w-100 btn-sm">
-                                    <i class="fas fa-file-export"></i> Exporter toutes les reviews
-                                </button>
-                            </div>
-                            <div class="col-md-3">
-                                <button class="btn btn-outline-info w-100 btn-sm">
-                                    <i class="fas fa-chart-bar"></i> Rapport statistiques
-                                </button>
-                            </div>
-                            <div class="col-md-3">
-                                <button class="btn btn-outline-secondary w-100 btn-sm">
-                                    <i class="fas fa-envelope-open-text"></i> Notifications auteurs
-                                </button>
-                            </div>
-                            <div class="col-md-3">
-			      <a href="{{ url_for('admin.biot_fourier_candidates') }}" class="btn btn-outline-warning w-100 btn-sm">
-				<i class="fas fa-trophy"></i> Candidats Biot-Fourier
-			      </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    {% else %}
-        <div class="text-center py-5">
-            <i class="fas fa-inbox fa-3x text-muted"></i>
-            <h4 class="text-muted mt-3">Aucune review terminée</h4>
-            <p class="text-muted">Les communications avec reviews terminées apparaîtront ici.</p>
-        </div>
-    {% endif %}
+    </div>
 </div>
 {% endblock %}
-

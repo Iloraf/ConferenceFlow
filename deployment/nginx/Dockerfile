@@ -1,7 +1,9 @@
 FROM nginx:alpine-slim
 
-RUN echo 'https://dl-cdn.alpinelinux.org/alpine/edge/community' >> /etc/apk/repositories && \
-    apk update && apk add --no-cache certbot busybox-suid
+RUN apk update && apk add --no-cache curl socat openssl
+
+# Installer acme.sh SANS email (on le passera en paramètre plus tard)
+RUN curl https://get.acme.sh | sh
 
 # replace existing files by our own configs
 RUN rm /etc/nginx/nginx.conf && rm /etc/nginx/conf.d/default.conf
@@ -9,16 +11,40 @@ COPY nginx.conf /etc/nginx/
 COPY ./conf.d/app.conf /etc/nginx/conf.d/
 
 ARG APP
-# we're using `envsubst` to replace placeholders in the Nginx config.
-# to avoid conflicts, all actual dollar signs ($) in the config are replaced with ${DOLLAR}.
-# environment variables like DOMAIN and EMAIL should already be set via the certbot.env file.
 ENV APP="${APP}" DOLLAR='$'
 
-# location certbot will place the challenges for domain validation on renewal
+# Créer les répertoires nécessaires
 RUN mkdir -p /var/www/certbot/.well-known/acme-challenge
+RUN mkdir -p /etc/letsencrypt/live
 
 COPY ./bin/entrypoint.sh /entrypoint.sh
-COPY ./bin/renew /etc/periodic/weekly/renew
-RUN chmod +x /entrypoint.sh /etc/periodic/weekly/renew
+COPY ./bin/renew /etc/periodic/monthly/renew
+RUN chmod +x /entrypoint.sh /etc/periodic/monthly/renew
 
 ENTRYPOINT ["../entrypoint.sh"]
+
+#FROM nginx:alpine-slim
+
+#RUN apk update && apk add --no-cache curl socat openssl
+
+# Installer acme.sh
+#RUN curl https://get.acme.sh | sh -s email=noreply@example.com
+
+# replace existing files by our own configs
+#RUN rm /etc/nginx/nginx.conf && rm /etc/nginx/conf.d/default.conf
+#COPY nginx.conf /etc/nginx/
+#COPY ./conf.d/app.conf /etc/nginx/conf.d/
+
+#ARG APP
+#ENV APP="${APP}" DOLLAR='$'
+
+# Créer les répertoires nécessaires
+#RUN mkdir -p /var/www/certbot/.well-known/acme-challenge
+#RUN mkdir -p /etc/letsencrypt/live
+
+#COPY ./bin/entrypoint.sh /entrypoint.sh
+#COPY ./bin/renew /etc/periodic/weekly/renew
+#RUN chmod +x /entrypoint.sh /etc/periodic/weekly/renew
+
+#ENTRYPOINT ["../entrypoint.sh"]
+#ENTRYPOINT ["/bin/sh", "-c", "/entrypoint.sh && tail -f /dev/null"]

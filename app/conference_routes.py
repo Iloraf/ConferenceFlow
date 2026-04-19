@@ -840,14 +840,14 @@ def inscription_conference():
     if not fees_config:
         fees = {
             'early': {
-                'date': '15 avril 2026',
+                'date': '19 avril 2026',
                 'student': 300,
                 'member_indiv': 400,
                 'member_collec': 460,
                 'not_member': 510,
             },
             'regular': {
-                'date': 'Après le 15 avril 2026',
+                'date': 'Après le 19 avril 2026',
                 'student': 460,
                 'member_indiv': 550,
                 'member_collec': 610,
@@ -868,19 +868,19 @@ def inscription_conference():
         from datetime import datetime
         
         # Date early bird
-        early_deadline = fees_config.get('early_bird', {}).get('deadline', '2026-04-15')
+        early_deadline = fees_config.get('early_bird', {}).get('deadline', '2026-04-19')
         try:
             date_obj = datetime.strptime(early_deadline, '%Y-%m-%d')
             formatted_early_date = date_obj.strftime('%d %B %Y').replace('April', 'avril').replace('March', 'mars').replace('May', 'mai').replace('June', 'juin')
         except:
-            formatted_early_date = '15 avril 2026'
+            formatted_early_date = '19 avril 2026'
         
         # Date regular (même date de référence)
         try:
             date_obj = datetime.strptime(early_deadline, '%Y-%m-%d')
             formatted_regular_date = date_obj.strftime('%d %B %Y').replace('April', 'avril').replace('March', 'mars').replace('May', 'mai').replace('June', 'juin')
         except:
-            formatted_regular_date = '15 avril 2026'
+            formatted_regular_date = '19 avril 2026'
         
         # Utiliser la configuration du fichier YAML
         fees = {
@@ -1059,7 +1059,7 @@ def communication_info():
         ('article_submission', 'Date limite articles complets'),
         ('article_notification', 'Retour des expertises'),
         ('final_version', 'Dépôt des versions définitives'),
-        ('wip_submission', 'Date limite posters/WIP')
+        ('wip_submission', 'Date limite WIP')
     ]
     
     for deadline_key, event_name in deadline_mapping:
@@ -1084,7 +1084,7 @@ def communication_info():
             {'date': '22/01/2026', 'event': 'Date limite articles complets'},
             {'date': '25/03/2026', 'event': 'Retour des expertises'},
             {'date': '10/04/2026', 'event': 'Dépôt des versions définitives'},
-            {'date': '20/04/2026', 'event': 'Date limite posters/WIP'},
+            {'date': '20/04/2026', 'event': 'Date limite WIP'},
             {'date': '2-5 juin 2026', 'event': 'Conférence'}
         ]
     
@@ -1099,7 +1099,7 @@ def communication_info():
             },
             {
                 'name': 'Work in Progress',
-                'pages': '4 pages max', 
+                'pages': '1 page max', 
                 'deadline': _format_date(deadlines.get('wip_submission', '2026-04-20')),
                 'description': 'Travaux en cours avec résultats préliminaires'
             },
