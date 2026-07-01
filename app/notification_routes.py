@@ -46,8 +46,8 @@ def save_push_subscription():
     from flask_login import current_user
     print(f"Utilisateur authentifié: {current_user.is_authenticated if hasattr(current_user, 'is_authenticated') else 'Aucun current_user'}")
     
-    if not current_user.is_authenticated:
-        return jsonify({'error': 'Non authentifié'}), 401
+#    if not current_user.is_authenticated:
+#        return jsonify({'error': 'Non authentifié'}), 401
     try:
         data = request.get_json()
         
@@ -74,7 +74,8 @@ def save_push_subscription():
         
         if existing_subscription:
             # Mettre à jour l'abonnement existant
-            existing_subscription.user_id = current_user.id
+            #existing_subscription.user_id = current_user.id
+            existing_subscription.user_id = current_user.id if current_user.is_authenticated else None 
             existing_subscription.p256dh_key = keys['p256dh']
             existing_subscription.auth_key = keys['auth']
             existing_subscription.user_agent = user_agent
@@ -84,7 +85,8 @@ def save_push_subscription():
         else:
             # Créer un nouvel abonnement
             new_subscription = PushSubscription(
-                user_id=current_user.id,
+                #user_id=current_user.id,
+                user_id=current_user.id if current_user.is_authenticated else None,
                 endpoint=subscription_data['endpoint'],
                 p256dh_key=keys['p256dh'],
                 auth_key=keys['auth'],

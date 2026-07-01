@@ -101,11 +101,24 @@ class ZonesManager:
                 'display_name': 'Création de compte et inscription',
                 'description': 'Permet aux utilisateurs de créer un compte et de s\'inscrire à la conférence'
             },
-            'submission': {
+            'submission_article': {
                 'is_open': False,
-                'message': 'Le dépôt de communications sera bientôt ouvert.',
-                'display_name': 'Dépôt de communications',
-                'description': 'Permet aux utilisateurs de soumettre leurs communications'
+                'message': 'Le dépôt d\'articles sera bientôt ouvert.',
+                'display_name': 'Dépôt de communications (Articles)',
+                'description': 'Permet aux utilisateurs de soumettre des articles complets'
+            },
+            'submission_wip': {
+                'is_open': False,
+                'message': 'Le dépôt de Work in Progress sera bientôt ouvert.',
+                'display_name': 'Dépôt de communications (Work in Progress)',
+                'description': 'Permet aux utilisateurs de soumettre des Work in Progress'
+            }
+            'maintenance': {
+            'is_open': False,
+            'message': 'Site en maintenance',
+            'message_detail': 'Le site sera de nouveau accessible prochainement.',
+            'display_name': 'Mode maintenance',
+            'description': 'Active le mode maintenance et bloque l\'accès au site (sauf admins)'
             }
         }
 

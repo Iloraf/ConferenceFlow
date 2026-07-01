@@ -170,7 +170,13 @@ class ConferenceFlowPWA {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
                     || window.matchMedia('(max-width: 768px)').matches
                     || ('ontouchstart' in window);
-    
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches 
+                           || window.navigator.standalone;
+
+    if (isIOS && !isInStandaloneMode) {
+      this.showIOSInstallInstructions();
+    }
     console.log('📱 Détection appareil:', isMobile ? 'Mobile' : 'Desktop');
     
     window.addEventListener('beforeinstallprompt', (event) => {
@@ -200,7 +206,43 @@ class ConferenceFlowPWA {
     });
   }
 
+  showIOSInstallInstructions() {
+  const existing = document.getElementById('ios-install-prompt');
+  if (existing) return;
 
+  const div = document.createElement('div');
+  div.id = 'ios-install-prompt';
+  div.style.cssText = `
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    background: white;
+    border-top: 1px solid #dee2e6;
+    padding: 1rem;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+    text-align: center;
+    touch-action: manipulation;
+  `;
+  div.innerHTML = `
+    <p style="margin-bottom:0.5rem;font-size:14px;">
+      Pour installer l'application, appuyez sur
+      <strong>Partager</strong> puis <strong>Sur l'écran d'accueil</strong>.
+    </p>
+    <button onclick="document.getElementById('ios-install-prompt').remove()"
+            style="border:none;background:none;color:#007bff;font-size:14px;">
+      Fermer
+    </button>
+  `;
+if (document.body) {
+  document.body.appendChild(div);
+} else {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.body.appendChild(div);
+  });
+}
+}
 
   async installApp() {
     if (!this.installPrompt) {
@@ -648,7 +690,7 @@ console.log('🔍 DEBUG: Après savePushSubscription:', saveSuccess);
       installBtn.className = 'btn btn-primary pwa-install-btn';
       installBtn.style.cssText = `
         position: fixed;
-        bottom: 20px;
+        bottom: calc(20px + env(safe-area-inset-bottom, 0px));
         right: 20px;
         z-index: 1050;
         display: none;
@@ -657,6 +699,9 @@ console.log('🔍 DEBUG: Après savePushSubscription:', saveSuccess);
         box-shadow: 0 4px 12px rgba(0,123,255,0.4);
         font-size: 14px;
         font-weight: 500;
+        touch-action: manipulation;
+        transform: none !important;
+        transition: none !important;
       `;
       installBtn.innerHTML = '<i class="fas fa-download"></i> Installer Conference Flow';
       document.body.appendChild(installBtn);

@@ -1,3 +1,16 @@
 #!/bin/sh
 
-certbot renew --webroot --webroot-path /var/www/certbot/ --post-hook "/usr/sbin/nginx -s reload"
+# Chemins acme.sh
+ACME_SH="/root/.acme.sh/acme.sh"
+
+# Arrêter nginx pour libérer le port 443
+/usr/sbin/nginx -s stop
+
+# Attendre que nginx s'arrête complètement
+sleep 2
+
+# Renouveler les certificats avec TLS-ALPN-01 (port 443)
+${ACME_SH} --renew-all --alpn --standalone --server letsencrypt
+
+# Redémarrer nginx
+/usr/sbin/nginx

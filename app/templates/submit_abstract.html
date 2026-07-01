@@ -122,7 +122,17 @@
                         <input type="text" class="form-control" id="title" name="title" required maxlength="500">
                         <div class="form-text">Maximum 500 caractères</div>
                     </div>
-                    
+                    {% if type == 'article' %}
+                    <!-- Titre anglais pour les articles seulement -->
+                    <div class="mb-4">
+                        <label for="title_en" class="form-label fw-bold">
+                            Titre en anglais <span class="text-muted">(optionnel)</span>
+                        </label>
+                        <input type="text" class="form-control" id="title_en" name="title_en" maxlength="220">
+                        <div class="form-text">Optionnel. Maximum 220 caractères.</div>
+                    </div>
+                    {% endif %}                    
+
                     <!-- Thématiques -->
                     <div class="mb-4">
                         <label class="form-label fw-bold">Thématique *</label>
@@ -296,13 +306,13 @@
                             name="abstract_fr" 
                             required 
                             rows="8" 
-                            maxlength="{{ 3000 if type == 'article' else 2000 }}"
+                            maxlength="3000"
                             placeholder="{{ 'Objectifs, méthodes, résultats principaux...' if type == 'article' else 'Contexte, objectifs, premiers résultats ou hypothèses...' }}"
                         ></textarea>
                         <div class="form-text">
                             <strong>Obligatoire.</strong> 
-                            Maximum {{ 3000 if type == 'article' else 2000 }} caractères.
-                            <span id="count-fr" class="float-end text-muted">0/{{ 3000 if type == 'article' else 2000 }}</span>
+                            Maximum 3000 caractères.
+                            <span id="count-fr" class="float-end text-muted">0/3000</span>
                         </div>
                     </div>
 
@@ -458,7 +468,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const abstractFr = document.getElementById('abstract_fr');
     const countFr = document.getElementById('count-fr');
-    const maxFr = {{ 3000 if type == 'article' else 2000 }};
+    const maxFr = {{ 3000 if type == 'article' else 3000 }};
     
     abstractFr.addEventListener('input', function() {
         const count = this.value.length;

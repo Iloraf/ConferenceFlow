@@ -28,7 +28,6 @@
 }
 
 .pwa-install-btn:hover {
-  transform: translateX(-50%) translateY(-2px);
   box-shadow: var(--pwa-shadow-lg);
 }
 
@@ -300,10 +299,10 @@
 
 @media (max-width: 768px) {
   .pwa-install-btn {
-    bottom: 1rem;
-    left: 1rem;
-    right: 1rem;
-    transform: none;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    right: 20px;
+    left: auto;
+    transform: none !important;
     width: auto;
   }
   
@@ -451,4 +450,25 @@
   max-height: 80%;
   overflow: auto;
   display: none;
+}
+
+#install-btn:active,
+#install-btn:focus {
+  transform: none !important;
+  filter: none !important;
+  box-shadow: 0 4px 12px rgba(0,123,255,0.4) !important;
+  left: auto !important;
+  right: 20px !important;
+}
+
+#install-btn {
+  bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+@supports (height: 100dvh) {
+  #install-btn {
+    position: fixed;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
 }

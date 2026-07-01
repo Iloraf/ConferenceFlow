@@ -182,8 +182,10 @@ def is_session_past(date_str, time_str):
             session_date = datetime(year, month, day, end_hour, end_min)
             
             # Comparer avec maintenant
-            now = datetime.now()
-            
+            # now = datetime.now()
+            from zoneinfo import ZoneInfo
+            now = datetime.now(ZoneInfo("Europe/Paris")).replace(tzinfo=None)
+
             return now > session_date
         
         # Si pas de date parsée, fallback sur test simple
@@ -487,14 +489,14 @@ def programme_pdf():
             <div class="session-speaker">{{ session.speaker }}</div>
             {% endif %}
             
-            {% if session.location %}
-            <div class="session-location">📍 {{ session.location }}</div>
-            {% endif %}
-            
             {% if session.description %}
             <div class="session-description">{{ session.description }}</div>
             {% endif %}
-            
+
+            {% if session.location %}
+            <div class="session-location">📍 {{ session.location }}</div>
+            {% endif %}
+
             {% if session.sessions %}
             <div class="parallel-sessions">
                 <div class="parallel-title">Sessions parallèles :</div>
@@ -840,14 +842,14 @@ def inscription_conference():
     if not fees_config:
         fees = {
             'early': {
-                'date': '15 avril 2026',
+                'date': '19 avril 2026',
                 'student': 300,
                 'member_indiv': 400,
                 'member_collec': 460,
                 'not_member': 510,
             },
             'regular': {
-                'date': 'Après le 15 avril 2026',
+                'date': 'Après le 19 avril 2026',
                 'student': 460,
                 'member_indiv': 550,
                 'member_collec': 610,
@@ -868,19 +870,19 @@ def inscription_conference():
         from datetime import datetime
         
         # Date early bird
-        early_deadline = fees_config.get('early_bird', {}).get('deadline', '2026-04-15')
+        early_deadline = fees_config.get('early_bird', {}).get('deadline', '2026-04-19')
         try:
             date_obj = datetime.strptime(early_deadline, '%Y-%m-%d')
             formatted_early_date = date_obj.strftime('%d %B %Y').replace('April', 'avril').replace('March', 'mars').replace('May', 'mai').replace('June', 'juin')
         except:
-            formatted_early_date = '15 avril 2026'
+            formatted_early_date = '19 avril 2026'
         
         # Date regular (même date de référence)
         try:
             date_obj = datetime.strptime(early_deadline, '%Y-%m-%d')
             formatted_regular_date = date_obj.strftime('%d %B %Y').replace('April', 'avril').replace('March', 'mars').replace('May', 'mai').replace('June', 'juin')
         except:
-            formatted_regular_date = '15 avril 2026'
+            formatted_regular_date = '19 avril 2026'
         
         # Utiliser la configuration du fichier YAML
         fees = {
@@ -1059,7 +1061,7 @@ def communication_info():
         ('article_submission', 'Date limite articles complets'),
         ('article_notification', 'Retour des expertises'),
         ('final_version', 'Dépôt des versions définitives'),
-        ('wip_submission', 'Date limite posters/WIP')
+        ('wip_submission', 'Date limite WIP')
     ]
     
     for deadline_key, event_name in deadline_mapping:
@@ -1084,7 +1086,7 @@ def communication_info():
             {'date': '22/01/2026', 'event': 'Date limite articles complets'},
             {'date': '25/03/2026', 'event': 'Retour des expertises'},
             {'date': '10/04/2026', 'event': 'Dépôt des versions définitives'},
-            {'date': '20/04/2026', 'event': 'Date limite posters/WIP'},
+            {'date': '20/04/2026', 'event': 'Date limite WIP'},
             {'date': '2-5 juin 2026', 'event': 'Conférence'}
         ]
     
@@ -1099,7 +1101,7 @@ def communication_info():
             },
             {
                 'name': 'Work in Progress',
-                'pages': '4 pages max', 
+                'pages': '1 page max', 
                 'deadline': _format_date(deadlines.get('wip_submission', '2026-04-20')),
                 'description': 'Travaux en cours avec résultats préliminaires'
             },
@@ -1349,3 +1351,54 @@ Répondre à : {email}
                 }
     
     return render_template("conference/contact.html", contacts=contacts)
+
+
+@conference.route("/mediatheque")
+def mediatheque():
+    """Affiche la médiathèque : documents du congrès listés dans media.csv."""
+    # Vérifier si la zone est ouverte (sauf pour les admins)
+    if not (current_user.is_authenticated and current_user.is_admin):
+        try:
+            zones_file = Path(current_app.root_path) / 'static' / 'content' / 'zones.yml'
+            if zones_file.exists():
+                with open(zones_file, 'r', encoding='utf-8') as f:
+                    zones = yaml.safe_load(f)['zones']
+                    if not zones.get('mediatheque', {}).get('is_open', False):
+                        return render_template('simple_closed.html',
+                                             zone_name='mediatheque',
+                                             message=zones.get('mediatheque', {}).get('message', "La médiathèque n'est pas encore disponible."),
+                                             display_name=zones.get('mediatheque', {}).get('display_name', 'Médiathèque'))
+        except Exception as e:
+            current_app.logger.error(f"Erreur lecture zones.yml: {e}")
+            return render_template('simple_closed.html',
+                                 zone_name='mediatheque',
+                                 message="La médiathèque n'est pas encore disponible.",
+                                 display_name='Médiathèque')
+
+    # Charger la liste des documents depuis media.csv
+    media_dir = Path(current_app.root_path) / 'static' / 'content' / 'media'
+    csv_path = media_dir / 'media.csv'
+    documents = []
+
+    if csv_path.exists():
+        try:
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                for row in reader:
+                    fichier = (row.get('fichier') or '').strip()
+                    description = (row.get('description') or '').strip()
+                    if not fichier:
+                        continue
+                    # N'afficher que les fichiers réellement présents
+                    if (media_dir / fichier).exists():
+                        documents.append({
+                            'fichier': fichier,
+                            'description': description,
+                            'url': url_for('static', filename=f'content/media/{fichier}')
+                        })
+                    else:
+                        current_app.logger.warning(f"Médiathèque : fichier absent {fichier}")
+        except Exception as e:
+            current_app.logger.error(f"Erreur lecture media.csv: {e}")
+
+    return render_template('conference/mediatheque.html', documents=documents)

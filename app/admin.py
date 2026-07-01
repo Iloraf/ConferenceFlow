@@ -29,6 +29,7 @@ from datetime import datetime, timedelta
 import yaml
 from pathlib import Path
 import shutil
+import time
 
 admin = Blueprint("admin", __name__)
 
@@ -214,7 +215,14 @@ def admin_edit_communication(comm_id):
         try:
             # Mettre à jour le titre
             comm.title = form.title.data.strip()
-            
+            # Mettre à jour les résumés si fournis
+            abstract_fr = request.form.get('abstract_fr', '').strip()
+            abstract_en = request.form.get('abstract_en', '').strip()
+            if abstract_fr:
+                comm.abstract_fr = abstract_fr
+            if abstract_en:
+                comm.abstract_en = abstract_en
+
             # Traiter les nouveaux co-auteurs (même code que ci-dessus)
             new_coauthors = request.form.getlist("new_coauthors")
             
@@ -473,6 +481,39 @@ def convert_wip_to_resume(comm_id):
         flash('Erreur lors de la conversion.', 'danger')
     
     return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+
+@admin.route('/communication/<int:comm_id>/transform-to-wip', methods=['POST'])
+@login_required
+def transform_communication_to_wip(comm_id):
+    """Envoie un email proposant la transformation d'un article en WIP."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    communication = Communication.query.get_or_404(comm_id)
+    
+    # Vérifier que c'est bien un article
+    if communication.type != 'article':
+        flash('Seuls les articles peuvent être transformés en WIP.', 'warning')
+        return redirect(request.referrer or url_for('admin.communications_dashboard'))
+    
+    try:
+        # Envoyer l'email de proposition
+        from app.emails import send_decision_email
+        from datetime import datetime
+        
+        # Préparer les informations additionnelles
+        additional_info = f"Date de décision : {datetime.now().strftime('%d/%m/%Y')}"
+        
+        send_decision_email(communication, 'transform_wip', additional_info)
+        
+        flash(f'Email de proposition de transformation en WIP envoyé à {communication.corresponding_author.email}', 'success')
+        
+    except Exception as e:
+        flash(f'Erreur lors de l\'envoi de l\'email : {str(e)}', 'danger')
+        logger.error(f"Erreur envoi email transform_wip pour communication {comm_id}: {e}")
+    
+    return redirect(request.referrer or url_for('admin.communications_dashboard'))
+
 
 
 @admin.route('/communications/<int:comm_id>/toggle-prix', methods=['POST'])
@@ -1451,12 +1492,16 @@ def import_reviewers():
         if not all(col in csv_reader.fieldnames for col in required_columns):
             flash(f"Colonnes requises manquantes. Format attendu : email;nom;prenom;thematiques;affiliation", "error")
             return redirect(url_for("admin.import_reviewers"))
-        
+
+
         results = {
             'created': 0,
             'updated': 0,
+            'promoted': 0,  # NOUVEAU
             'specialites_assigned': 0,
-            'errors': []
+            'errors': [],
+            'activation_emails': [],  # NOUVEAU : liste des users nécessitant email activation
+            'promotion_emails': []    # NOUVEAU : liste des users nécessitant email promotion
         }
         
         for line_num, row in enumerate(csv_reader, 2):  # Ligne 2 car en-tête = ligne 1
@@ -1470,28 +1515,110 @@ def import_reviewers():
                 user_result = process_complete_reviewer_import(row, line_num)
                 
                 # Agréger les résultats
-                for key in ['created', 'updated', 'specialites_assigned']:
+                for key in ['created', 'updated', 'promoted', 'specialites_assigned']:
                     results[key] += user_result.get(key, 0)
                 
                 if user_result.get('errors'):
                     results['errors'].extend(user_result['errors'])
+                
+                # Collecter les utilisateurs pour l'envoi d'emails
+                if user_result.get('user'):
+                    if user_result.get('needs_activation_email'):
+                        results['activation_emails'].append(user_result['user'])
+                    elif user_result.get('needs_promotion_email'):
+                        results['promotion_emails'].append(user_result['user'])
                     
             except Exception as e:
                 results['errors'].append(f"Ligne {line_num}: Erreur de traitement - {str(e)}")
                 continue
         
-        # Sauvegarder en base
+        # Sauvegarder en base AVANT l'envoi des emails
         db.session.commit()
+        
+        # NOUVEAU : Envoyer les emails appropriés après le commit
+        emails_sent = 0
+        email_errors = []
+        
+        # Envoyer les emails d'activation (cas 1 et 3)
+        for user in results['activation_emails']:
+            try:
+                # Générer le token d'activation
+                token = user.generate_activation_token()
+                db.session.commit()  # Sauvegarder le token
+                
+                # Envoyer l'email d'activation avec le template reviewer_activation
+                from app.emails import send_any_email_with_themes
+                
+                base_context = {
+                    'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+                    'USER_LAST_NAME': user.last_name or '',
+                    'USER_EMAIL': user.email,
+                    'ACTIVATION_TOKEN': token,
+                    'call_to_action_url': url_for('main.activate_account', token=token, _external=True)
+                }
+                
+                send_any_email_with_themes(
+                    template_name='reviewer_activation',
+                    recipient_email=user.email,
+                    base_context=base_context,
+                    user=user,
+                    color_scheme='blue'
+                )
+                
+                emails_sent += 1
+                current_app.logger.info(f"Email d'activation envoyé à {user.email}")
+                
+            except Exception as e:
+                email_errors.append(f"Erreur envoi email à {user.email}: {str(e)}")
+                current_app.logger.error(f"Erreur envoi email activation à {user.email}: {e}")
+        
+        # Envoyer les emails de promotion (cas 2)
+        for user in results['promotion_emails']:
+            try:
+                # Envoyer l'email de promotion avec le template reviewer_promotion
+                from app.emails import send_any_email_with_themes
+                
+                base_context = {
+                    'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+                    'USER_LAST_NAME': user.last_name or '',
+                    'USER_EMAIL': user.email,
+                    'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
+                }
+                
+                send_any_email_with_themes(
+                    template_name='reviewer_promotion',
+                    recipient_email=user.email,
+                    base_context=base_context,
+                    user=user,
+                    color_scheme='blue'
+                )
+                
+                emails_sent += 1
+                current_app.logger.info(f"Email de promotion reviewer envoyé à {user.email}")
+                
+            except Exception as e:
+                email_errors.append(f"Erreur envoi email à {user.email}: {str(e)}")
+                current_app.logger.error(f"Erreur envoi email promotion à {user.email}: {e}")
         
         # Affichage des résultats
         if results['created'] > 0:
             flash(f"{results['created']} nouveaux reviewers créés.", "success")
+        
+        if results['promoted'] > 0:
+            flash(f"{results['promoted']} utilisateurs promus reviewers.", "success")
         
         if results['updated'] > 0:
             flash(f"{results['updated']} reviewers mis à jour.", "info")
         
         if results['specialites_assigned'] > 0:
             flash(f"{results['specialites_assigned']} spécialités assignées.", "success")
+        
+        if emails_sent > 0:
+            flash(f"{emails_sent} email(s) de notification envoyé(s).", "success")
+        
+        if email_errors:
+            for error in email_errors[:3]:
+                flash(error, "warning")
         
         if results['errors']:
             for error in results['errors'][:5]:  # Limite à 5 erreurs
@@ -1501,6 +1628,57 @@ def import_reviewers():
                 flash(f"... et {len(results['errors']) - 5} autres erreurs.", "warning")
         
         current_app.logger.info(f"Import reviewers terminé: {results}")
+
+        
+        # results = {
+        #     'created': 0,
+        #     'updated': 0,
+        #     'specialites_assigned': 0,
+        #     'errors': []
+        # }
+        
+        # for line_num, row in enumerate(csv_reader, 2):  # Ligne 2 car en-tête = ligne 1
+        #     try:
+        #         email = row.get('email', '').strip()
+        #         if not email:
+        #             results['errors'].append(f"Ligne {line_num}: Email manquant")
+        #             continue
+                
+        #         # Traiter l'utilisateur complet
+        #         user_result = process_complete_reviewer_import(row, line_num)
+                
+        #         # Agréger les résultats
+        #         for key in ['created', 'updated', 'specialites_assigned']:
+        #             results[key] += user_result.get(key, 0)
+                
+        #         if user_result.get('errors'):
+        #             results['errors'].extend(user_result['errors'])
+                    
+        #     except Exception as e:
+        #         results['errors'].append(f"Ligne {line_num}: Erreur de traitement - {str(e)}")
+        #         continue
+        
+        # # Sauvegarder en base
+        # db.session.commit()
+        
+        # # Affichage des résultats
+        # if results['created'] > 0:
+        #     flash(f"{results['created']} nouveaux reviewers créés.", "success")
+        
+        # if results['updated'] > 0:
+        #     flash(f"{results['updated']} reviewers mis à jour.", "info")
+        
+        # if results['specialites_assigned'] > 0:
+        #     flash(f"{results['specialites_assigned']} spécialités assignées.", "success")
+        
+        # if results['errors']:
+        #     for error in results['errors'][:5]:  # Limite à 5 erreurs
+        #         flash(error, "warning")
+            
+        #     if len(results['errors']) > 5:
+        #         flash(f"... et {len(results['errors']) - 5} autres erreurs.", "warning")
+        
+        # current_app.logger.info(f"Import reviewers terminé: {results}")
             
     except Exception as e:
         db.session.rollback()
@@ -1509,15 +1687,18 @@ def import_reviewers():
     
     return redirect(url_for("admin.import_reviewers"))
 
-
 def process_complete_reviewer_import(row, line_num):
     """Traite l'import complet d'un reviewer avec création et spécialités."""
     
     result = {
         'created': 0,
         'updated': 0,
+        'promoted': 0,  # NOUVEAU : compte pour les utilisateurs promus
         'specialites_assigned': 0,
-        'errors': []
+        'errors': [],
+        'user': None,  # NOUVEAU : pour stocker l'objet user
+        'needs_activation_email': False,  # NOUVEAU : cas 1 et 3
+        'needs_promotion_email': False   # NOUVEAU : cas 2
     }
     
     # Extraire les données de la ligne
@@ -1535,7 +1716,7 @@ def process_complete_reviewer_import(row, line_num):
     user = User.query.filter_by(email=email).first()
 
     if not user:
-        # CRÉER un nouveau utilisateur reviewer NON-ACTIVÉ
+        # CAS 1 : CRÉER un nouveau utilisateur reviewer NON-ACTIVÉ
         try:
             user = User(
                 email=email,
@@ -1543,30 +1724,32 @@ def process_complete_reviewer_import(row, line_num):
                 last_name=nom or None,
                 is_reviewer=True,
                 is_active=True,
-                is_activated=False,  # NOUVEAU : Compte non-activé
+                is_activated=False,  # Compte non-activé
                 created_at=datetime.utcnow()
             )
             # PAS DE VRAI MOT DE PASSE - sera créé à l'activation
             user.password_hash = 'PENDING_ACTIVATION'  # Placeholder
         
-            # Gérer l'affiliation si fournie (MULTIPLE maintenant)
+            # Gérer l'affiliation si fournie
             if affiliation_sigle:
                 affiliation = Affiliation.query.filter_by(sigle=affiliation_sigle.upper()).first()
                 if affiliation:
-                    user.affiliations.append(affiliation)  # PLURIEL
+                    user.affiliations.append(affiliation)
                 else:
                     result['errors'].append(f"Ligne {line_num}: Affiliation {affiliation_sigle} non trouvée")
         
             db.session.add(user)
             db.session.flush()  # Pour obtenir l'ID
             result['created'] = 1
+            result['needs_activation_email'] = True  # Envoyer email d'activation
             current_app.logger.info(f"Nouveau reviewer créé (non-activé): {email}")
         
         except Exception as e:
             result['errors'].append(f"Ligne {line_num}: Erreur création utilisateur - {str(e)}")
             return result
     else:
-        # Utilisateur existant
+        # Utilisateur existant - distinguer cas 2 et cas 3
+        
         # Mettre à jour les informations seulement si le compte n'est pas encore activé
         # ou si les champs sont vides
         if nom and (not user.last_name or not user.is_activated):
@@ -1574,11 +1757,14 @@ def process_complete_reviewer_import(row, line_num):
         if prenom and (not user.first_name or not user.is_activated):
             user.first_name = prenom
         
-            # Promouvoir en reviewer si pas déjà le cas
+        # Vérifier si l'utilisateur était déjà reviewer
+        was_reviewer = user.is_reviewer
+        
+        # Promouvoir en reviewer si pas déjà le cas
         if not user.is_reviewer:
             user.is_reviewer = True
         
-            # Gérer l'affiliation (MULTIPLE)
+        # Gérer l'affiliation
         if affiliation_sigle:
             affiliation = Affiliation.query.filter_by(sigle=affiliation_sigle.upper()).first()
             if affiliation:
@@ -1587,13 +1773,26 @@ def process_complete_reviewer_import(row, line_num):
                     user.affiliations.append(affiliation)
             else:
                 result['errors'].append(f"Ligne {line_num}: Affiliation {affiliation_sigle} non trouvée")
+        
+        # Déterminer quel email envoyer selon le cas
+        if user.is_activated:
+            # CAS 2 : Utilisateur DÉJÀ ACTIVÉ (a déjà un mot de passe)
+            if not was_reviewer:
+                # Nouveau reviewer, compte actif → email de promotion
+                result['promoted'] = 1
+                result['needs_promotion_email'] = True
+                current_app.logger.info(f"Utilisateur promu reviewer (compte actif): {email}")
+            else:
+                # Déjà reviewer et activé → juste mise à jour, pas d'email
+                result['updated'] = 1
+                current_app.logger.info(f"Reviewer existant mis à jour: {email}")
+        else:
+            # CAS 3 : Utilisateur NON ACTIVÉ (en attente de mot de passe)
+            result['updated'] = 1
+            result['needs_activation_email'] = True
+            current_app.logger.info(f"Reviewer non-activé mis à jour: {email}")
     
-        result['updated'] = 1
-        current_app.logger.info(f"Reviewer mis à jour: {email}")
-
-    
-    
-        # Traiter les spécialités/thématiques
+    # Traiter les spécialités/thématiques
     if thematiques_codes:
         try:
             # Parser les codes de thématiques
@@ -1618,14 +1817,135 @@ def process_complete_reviewer_import(row, line_num):
                 
                 # Assigner les spécialités valides
                 if valid_codes:
-                    user.set_specialites(valid_codes)  # NOUVELLE MÉTHODE
+                    user.set_specialites(valid_codes)
                     result['specialites_assigned'] = len(valid_codes)
                     current_app.logger.info(f"Spécialités assignées à {email}: {valid_codes}")
                 
         except Exception as e:
             result['errors'].append(f"Ligne {line_num}: Erreur lors de l'assignation des spécialités - {str(e)}")
     
+    # Stocker l'objet user pour l'envoi d'email ultérieur
+    result['user'] = user
+    
     return result
+
+
+# def process_complete_reviewer_import(row, line_num):
+#     """Traite l'import complet d'un reviewer avec création et spécialités."""
+    
+#     result = {
+#         'created': 0,
+#         'updated': 0,
+#         'specialites_assigned': 0,
+#         'errors': []
+#     }
+    
+#     # Extraire les données de la ligne
+#     email = row.get('email', '').strip().lower()
+#     nom = row.get('nom', '').strip()
+#     prenom = row.get('prenom', '').strip()
+#     thematiques_codes = row.get('thematiques', '').strip()
+#     affiliation_sigle = row.get('affiliation', '').strip()
+    
+#     if not email:
+#         result['errors'].append(f"Ligne {line_num}: Email manquant")
+#         return result
+    
+#     # Vérifier si l'utilisateur existe
+#     user = User.query.filter_by(email=email).first()
+
+#     if not user:
+#         # CRÉER un nouveau utilisateur reviewer NON-ACTIVÉ
+#         try:
+#             user = User(
+#                 email=email,
+#                 first_name=prenom or None,
+#                 last_name=nom or None,
+#                 is_reviewer=True,
+#                 is_active=True,
+#                 is_activated=False,  # NOUVEAU : Compte non-activé
+#                 created_at=datetime.utcnow()
+#             )
+#             # PAS DE VRAI MOT DE PASSE - sera créé à l'activation
+#             user.password_hash = 'PENDING_ACTIVATION'  # Placeholder
+        
+#             # Gérer l'affiliation si fournie (MULTIPLE maintenant)
+#             if affiliation_sigle:
+#                 affiliation = Affiliation.query.filter_by(sigle=affiliation_sigle.upper()).first()
+#                 if affiliation:
+#                     user.affiliations.append(affiliation)  # PLURIEL
+#                 else:
+#                     result['errors'].append(f"Ligne {line_num}: Affiliation {affiliation_sigle} non trouvée")
+        
+#             db.session.add(user)
+#             db.session.flush()  # Pour obtenir l'ID
+#             result['created'] = 1
+#             current_app.logger.info(f"Nouveau reviewer créé (non-activé): {email}")
+        
+#         except Exception as e:
+#             result['errors'].append(f"Ligne {line_num}: Erreur création utilisateur - {str(e)}")
+#             return result
+#     else:
+#         # Utilisateur existant
+#         # Mettre à jour les informations seulement si le compte n'est pas encore activé
+#         # ou si les champs sont vides
+#         if nom and (not user.last_name or not user.is_activated):
+#             user.last_name = nom
+#         if prenom and (not user.first_name or not user.is_activated):
+#             user.first_name = prenom
+        
+#             # Promouvoir en reviewer si pas déjà le cas
+#         if not user.is_reviewer:
+#             user.is_reviewer = True
+        
+#             # Gérer l'affiliation (MULTIPLE)
+#         if affiliation_sigle:
+#             affiliation = Affiliation.query.filter_by(sigle=affiliation_sigle.upper()).first()
+#             if affiliation:
+#                 # Vérifier si l'affiliation n'est pas déjà présente
+#                 if affiliation not in user.affiliations:
+#                     user.affiliations.append(affiliation)
+#             else:
+#                 result['errors'].append(f"Ligne {line_num}: Affiliation {affiliation_sigle} non trouvée")
+    
+#         result['updated'] = 1
+#         current_app.logger.info(f"Reviewer mis à jour: {email}")
+
+    
+    
+#         # Traiter les spécialités/thématiques
+#     if thematiques_codes:
+#         try:
+#             # Parser les codes de thématiques
+#             codes = [code.strip().upper() for code in thematiques_codes.split(',') if code.strip()]
+            
+#             if codes:
+#                 # Vérifier les codes valides avec ThematiqueHelper
+#                 valid_codes = []
+#                 invalid_codes = []
+                
+#                 for code in codes:
+#                     if ThematiqueHelper.is_valid_code(code):
+#                         valid_codes.append(code)
+#                     else:
+#                         invalid_codes.append(code)
+                
+#                 # Signaler les thématiques non trouvées
+#                 if invalid_codes:
+#                     result['errors'].append(
+#                         f"Ligne {line_num}: Thématiques non trouvées: {', '.join(invalid_codes)}"
+#                     )
+                
+#                 # Assigner les spécialités valides
+#                 if valid_codes:
+#                     user.set_specialites(valid_codes)  # NOUVELLE MÉTHODE
+#                     result['specialites_assigned'] = len(valid_codes)
+#                     current_app.logger.info(f"Spécialités assignées à {email}: {valid_codes}")
+                
+#         except Exception as e:
+#             result['errors'].append(f"Ligne {line_num}: Erreur lors de l'assignation des spécialités - {str(e)}")
+    
+#     return result
 
 @admin.route("/admin/users/import-reviewers/template")
 @login_required
@@ -1845,7 +2165,7 @@ def communications_ready_for_review():
 @admin.route('/communications/<int:comm_id>/suggest-reviewers')
 @login_required
 def suggest_reviewers(comm_id):
-    """Page de suggestion automatique de reviewers."""
+    """Page de suggestion automatique de reviewers pour une communication."""
     if not current_user.is_admin:
         abort(403)
     
@@ -1854,17 +2174,125 @@ def suggest_reviewers(comm_id):
     # Obtenir les suggestions automatiques
     suggestions = communication.suggest_reviewers(nb_reviewers=2)
     
+    # AJOUT : Récupérer TOUS les reviewers (sans filtre de thématique)
+    all_reviewers_query = User.query.filter_by(
+        is_reviewer=True,
+        is_active=True
+    ).all()
+
+    # Formater comme get_potential_reviewers_advanced mais sans filtre thématique
+    all_potential_reviewers = []
+    for reviewer in all_reviewers_query:
+        # Vérifier s'il est déjà assigné
+        already_assigned = ReviewAssignment.query.filter_by(
+            communication_id=comm_id,
+            reviewer_id=reviewer.id
+        ).filter(ReviewAssignment.status != 'declined').first()
+        
+        if already_assigned:
+            continue  # Skip les déjà assignés
+        
+        # Détecter les conflits
+        conflict_detected = False
+        conflict_reason = None
+        
+        if communication.has_affiliation_conflict_with_reviewer(reviewer):
+            conflict_detected = True
+            conflict_reason = "Même affiliation qu'un auteur"
+        
+        if reviewer in communication.authors:
+            conflict_detected = True
+            conflict_reason = "Le reviewer est auteur de la communication"
+        
+        # Calculer thématiques communes (pour info, mais pas de filtre)
+        comm_codes = []
+        if communication.thematiques_codes:
+            comm_codes = [code.strip() for code in communication.thematiques_codes.split(',')]
+        
+        reviewer_codes = []
+        if reviewer.specialites_codes:
+            reviewer_codes = [code.strip() for code in reviewer.specialites_codes.split(',')]
+        
+        common_themes = list(set(comm_codes) & set(reviewer_codes))
+        
+        all_potential_reviewers.append({
+            'reviewer': reviewer,
+            'common_themes': common_themes,
+            'conflict_detected': conflict_detected,
+            'conflict_reason': conflict_reason,
+            'relevance_score': len(common_themes) * 10,
+            'current_workload': reviewer.nb_reviews_assigned
+        })
+
+    # Trier par nombre de thématiques communes (desc) puis charge (asc)
+    all_potential_reviewers.sort(key=lambda x: (-len(x['common_themes']), x['current_workload']))
+    
     # Récupérer les assignations actuelles
     current_assignments = ReviewAssignment.query.filter(
         ReviewAssignment.communication_id == comm_id,
         ReviewAssignment.status != 'declined'
     ).all()
-
     
     return render_template('admin/suggest_reviewers.html',
                          communication=communication,
                          suggestions=suggestions,
-                         current_assignments=current_assignments)
+                         current_assignments=current_assignments,
+                         all_reviewers=all_potential_reviewers)
+
+
+
+
+#@admin.route('/communications/<int:comm_id>/suggest-reviewers')
+#@login_required
+#def suggest_reviewers(comm_id):
+#    """Page de suggestion automatique de reviewers pour une communication."""
+#    if not current_user.is_admin:
+#        abort(403)
+    
+#    communication = Communication.query.get_or_404(comm_id)
+    
+    # Obtenir les suggestions automatiques
+#    suggestions = communication.suggest_reviewers(nb_reviewers=2)
+    
+    # AJOUT : Récupérer TOUS les reviewers disponibles pour sélection manuelle
+#    all_potential_reviewers = communication.get_potential_reviewers_advanced()
+    
+    # Récupérer les assignations actuelles
+#    current_assignments = ReviewAssignment.query.filter(
+#        ReviewAssignment.communication_id == comm_id,
+#        ReviewAssignment.status != 'declined'
+#    ).all()
+
+    
+#    return render_template('admin/suggest_reviewers.html',
+#                         communication=communication,
+#                         suggestions=suggestions,
+#                         current_assignments=current_assignments,
+#                         all_reviewers=all_potential_reviewers)
+
+#@admin.route('/communications/<int:comm_id>/suggest-reviewers')
+#@login_required
+#def suggest_reviewers(comm_id):
+#    """Page de suggestion automatique de reviewers."""
+#    if not current_user.is_admin:
+#        abort(403)
+    
+#    communication = Communication.query.get_or_404(comm_id)
+    
+    # Obtenir les suggestions automatiques
+#    suggestions = communication.suggest_reviewers(nb_reviewers=2)
+    
+    # Récupérer les assignations actuelles
+#    current_assignments = ReviewAssignment.query.filter(
+#        ReviewAssignment.communication_id == comm_id,
+#        ReviewAssignment.status != 'declined'
+#    ).all()
+
+    
+#    return render_template('admin/suggest_reviewers.html',
+#                         communication=communication,
+#                         suggestions=suggestions,
+#                         current_assignments=current_assignments)
 
 @admin.route('/communications/<int:comm_id>/assign-reviewers', methods=['POST'])
 @login_required
@@ -2920,6 +3348,51 @@ def setup_status():
 
 
 
+#@admin.route('/reviews/completed')
+#@login_required
+#def completed_reviews():
+#    """Page de gestion des communications avec reviews terminées."""
+#    if not current_user.is_admin:
+#        abort(403)
+    
+    # Communications avec au moins une review terminée
+#    communications_with_reviews = db.session.query(Communication).join(
+#        ReviewAssignment
+#    ).join(Review).filter(
+#        Review.completed == True
+#    ).distinct().all()
+    
+    # Construire les données pour chaque communication
+#    communications_data = []
+#    for comm in communications_with_reviews:
+        # Récupérer toutes les reviews de cette communication
+#        reviews = Review.query.filter_by(
+#            communication_id=comm.id,
+#            completed=True
+#        ).all()
+        
+        # Statistiques des reviews
+#        total_reviews = len(reviews)
+#        avg_score = sum(r.score for r in reviews if r.score) / total_reviews if total_reviews > 0 else 0
+#        recommendations = [r.recommendation.value for r in reviews if r.recommendation]
+#        biot_fourier_nominations = sum(1 for r in reviews if r.recommend_for_biot_fourier)
+        
+#        communications_data.append({
+#            'communication': comm,
+#            'reviews': reviews,
+#            'total_reviews': total_reviews,
+#            'avg_score': round(avg_score, 1),
+#            'recommendations': recommendations,
+#            'biot_fourier_nominations': biot_fourier_nominations,
+#            'decision_made': hasattr(comm, 'final_decision') and comm.final_decision is not None
+#        })
+    
+    # Trier par score moyen décroissant
+#    communications_data.sort(key=lambda x: x['avg_score'], reverse=True)
+    
+#    return render_template('admin/completed_reviews.html', 
+#                         communications_data=communications_data)
+
 @admin.route('/reviews/completed')
 @login_required
 def completed_reviews():
@@ -2934,8 +3407,11 @@ def completed_reviews():
         Review.completed == True
     ).distinct().all()
     
-    # Construire les données pour chaque communication
-    communications_data = []
+    # Séparer en 3 catégories
+    pending_decision = []      # Onglet 1: Reviews terminées, pas de décision
+    accepted = []              # Onglet 2: Décision "accepter" prise
+    revision_requested = []    # Onglet 3: Décision "reviser" prise
+    
     for comm in communications_with_reviews:
         # Récupérer toutes les reviews de cette communication
         reviews = Review.query.filter_by(
@@ -2949,21 +3425,39 @@ def completed_reviews():
         recommendations = [r.recommendation.value for r in reviews if r.recommendation]
         biot_fourier_nominations = sum(1 for r in reviews if r.recommend_for_biot_fourier)
         
-        communications_data.append({
+        comm_data = {
             'communication': comm,
             'reviews': reviews,
             'total_reviews': total_reviews,
             'avg_score': round(avg_score, 1),
             'recommendations': recommendations,
             'biot_fourier_nominations': biot_fourier_nominations,
-            'decision_made': hasattr(comm, 'final_decision') and comm.final_decision is not None
-        })
+            'decision_made': comm.final_decision is not None
+        }
+        
+        # Classifier selon la décision
+        if not comm.final_decision:
+            # Exclure les communications reclassées en WIP
+            if comm.type != 'wip':
+                pending_decision.append(comm_data) 
+#        if not comm.final_decision:
+#            pending_decision.append(comm_data)
+        elif comm.final_decision == 'accepter':
+            accepted.append(comm_data)
+        elif comm.final_decision == 'reviser':
+            revision_requested.append(comm_data)
+        # On ignore les 'rejeter' pour l'instant
     
-    # Trier par score moyen décroissant
-    communications_data.sort(key=lambda x: x['avg_score'], reverse=True)
+    # Trier chaque liste par score moyen décroissant
+    pending_decision.sort(key=lambda x: x['avg_score'], reverse=True)
+    accepted.sort(key=lambda x: x['avg_score'], reverse=True)
+    revision_requested.sort(key=lambda x: x['avg_score'], reverse=True)
     
     return render_template('admin/completed_reviews.html', 
-                         communications_data=communications_data)
+                         pending_decision=pending_decision,
+                         accepted=accepted,
+                         revision_requested=revision_requested)
+
 
 
 @admin.route('/reviews/communication/<int:comm_id>/details')
@@ -3003,7 +3497,47 @@ def review_communication_details(comm_id):
                          stats=stats)
 
 
-# Étape 3 : Dans admin.py, ajoutez cette route (à la fin du fichier)
+
+@admin.route('/assignment/<int:assignment_id>/unassign', methods=['POST'])
+@login_required
+def unassign_reviewer(assignment_id):
+    """Désassigne un reviewer d'une communication."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+    
+    assignment = ReviewAssignment.query.get_or_404(assignment_id)
+    comm_id = assignment.communication_id
+    reviewer_name = f"{assignment.reviewer.first_name or ''} {assignment.reviewer.last_name or assignment.reviewer.email}"
+    
+    try:
+        # Supprimer la review associée si elle existe et n'est pas terminée
+        review = Review.query.filter_by(
+            communication_id=assignment.communication_id,
+            reviewer_id=assignment.reviewer_id
+        ).first()
+        
+        if review and not review.completed:
+            db.session.delete(review)
+        
+        # Supprimer l'assignation
+        db.session.delete(assignment)
+        db.session.commit()
+        
+        current_app.logger.info(
+            f"Reviewer désassigné par {current_user.email}: "
+            f"Assignment ID={assignment_id}, Comm ID={comm_id}, "
+            f"Reviewer={reviewer_name}"
+        )
+        
+        flash(f'Reviewer {reviewer_name} désassigné avec succès.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur désassignation reviewer {assignment_id}: {e}")
+        flash("Erreur lors de la désassignation du reviewer.", "danger")
+    
+    return redirect(url_for('admin.view_communication_details', comm_id=comm_id))
 
 @admin.route('/communications/<int:comm_id>/decision', methods=['POST'])
 @login_required
@@ -3484,6 +4018,10 @@ def communications_dashboard():
                          stats_cards=stats_cards,
                          thematiques=thematiques)
 
+
+
+
+
 @admin.route('/send-bulk-email', methods=['POST'])
 @login_required
 def send_bulk_email():
@@ -3521,6 +4059,11 @@ def send_bulk_email():
                         if corresponding and corresponding.email:
                             send_bulk_email_to_user(corresponding, subject, content, [article], connection=conn)
                             emails_sent += 1
+                            if emails_sent % 10 == 0:
+                                current_app.logger.info(f"Pause de 30s après {emails_sent} emails...")
+                                time.sleep(30)
+                            else:
+                                time.sleep(1)
                     
                     elif recipient_type == 'reviewers':
                         # Envoyer aux reviewers
@@ -3528,6 +4071,12 @@ def send_bulk_email():
                             if review.reviewer.email:
                                 send_bulk_email_to_user(review.reviewer, subject, content, [article], connection=conn)
                                 emails_sent += 1
+                                if emails_sent % 10 == 0:
+                                    current_app.logger.info(f"Pause de 30s après {emails_sent} emails...")
+                                    time.sleep(30)
+                                else:
+                                    time.sleep(1)
+                               
                                 
                 except Exception as e:
                     errors.append(f"Article {article_id}: {str(e)}")
@@ -3545,6 +4094,11 @@ def send_bulk_email():
                         if corresponding and corresponding.email:
                             send_bulk_email_to_user(corresponding, subject, content, [wip], connection=conn)
                             emails_sent += 1
+                            if emails_sent % 10 == 0:
+                                current_app.logger.info(f"Pause de 30s après {emails_sent} emails...")
+                                time.sleep(30)
+                            else:
+                                time.sleep(1)
                     
                     elif recipient_type == 'reviewers':
                         # Envoyer aux reviewers
@@ -3552,6 +4106,11 @@ def send_bulk_email():
                             if review.reviewer.email:
                                 send_bulk_email_to_user(review.reviewer, subject, content, [wip], connection=conn)
                                 emails_sent += 1
+                                if emails_sent % 10 == 0:
+                                    current_app.logger.info(f"Pause de 30s après {emails_sent} emails...")
+                                    time.sleep(30)
+                                else:
+                                    time.sleep(1)
                                 
                 except Exception as e:
                     errors.append(f"WIP {wip_id}: {str(e)}")
@@ -3658,27 +4217,25 @@ def send_bulk_email():
 #         return jsonify({'success': False, 'message': f'Erreur serveur: {str(e)}'})                     #
 ##########################################################################################################
 
+
 def send_bulk_email_to_user(user, subject, content, communications=None, connection=None):
-    """Fonction utilitaire pour envoyer un email groupé avec template HTML.
-    
-    Args:
-        user: L'utilisateur destinataire
-        subject: Sujet de l'email
-        content: Contenu de l'email
-        communications: Liste des communications concernées
-        connection: Connexion SMTP à réutiliser (optionnel)
-    """
+    """Fonction utilitaire pour envoyer un email groupé avec template HTML."""
     from flask_mail import Message
     from app import mail
     from flask import render_template
     
     try:
-        # Utiliser le template d'email groupé
+        # Récupérer les variables de conférence via config_loader
+        config_loader = current_app.config_loader
+        conference_variables = config_loader.get_email_template_variables()
+        
+        # Utiliser le template d'email groupé avec les variables de conférence
         html_body = render_template('emails/bulk_email.html',
                                   recipient=user,
                                   email_subject=subject,
                                   email_content=content,
-                                  communications=communications or [])
+                                  communications=communications or [],
+                                  **conference_variables)  # <-- Passer les variables ici
         
         # Personnaliser le contenu texte
         personalized_content = content.replace('[NOM]', user.last_name or '')
@@ -3706,6 +4263,56 @@ def send_bulk_email_to_user(user, subject, content, communications=None, connect
     except Exception as e:
         current_app.logger.error(f"Erreur envoi email groupé à {user.email}: {str(e)}")
         raise
+
+
+#def send_bulk_email_to_user(user, subject, content, communications=None, connection=None):
+#    """Fonction utilitaire pour envoyer un email groupé avec template HTML.
+#    
+#    Args:
+#        user: L'utilisateur destinataire
+#        subject: Sujet de l'email
+#        content: Contenu de l'email
+#        communications: Liste des communications concernées
+#        connection: Connexion SMTP à réutiliser (optionnel)
+#    """
+#    from flask_mail import Message
+#    from app import mail
+#    from flask import render_template
+#    
+#    try:
+        # Utiliser le template d'email groupé
+#        html_body = render_template('emails/bulk_email.html',
+#                                  recipient=user,
+#                                  email_subject=subject,
+#                                  email_content=content,
+#                                  communications=communications or [])
+#        
+        # Personnaliser le contenu texte
+#        personalized_content = content.replace('[NOM]', user.last_name or '')
+#        personalized_content = personalized_content.replace('[PRENOM]', user.first_name or '')
+#        
+        # Ajouter les titres des communications pour la version texte
+#        if communications:
+#            comm_titles = '\n'.join([f"- {comm.title} (ID: {comm.id})" for comm in communications])
+#            personalized_content += f"\n\nCommunication(s) concernée(s):\n{comm_titles}"
+#        
+#        msg = Message(
+#            subject=subject,
+#            recipients=[user.email],
+#            body=personalized_content,
+#            html=html_body,
+#            sender=current_app.config.get('MAIL_DEFAULT_SENDER')
+#        )
+#        
+        # Utiliser la connexion fournie si disponible, sinon créer une nouvelle
+#        if connection:
+#            connection.send(msg)
+#        else:
+#            mail.send(msg)
+#        
+#    except Exception as e:
+#        current_app.logger.error(f"Erreur envoi email groupé à {user.email}: {str(e)}")
+#        raise
 
 
 #######################################################################################################
@@ -3747,72 +4354,109 @@ def send_bulk_email_to_user(user, subject, content, communications=None, connect
 #         raise                                                                                       #
 #######################################################################################################
 
-def send_email_to_user(user, subject, content, communication=None):
-    """Fonction utilitaire pour envoyer un email à un utilisateur avec le nouveau système centralisé."""
-    try:
-        # Utiliser le nouveau système centralisé d'emails
-        from app.emails import send_any_email_with_themes
+#def send_email_to_user(user, subject, content, communication=None):
+#    """Fonction utilitaire pour envoyer un email à un utilisateur avec le nouveau système centralisé."""
+#    try:
+#        # Utiliser le nouveau système centralisé d'emails
+#        from app.emails import send_any_email_with_themes
         
         # Préparer le contexte de base
-        base_context = {
-            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
-            'USER_LAST_NAME': user.last_name or '',
-            'USER_EMAIL': user.email,
-            'EMAIL_CONTENT': content,
-            'call_to_action_url': url_for('main.mes_communications', _external=True)
-        }
+#        base_context = {
+#            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+#            'USER_LAST_NAME': user.last_name or '',
+#            'USER_EMAIL': user.email,
+#            'EMAIL_CONTENT': content,
+#            'call_to_action_url': url_for('main.mes_communications', _external=True)
+#        }
         
         # Si c'est lié à une communication
-        if communication:
-            base_context.update({
-                'COMMUNICATION_TITLE': communication.title,
-                'COMMUNICATION_ID': communication.id,
-                'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
-            })
+#        if communication:
+#            base_context.update({
+#                'COMMUNICATION_TITLE': communication.title,
+#                'COMMUNICATION_ID': communication.id,
+#                'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
+#            })
         
         # Envoyer via le système centralisé - utilise automatiquement emails.yml
         # On peut créer un template générique pour ce type d'email admin
-        send_custom_admin_email(user.email, subject, content, base_context, communication)
+#        send_custom_admin_email(user.email, subject, content, base_context, communication)
         
-        current_app.logger.info(f"Email admin envoyé à {user.email}")
+#        current_app.logger.info(f"Email admin envoyé à {user.email}")
         
-    except Exception as e:
-        current_app.logger.error(f"Erreur envoi email admin à {user.email}: {str(e)}")
-        raise
+#    except Exception as e:
+#        current_app.logger.error(f"Erreur envoi email admin à {user.email}: {str(e)}")
+#        raise
 
 # Remplacer dans app/admin.py la fonction send_email_to_user
 
-def send_email_to_user(user, subject, content, communication=None):
-    """Fonction utilitaire pour envoyer un email à un utilisateur avec le nouveau système centralisé."""
-    try:
+#def send_email_to_user(user, subject, content, communication=None):
+#    """Fonction utilitaire pour envoyer un email à un utilisateur avec le nouveau système centralisé."""
+#    try:
         # Utiliser le nouveau système centralisé d'emails
-        from app.emails import send_any_email_with_themes
+#        from app.emails import send_any_email_with_themes
         
         # Préparer le contexte de base
-        base_context = {
-            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
-            'USER_LAST_NAME': user.last_name or '',
-            'USER_EMAIL': user.email,
-            'EMAIL_CONTENT': content,
-            'call_to_action_url': url_for('main.mes_communications', _external=True)
-        }
+#        base_context = {
+#            'USER_FIRST_NAME': user.first_name or user.email.split('@')[0],
+#            'USER_LAST_NAME': user.last_name or '',
+#            'USER_EMAIL': user.email,
+#            'EMAIL_CONTENT': content,
+#            'call_to_action_url': url_for('main.mes_communications', _external=True)
+#        }
         
         # Si c'est lié à une communication
-        if communication:
-            base_context.update({
-                'COMMUNICATION_TITLE': communication.title,
-                'COMMUNICATION_ID': communication.id,
-                'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
-            })
+#        if communication:
+#            base_context.update({
+#                'COMMUNICATION_TITLE': communication.title,
+#                'COMMUNICATION_ID': communication.id,
+#                'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
+#            })
         
         # Envoyer via le système centralisé - utilise automatiquement emails.yml
         # On peut créer un template générique pour ce type d'email admin
-        send_custom_admin_email(user.email, subject, content, base_context, communication)
+#        send_custom_admin_email(user.email, subject, content, base_context, communication)
         
-        current_app.logger.info(f"Email admin envoyé à {user.email}")
+#        current_app.logger.info(f"Email admin envoyé à {user.email}")
+        
+#    except Exception as e:
+#        current_app.logger.error(f"Erreur envoi email admin à {user.email}: {str(e)}")
+#        raise
+
+def send_email_to_user(user, subject, content, communication=None):
+    """Fonction utilitaire pour envoyer un email à un utilisateur avec template HTML."""
+    from flask_mail import Message
+    from app import mail
+    from flask import render_template
+    
+    try:
+        # Utiliser le template bulk_email.html
+        html_body = render_template('emails/bulk_email.html',
+                                   recipient=user,
+                                   email_subject=subject,
+                                   email_content=content,
+                                   communications=[communication] if communication else [])
+        
+        # Personnaliser le contenu texte
+        personalized_content = content.replace('[PRENOM]', user.first_name or '')
+        personalized_content = personalized_content.replace('[NOM]', user.last_name or '')
+        
+        if communication:
+            personalized_content = personalized_content.replace('[TITRE_COMMUNICATION]', communication.title)
+            personalized_content = personalized_content.replace('[ID_COMMUNICATION]', str(communication.id))
+        
+        msg = Message(
+            subject=subject,
+            recipients=[user.email],
+            body=personalized_content,
+            html=html_body,
+            sender=current_app.config.get('MAIL_DEFAULT_SENDER')
+        )
+        
+        mail.send(msg)
+        current_app.logger.info(f"Email envoyé à {user.email}")
         
     except Exception as e:
-        current_app.logger.error(f"Erreur envoi email admin à {user.email}: {str(e)}")
+        current_app.logger.error(f"Erreur envoi email à {user.email}: {e}")
         raise
 
 def send_custom_admin_email(recipient_email, subject, content, context, communication=None):
@@ -5183,6 +5827,22 @@ def create_test_objects_for_admin(test_email):
         'authors': []
     })()
     
+    mock_review1 = type('MockReview', (), {
+        'id': 1,
+        'completed': True,
+        'comments_for_authors': 'Excellent travail, très bien documenté. Je recommande quelques corrections mineures sur la partie méthodologie.',
+        'comments_for_committee': 'Review confidentielle - ne pas partager',
+        'score': 8
+    })()
+
+    mock_review2 = type('MockReview', (), {
+        'id': 2,
+        'completed': True,
+        'comments_for_authors': 'Article intéressant mais manque de clarté dans la section résultats. Suggère de restructurer le tableau 3.',
+        'comments_for_committee': 'Commentaire privé pour le comité',
+        'score': 7
+    })()
+
     test_communication = type('MockCommunication', (), {
         'id': 999,
         'title': 'Test de communication pour validation du système d\'emails',
@@ -5192,9 +5852,23 @@ def create_test_objects_for_admin(test_email):
         'corresponding_author': test_user,
         'thematiques': 'COND,SIMUL',
         'thematiques_codes': 'COND,SIMUL',
-        'user': test_user,  # IMPORTANT
+        'user': test_user,
+        'reviews': [mock_review1, mock_review2],  # AJOUT DES REVIEWS
         'last_modified': datetime.now()
     })()
+
+#    test_communication = type('MockCommunication', (), {
+#        'id': 999,
+#        'title': 'Test de communication pour validation du système d\'emails',
+#        'type': 'article',
+#        'status': type('MockStatus', (), {'value': 'submitted'})(),
+#        'authors': [test_user],
+#        'corresponding_author': test_user,
+#        'thematiques': 'COND,SIMUL',
+#        'thematiques_codes': 'COND,SIMUL',
+#        'user': test_user,  # IMPORTANT
+#        'last_modified': datetime.now()
+#    })()
     
     test_assignment = type('MockAssignment', (), {
         'communication': test_communication,
@@ -6106,7 +6780,9 @@ def notification_stats():
         
         # Compter les utilisateurs
         total_users = User.query.filter_by(is_active=True).count()
-        authors_count = User.query.join(Communication).distinct().count()
+        from app.models import CommunicationAuthor
+        authors_count = User.query.join(CommunicationAuthor, CommunicationAuthor.user_id == User.id).distinct().count()
+        #authors_count = User.query.join(Communication).distinct().count()
         reviewers_count = User.query.filter_by(is_reviewer=True).count()
         admins_count = User.query.filter_by(is_admin=True).count()
         
@@ -6637,3 +7313,154 @@ def delete_communication(comm_id):
     return redirect(url_for('admin.communications_dashboard'))
 
         
+@admin.route("/content/media/upload", methods=["POST"])
+@login_required
+def upload_media():
+    """Upload d'un PDF dans content/media et mise à jour de media.csv."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'Aucun fichier sélectionné'}), 400
+
+    file = request.files['file']
+    description = (request.form.get('description') or '').strip()
+
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'Nom de fichier vide'}), 400
+
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({'success': False, 'message': 'Seuls les fichiers PDF sont autorisés'}), 400
+
+    if not description:
+        return jsonify({'success': False, 'message': 'La description est obligatoire'}), 400
+
+    try:
+        filename = secure_filename(file.filename)
+
+        media_dir = Path(current_app.root_path) / "static" / "content" / "media"
+        media_dir.mkdir(parents=True, exist_ok=True)
+        file_path = media_dir / filename
+
+        # Sauvegarder l'ancien fichier s'il existe
+        if file_path.exists():
+            backup_path = media_dir / f"{filename}.backup"
+            os.rename(file_path, backup_path)
+
+        file.save(file_path)
+
+        # Mettre à jour media.csv (ajout ou mise à jour de la ligne)
+        csv_path = media_dir / "media.csv"
+        rows = []
+        if csv_path.exists():
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                for row in reader:
+                    if (row.get('fichier') or '').strip() != filename:
+                        rows.append({
+                            'fichier': (row.get('fichier') or '').strip(),
+                            'description': (row.get('description') or '').strip()
+                        })
+
+        rows.append({'fichier': filename, 'description': description})
+
+        with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=['fichier', 'description'], delimiter=';')
+            writer.writeheader()
+            writer.writerows(rows)
+
+        current_app.logger.info(f"Document média uploadé par {current_user.email}: {filename}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Document {filename} ajouté avec succès'
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Erreur upload média: {e}")
+        return jsonify({
+            'success': False,
+            'message': f"Erreur lors de l'upload: {str(e)}"
+        }), 500
+
+
+@admin.route("/content/media/list")
+@login_required
+def list_media():
+    """Liste les documents média décrits dans media.csv."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+
+    try:
+        media_dir = Path(current_app.root_path) / "static" / "content" / "media"
+        csv_path = media_dir / "media.csv"
+        documents = []
+
+        if csv_path.exists():
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                for row in reader:
+                    fichier = (row.get('fichier') or '').strip()
+                    description = (row.get('description') or '').strip()
+                    if not fichier:
+                        continue
+                    file_path = media_dir / fichier
+                    documents.append({
+                        'fichier': fichier,
+                        'description': description,
+                        'exists': file_path.exists(),
+                        'size': os.path.getsize(file_path) if file_path.exists() else 0
+                    })
+
+        return jsonify({'success': True, 'documents': documents})
+
+    except Exception as e:
+        current_app.logger.error(f"Erreur liste média: {e}")
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+
+@admin.route("/content/media/delete", methods=["POST"])
+@login_required
+def delete_media():
+    """Supprime un document média et sa ligne dans media.csv."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+
+    data = request.get_json()
+    fichier = secure_filename((data.get('fichier') or '').strip())
+
+    if not fichier:
+        return jsonify({'success': False, 'message': 'Nom de fichier manquant'}), 400
+
+    try:
+        media_dir = Path(current_app.root_path) / "static" / "content" / "media"
+        file_path = media_dir / fichier
+
+        # Supprimer le fichier s'il existe
+        if file_path.exists():
+            os.remove(file_path)
+
+        # Retirer la ligne du CSV
+        csv_path = media_dir / "media.csv"
+        rows = []
+        if csv_path.exists():
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                for row in reader:
+                    if (row.get('fichier') or '').strip() != fichier:
+                        rows.append({
+                            'fichier': (row.get('fichier') or '').strip(),
+                            'description': (row.get('description') or '').strip()
+                        })
+
+            with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=['fichier', 'description'], delimiter=';')
+                writer.writeheader()
+                writer.writerows(rows)
+
+        current_app.logger.info(f"Document média supprimé par {current_user.email}: {fichier}")
+
+        return jsonify({'success': True, 'message': f'Document {fichier} supprimé'})
+
+    except Exception as e:
+        current_app.logger.error(f"Erreur suppression média: {e}")
+        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500

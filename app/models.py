@@ -24,6 +24,7 @@ from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from enum import Enum
+from sqlalchemy.ext.hybrid import hybrid_property
 
 db = SQLAlchemy()
 
@@ -64,9 +65,25 @@ class User(UserMixin, db.Model):
     # Informations de base
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
-    first_name = db.Column(db.String(50), nullable=True)
-    last_name = db.Column(db.String(50), nullable=True)
-    
+    _first_name = db.Column('first_name', db.String(50), nullable=True)
+    _last_name = db.Column('last_name', db.String(50), nullable=True)
+
+    @hybrid_property
+    def first_name(self):
+        return self._first_name
+
+    @first_name.setter
+    def first_name(self, value):
+        self._first_name = self.normalize_name(value)
+
+    @hybrid_property
+    def last_name(self):
+        return self._last_name
+
+    @last_name.setter
+    def last_name(self, value):
+        self._last_name = self.normalize_name(value)    
+
     # Identifiants chercheur - NOUVEAUX CHAMPS
     idhal = db.Column(db.String(50), nullable=True)
     orcid = db.Column(db.String(19), nullable=True)  # Format: 0000-0000-0000-0000
@@ -125,6 +142,14 @@ class User(UserMixin, db.Model):
             user_id=self.id, 
             is_active=True
         ).all()
+
+    @staticmethod
+    def normalize_name(name):
+        """Normalise un nom : première lettre en majuscule, reste en minuscule."""
+        if not name:
+            return name
+        return name.strip().title()
+
 
     def can_receive_notification(self, notification_type='general'):
         """Vérifie si l'utilisateur peut recevoir un type de notification donné."""
@@ -347,6 +372,7 @@ class Communication(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(220), nullable=False)
+    title_en = db.Column(db.String(220), nullable=True)
     keywords = db.Column(db.String(500), nullable=True)
     abstract_fr = db.Column(db.Text, nullable=True) 
     abstract_en = db.Column(db.Text, nullable=True)
@@ -400,7 +426,16 @@ class Communication(db.Model):
     decision_by = db.relationship('User', foreign_keys=[decision_by_id])
 
     prix = db.Column(db.Boolean, default=False, nullable=False)
-    
+
+    # Prix Biot-Fourier - Audition
+    biot_fourier_audition_selected = db.Column(db.Boolean, default=False, nullable=False)
+    biot_fourier_audition_selected_at = db.Column(db.DateTime, nullable=True)
+    biot_fourier_audition_selected_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    biot_fourier_audition_notification_sent = db.Column(db.Boolean, default=False, nullable=False)
+    biot_fourier_audition_notification_sent_at = db.Column(db.DateTime, nullable=True)
+    biot_fourier_selected_by = db.relationship('User', foreign_keys=[biot_fourier_audition_selected_by_id])
+
+
     hal_authorization = db.Column(db.Boolean, default=True, nullable=False)
     hal_deposited_at = db.Column(db.DateTime, nullable=True)
     hal_url = db.Column(db.String(255), nullable=True)
@@ -528,8 +563,11 @@ class Communication(db.Model):
             self.status = CommunicationStatus.ARTICLE_SOUMIS
             self.article_submitted_at = datetime.utcnow()
         elif self.status == CommunicationStatus.ACCEPTE and self.has_file('poster'):
-            self.status = CommunicationStatus.POSTER_SOUMIS
             self.poster_submitted_at = datetime.utcnow()
+
+#        elif self.status == CommunicationStatus.ACCEPTE and self.has_file('poster'):
+#            self.status = CommunicationStatus.POSTER_SOUMIS
+#            self.poster_submitted_at = datetime.utcnow()
 
     def get_next_status_after_upload(self, file_type):
         """Détermine le prochain statut après upload d'un fichier."""
@@ -537,9 +575,11 @@ class Communication(db.Model):
             if file_type == 'résumé':
                 return CommunicationStatus.RESUME_SOUMIS
             elif file_type == 'article':
+                if self.status == CommunicationStatus.ACCEPTE:
+                    return self.status
                 return CommunicationStatus.ARTICLE_SOUMIS
             elif file_type == 'poster':
-                return CommunicationStatus.POSTER_SOUMIS
+                return self.status
         elif self.type == 'wip':
             if file_type == 'wip':
                 return CommunicationStatus.WIP_SOUMIS
@@ -549,22 +589,55 @@ class Communication(db.Model):
         return self.status  # Pas de changement
 
 
+    #def can_upload_file_type(self, file_type):
+    #    """Détermine si on peut uploader un type de fichier donné selon l'état."""
+    #    if self.type == 'article':
+    #        if file_type == 'article':
+    #            # Article PDF uploadable après soumission du résumé textuel
+    #            return self.status in [CommunicationStatus.RESUME_SOUMIS, CommunicationStatus.ARTICLE_SOUMIS]
+    #        elif file_type == 'poster':
+    #            # Poster uploadable après acceptation
+    #            return self.status == CommunicationStatus.ACCEPTE
+    #    elif self.type == 'wip':
+    #        if file_type == 'poster':
+                # Poster uploadable après soumission du WIP textuel
+    #            return self.status == CommunicationStatus.WIP_SOUMIS
+    
+    #    return False
+    
+
     def can_upload_file_type(self, file_type):
         """Détermine si on peut uploader un type de fichier donné selon l'état."""
         if self.type == 'article':
             if file_type == 'article':
                 # Article PDF uploadable après soumission du résumé textuel
-                return self.status in [CommunicationStatus.RESUME_SOUMIS, CommunicationStatus.ARTICLE_SOUMIS]
+                return self.status in [
+                    CommunicationStatus.RESUME_SOUMIS,
+                    CommunicationStatus.ARTICLE_SOUMIS,
+                    CommunicationStatus.EN_REVIEW,
+                    CommunicationStatus.REVISION_DEMANDEE,
+                    CommunicationStatus.ACCEPTE,
+                    CommunicationStatus.POSTER_SOUMIS
+                ]
             elif file_type == 'poster':
-                # Poster uploadable après acceptation
-                return self.status == CommunicationStatus.ACCEPTE
+                # Poster uploadable pendant la review et après acceptation
+                return self.status in [
+                    CommunicationStatus.EN_REVIEW,
+                    CommunicationStatus.ACCEPTE,
+                    CommunicationStatus.REVISION_DEMANDEE,
+                    CommunicationStatus.POSTER_SOUMIS
+                ]
         elif self.type == 'wip':
             if file_type == 'poster':
                 # Poster uploadable après soumission du WIP textuel
-                return self.status == CommunicationStatus.WIP_SOUMIS
-    
+                return self.status in [
+                    CommunicationStatus.WIP_SOUMIS,
+                    CommunicationStatus.POSTER_SOUMIS
+                ]
+
         return False
-    
+
+
     
     @property
     def thematiques(self):
@@ -851,15 +924,16 @@ class Communication(db.Model):
         elif decision == 'reviser':
             self.status = CommunicationStatus.REVISION_DEMANDEE
 
-        biot_fourier_audition_selected = db.Column(db.Boolean, default=False, nullable=True)
-        biot_fourier_audition_selected_at = db.Column(db.DateTime, nullable=True)
-        biot_fourier_audition_selected_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-        biot_fourier_audition_notification_sent = db.Column(db.Boolean, default=False, nullable=True)
-        biot_fourier_audition_notification_sent_at = db.Column(db.DateTime, nullable=True)
+        #biot_fourier_audition_selected = db.Column(db.Boolean, default=False, nullable=True)
+        #biot_fourier_audition_selected_at = db.Column(db.DateTime, nullable=True)
+        #biot_fourier_audition_selected_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+        #biot_fourier_audition_notification_sent = db.Column(db.Boolean, default=False, nullable=True)
+        #biot_fourier_audition_notification_sent_at = db.Column(db.DateTime, nullable=True)
 
-        biot_fourier_selected_by = db.relationship('User', foreign_keys=[biot_fourier_audition_selected_by_id])
+        #biot_fourier_selected_by = db.relationship('User', foreign_keys=[biot_fourier_audition_selected_by_id])
 
             
+
         return True
     
     @property
@@ -1034,7 +1108,7 @@ class Review(db.Model):
     reviewer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     # Contenu de la review
-    score = db.Column(db.Integer, nullable=True)  # Note sur 10
+    score = db.Column(db.Float, nullable=True)  # Note sur 10
     recommendation = db.Column(db.Enum(ReviewRecommendation), nullable=True)
     comments_for_authors = db.Column(db.Text, nullable=True)  # Commentaires pour les auteurs
     comments_for_committee = db.Column(db.Text, nullable=True)  # Commentaires privés pour le conseil
@@ -1233,7 +1307,7 @@ class Photo(db.Model):
     moderation_notes = db.Column(db.Text, nullable=True)  # notes de modération
     
     # Relations
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     user = db.relationship('User', backref='photos')
     
     # Dates
@@ -1546,14 +1620,14 @@ DEFAULT_THEMATIQUES = [
     },
     {
         'code': 'BATIM', 
-        'nom': 'Thermique du bâtiment',
-        'description': 'Efficacité énergétique et confort thermique des bâtiments',
+        'nom': 'Thermique de l\'habitat',
+        'description': 'Thermique de l\'habitat et adaptation au changement climatique',
         'couleur': '#ffc107'
     },
     {
         'code': 'INDUS', 
-        'nom': 'Thermique industrielle',
-        'description': 'Applications thermiques dans l\'industrie',
+        'nom': 'Thermique industrielle et décarbonation',
+        'description': 'Applications thermiques dans l\'industrie et décarbonation de l\'industrie',
         'couleur': '#17a2b8'
     },
     {

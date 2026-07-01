@@ -146,7 +146,7 @@ def send_reviewer_welcome_email(user, token):
             'REVIEWER_AFFILIATIONS': 'Non spécifiées',  # À adapter selon votre modèle
             'ACTIVATION_TOKEN': token,
             'ASSIGNMENT_DATE': assignment_date,  # ← LIGNE AJOUTÉE
-            'REVIEW_DEADLINE': review_deadline,  # ← LIGNE AJOUTÉE
+            'REVIEW_DEADLINE': '14/03/2026',  # ← LIGNE AJOUTÉE
             'call_to_action_url': url_for('main.activate_account', token=token, _external=True)
         }
         
@@ -244,7 +244,13 @@ def _build_html_email(template_name, context, color_scheme='blue'):
         # Corps du message
         if content_config.get('body'):
             body = content_config['body']
-            body_html = body.replace('\n\n', '</p><p>').replace('\n', '<br>')
+          #  body_html = body.replace('\n\n', '</p><p>').replace('\n', '<br>')
+            import re
+            body_html = body
+            # Convertir **texte** en <strong>texte</strong>
+            body_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', body_html)
+            # Convertir les retours à la ligne
+            body_html = body_html.replace('\n\n', '</p><p>').replace('\n', '<br>')
             html_parts.append(f"<p>{body_html}</p>")
         
         # Bouton d'action avec émoji
@@ -527,6 +533,65 @@ def send_review_reminder_email(reviewer, assignments):
     except Exception as e:
         logger.error(f"Erreur envoi rappel review à {reviewer.email}: {e}")
         raise
+#def send_decision_email(communication, decision_type, additional_info=''):
+#    """Envoie un email de notification de décision à l'auteur correspondant."""
+#    try:
+#        corresponding = communication.corresponding_author
+#        if not corresponding:
+#            logger.error(f"Aucun corresponding author trouvé pour la communication {communication.id}")
+#            return
+        
+        # Mapper les types de décision vers les templates
+#        decision_templates = {
+#            'accept': 'decision_accept',
+#            'accepter': 'decision_accept',  # Support des deux formats
+#            'reject': 'decision_reject', 
+#            'rejeter': 'decision_reject',  # Support des deux formats
+#            'revise': 'decision_revise',
+#            'reviser': 'decision_revise'  # Support des deux formats
+#        }
+        
+        # Couleurs par type de décision
+#        decision_colors = {
+#            'accept': 'green',
+#            'accepter': 'green',
+#            'reject': 'red',
+#            'rejeter': 'red',
+#            'revise': 'orange',
+#            'reviser': 'orange'
+#        }
+        
+#        template_name = decision_templates.get(decision_type.lower(), 'decision_notification')
+#        color_scheme = decision_colors.get(decision_type.lower(), 'blue')
+
+#        base_context = {
+#            'USER_FIRST_NAME': corresponding.first_name or corresponding.email.split('@')[0],
+#            'USER_LAST_NAME': corresponding.last_name or '',
+#            'AUTHOR_NAME': corresponding.full_name or corresponding.email,
+#            'COMMUNICATION_TITLE': communication.title,
+#            'COMMUNICATION_ID': communication.id,
+#            'DECISION_TYPE': decision_type.upper(),
+#            'DECISION_INFO': additional_info,
+#            'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
+#        }
+
+#        send_any_email_with_themes(
+#            template_name=template_name,
+#            recipient_email=corresponding.email,
+#            base_context=base_context,
+#            communication=communication,
+#            user=corresponding,
+#            color_scheme=color_scheme
+#        )
+
+#        logger.info(f"Email de décision {decision_type} envoyé à {corresponding.email} pour communication {communication.id}")
+        
+        
+#    except Exception as e:
+#        logger.error(f"Erreur envoi décision {decision_type} pour communication {communication.id}: {e}")
+#        raise
+
+
 def send_decision_email(communication, decision_type, additional_info=''):
     """Envoie un email de notification de décision à l'auteur correspondant."""
     try:
@@ -538,11 +603,13 @@ def send_decision_email(communication, decision_type, additional_info=''):
         # Mapper les types de décision vers les templates
         decision_templates = {
             'accept': 'decision_accept',
-            'accepter': 'decision_accept',  # Support des deux formats
+            'accepter': 'decision_accept',
             'reject': 'decision_reject', 
-            'rejeter': 'decision_reject',  # Support des deux formats
+            'rejeter': 'decision_reject',
             'revise': 'decision_revise',
-            'reviser': 'decision_revise'  # Support des deux formats
+            'reviser': 'decision_revise',
+            'transform_wip': 'decision_transform_wip',
+            'transformer_wip': 'decision_transform_wip'
         }
         
         # Couleurs par type de décision
@@ -552,11 +619,48 @@ def send_decision_email(communication, decision_type, additional_info=''):
             'reject': 'red',
             'rejeter': 'red',
             'revise': 'orange',
-            'reviser': 'orange'
+            'reviser': 'orange',
+            'transform_wip': 'blue',
+            'transformer_wip': 'blue'
         }
         
         template_name = decision_templates.get(decision_type.lower(), 'decision_notification')
         color_scheme = decision_colors.get(decision_type.lower(), 'blue')
+
+        # NOUVEAU : Construire COMMENTS_SECTION de manière anonyme
+        comments_section = ""
+        reviews_with_comments = [r for r in communication.reviews 
+                                 if r.completed and r.comments_for_authors]
+        
+        if reviews_with_comments:
+            comments_parts = []
+            for idx, review in enumerate(reviews_with_comments, 1):
+                comments_parts.append(f"**Review {idx} :**\n{review.comments_for_authors}")
+            comments_section = "\n\n".join(comments_parts)
+        else:
+            comments_section = "Aucun commentaire spécifique."
+        
+        # Récupérer les dates depuis la configuration
+        from flask import current_app
+        decision_date = datetime.utcnow().strftime('%d/%m/%Y')
+
+        # Récupérer la deadline de révision depuis conference.yml
+        conference_config = current_app.conference_config
+        deadlines = conference_config.get('dates', {}).get('deadlines', {})
+        revision_deadline_raw = deadlines.get('final_version', None)
+
+        # Formater la date si elle existe
+        if revision_deadline_raw:
+           try:
+               if isinstance(revision_deadline_raw, str) and len(revision_deadline_raw) == 10:  # Format YYYY-MM-DD
+                   revision_date_obj = datetime.strptime(revision_deadline_raw, '%Y-%m-%d')
+                   revision_deadline = revision_date_obj.strftime('%d/%m/%Y')
+               else:
+                   revision_deadline = str(revision_deadline_raw)
+           except:
+               revision_deadline = "À définir"
+        else:
+           revision_deadline = "À définir"
 
         base_context = {
             'USER_FIRST_NAME': corresponding.first_name or corresponding.email.split('@')[0],
@@ -564,10 +668,26 @@ def send_decision_email(communication, decision_type, additional_info=''):
             'AUTHOR_NAME': corresponding.full_name or corresponding.email,
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
+            'COMMUNICATION_TYPE': communication.type.title() if communication.type else 'Communication',  # ← AJOUTER
             'DECISION_TYPE': decision_type.upper(),
+            'DECISION_DATE': decision_date,  # ← AJOUTER
+            'REVISION_DEADLINE': revision_deadline,  # ← AJOUTER
             'DECISION_INFO': additional_info,
+            'COMMENTS_SECTION': comments_section,
             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
         }
+
+#        base_context = {
+#            'USER_FIRST_NAME': corresponding.first_name or corresponding.email.split('@')[0],
+#            'USER_LAST_NAME': corresponding.last_name or '',
+#            'AUTHOR_NAME': corresponding.full_name or corresponding.email,
+#            'COMMUNICATION_TITLE': communication.title,
+#            'COMMUNICATION_ID': communication.id,
+#            'DECISION_TYPE': decision_type.upper(),
+#            'DECISION_INFO': additional_info,
+#            'COMMENTS_SECTION': comments_section,
+#            'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
+#        }
 
         send_any_email_with_themes(
             template_name=template_name,
@@ -583,7 +703,7 @@ def send_decision_email(communication, decision_type, additional_info=''):
         
     except Exception as e:
         logger.error(f"Erreur envoi décision {decision_type} pour communication {communication.id}: {e}")
-        raise
+
 
 def send_biot_fourier_audition_notification(communication):
     """Envoie une notification pour une audition Biot-Fourier."""
@@ -728,6 +848,7 @@ def send_reviewer_assignment_email(reviewer, communication, assignment=None):
             'COMMUNICATION_TITLE': communication.title,
             'COMMUNICATION_ID': communication.id,
             'COMMUNICATION_TYPE': communication.type.title(),
+            'REVIEW_DEADLINE': '14/03/2026', 
             'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
         }
         
@@ -875,6 +996,7 @@ def send_grouped_review_notifications():
                     'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
                     'REVIEWS_COUNT': len(assignments),
                     'REVIEWER_SPECIALTIES': reviewer.specialites_codes or 'Non spécifiées',
+                    'REVIEW_DEADLINE': '14/03/2026',
                     'call_to_action_url': url_for('main.reviewer_dashboard', _external=True)
                 }
                 

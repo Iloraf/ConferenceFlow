@@ -3,3 +3,17 @@
 *.backup.*
 .env
 *.pyc
+*.bak
+*.bak.bak
+*.bak.old
+*.bis
+*.log
+clean.txt
+logs.txt
+database_readme.txt
+data/
+app/static/content_bak/
+app/static/templates/
+content/
+
+affiliations_export.csv

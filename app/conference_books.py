@@ -24,6 +24,7 @@ import tempfile
 import os
 from io import BytesIO
 import time
+import shutil
 
 try:
     from weasyprint import HTML, CSS
@@ -40,7 +41,7 @@ try:
 except ImportError:
     PDF_TOOLS_AVAILABLE = False
 
-from .models import Communication, CommunicationStatus, ThematiqueHelper, SubmissionFile
+from .models import Communication, CommunicationStatus, ThematiqueHelper, SubmissionFile, db
 
 books = Blueprint("books", __name__)
 
@@ -82,7 +83,7 @@ def get_communications_by_type_and_status():
     # Articles acceptés pour les tomes 1 et 2
     articles_acceptes = Communication.query.filter(
         Communication.type == 'article',
-        Communication.status == CommunicationStatus.ACCEPTE
+        Communication.status == CommunicationStatus.ACCEPTE,
     ).order_by(Communication.title).all()
     
     # Résumés pour le livre des résumés (articles avec résumé soumis)
@@ -92,14 +93,18 @@ def get_communications_by_type_and_status():
             CommunicationStatus.RESUME_SOUMIS,
             CommunicationStatus.ARTICLE_SOUMIS,
             CommunicationStatus.EN_REVIEW,
-            CommunicationStatus.ACCEPTE
+            CommunicationStatus.ACCEPTE,
+            CommunicationStatus.POSTER_SOUMIS
         ])
     ).order_by(Communication.title).all()
     
     # Work in Progress
     wips = Communication.query.filter(
         Communication.type == 'wip',
-        Communication.status == CommunicationStatus.WIP_SOUMIS
+        Communication.status.in_([
+            CommunicationStatus.WIP_SOUMIS,
+            CommunicationStatus.POSTER_SOUMIS
+        ])
     ).order_by(Communication.title).all()
     
     return {
@@ -108,6 +113,17 @@ def get_communications_by_type_and_status():
         'wips': wips
     }
 
+def get_all_articles_for_provisional_books():
+    """Récupère les articles avec PDF soumis pour les livres provisoires."""
+    from app.models import Communication
+    
+    # Exclure les articles qui n'ont que le résumé (RESUME_SOUMIS)
+    all_articles = Communication.query.filter(
+        Communication.type == 'article',
+        Communication.status != 'RESUME_SOUMIS'
+    ).order_by(Communication.title).all()
+    
+    return all_articles
 
 def group_communications_by_thematique(communications):
     """Groupe les communications par thématique."""
@@ -121,7 +137,7 @@ def group_communications_by_thematique(communications):
                 primary_code = codes[0]
                 thematique = ThematiqueHelper.get_by_code(primary_code)
                 if thematique:
-                    thematique_key = thematique['nom']  # Juste le nom, pas le code
+                    thematique_key = thematique['description']  # Juste le nom, pas le code
                     thematiques_groups[thematique_key].append(comm)
                 else:
                     thematiques_groups['Autres'].append(comm)
@@ -133,31 +149,61 @@ def group_communications_by_thematique(communications):
     # Trier les thématiques par ordre alphabétique
     return OrderedDict(sorted(thematiques_groups.items()))
 
-
-def split_articles_for_tomes(articles_acceptes, max_per_tome=30):
-    """Divise les articles en 2 tomes de manière équilibrée."""
+def split_articles_for_tomes(articles_acceptes, max_per_tome=40):
+    """Divise les articles en 2 tomes selon une répartition fixe des thématiques."""
     
-    # Grouper par thématique d'abord
-    thematiques_groups = group_communications_by_thematique(articles_acceptes)
+    tome1_codes = ['SIMUL', 'MULTI', 'STOCK', 'POREUX', 'COMBUST', 'INDUS', 'MACHINE']
+    tome2_codes = ['COND', 'METRO', 'RENOUV', 'SYST', 'ECHANG', 'BATIM', 'BIO', 'MICRO']
     
     tome1_articles = []
     tome2_articles = []
-    tome1_count = 0
-    tome2_count = 0
     
-    # Alterner les thématiques entre les deux tomes
-    for i, (thematique, articles) in enumerate(thematiques_groups.items()):
-        if i % 2 == 0:  # Thématiques paires au tome 1
-            tome1_articles.extend(articles)
-            tome1_count += len(articles)
-        else:  # Thématiques impaires au tome 2
-            tome2_articles.extend(articles)
-            tome2_count += len(articles)
+    for comm in articles_acceptes:
+        if comm.thematiques_codes:
+            primary_code = comm.thematiques_codes.split(',')[0].strip().upper()
+            if primary_code in tome1_codes:
+                tome1_articles.append(comm)
+            elif primary_code in tome2_codes:
+                tome2_articles.append(comm)
+            else:
+                # Thématique inconnue, mettre dans le tome le moins rempli
+                if len(tome1_articles) <= len(tome2_articles):
+                    tome1_articles.append(comm)
+                else:
+                    tome2_articles.append(comm)
+        else:
+            tome2_articles.append(comm)
     
     return {
         'tome1': group_communications_by_thematique(tome1_articles),
         'tome2': group_communications_by_thematique(tome2_articles)
     }
+
+
+#def split_articles_for_tomes(articles_acceptes, max_per_tome=30):
+#    """Divise les articles en 2 tomes de manière équilibrée."""
+    
+    # Grouper par thématique d'abord#
+#    thematiques_groups = group_communications_by_thematique(articles_acceptes)
+    
+#    tome1_articles = []
+#    tome2_articles = []
+#    tome1_count = 0
+#    tome2_count = 0
+    
+    # Alterner les thématiques entre les deux tomes
+#    for i, (thematique, articles) in enumerate(thematiques_groups.items()):
+#        if i % 2 == 0:  # Thématiques paires au tome 1
+#            tome1_articles.extend(articles)
+#            tome1_count += len(articles)
+#        else:  # Thématiques impaires au tome 2
+#            tome2_articles.extend(articles)
+#            tome2_count += len(articles)
+    
+#    return {
+#        'tome1': group_communications_by_thematique(tome1_articles),
+#        'tome2': group_communications_by_thematique(tome2_articles)
+#    }
 
 
 def generate_author_index(communications, page_mapping):
@@ -497,9 +543,9 @@ def get_communication_pdf(communication, book_type):
         current_app.logger.info(f"Recherche PDF pour comm {communication.id}, book_type: {book_type}, comm.type: {communication.type}")
         
         # Définir le type de fichier selon le type de livre
-        if book_type in ['tome1', 'tome2']:
+        if book_type in ['tome1', 'tome2', 'actes-numeriques']:
             # Pour les tomes d'articles complets - toujours des articles
-            target_file = communication.get_file('article')
+            target_file = communication.get_latest_file('article')
             current_app.logger.info(f"Recherche fichier 'article' pour tome (comm {communication.id})")
             
         elif book_type == 'resumes-wip':
@@ -865,7 +911,7 @@ def generate_cover_only_html(title, config):
     lab_name = organizing_lab.get('short_name', 'LEMTA')
     lab_umr = organizing_lab.get('umr', '7563')
     lab_university = organizing_lab.get('university', 'Université de Lorraine')
-    organizer_text = f"{lab_name} (UMR {lab_umr} - {lab_university})"
+    organizer_text = f"{lab_name} (UMR {lab_umr} - CNRS - {lab_university})"
     
     return f"""
 <!DOCTYPE html>
@@ -900,6 +946,51 @@ def generate_cover_only_html(title, config):
 </html>
 """
 
+def convert_pdf_to_grayscale(input_path, output_path, quality='/printer'):
+    """Convertit un PDF couleur en niveaux de gris avec compression optimisée.
+    
+    Args:
+        input_path: Chemin du PDF source
+        output_path: Chemin du PDF de sortie
+        quality: /screen, /ebook, /printer, ou /prepress
+    """
+    import subprocess
+    
+    try:
+        result = subprocess.run([
+            'gs',
+            '-sDEVICE=pdfwrite',
+            '-sColorConversionStrategy=Gray',
+            '-dProcessColorModel=/DeviceGray',
+            '-dOverrideICC=true',
+            '-dHaveTransparency=false',
+            '-dCompatibilityLevel=1.4',
+            f'-dPDFSETTINGS={quality}',
+            '-dEmbedAllFonts=true',
+            '-dSubsetFonts=true',
+            '-dCompressFonts=true',
+            '-dNOPAUSE',
+            '-dQUIET',
+            '-dBATCH',
+            f'-sOutputFile={output_path}',
+            input_path
+        ], check=True, capture_output=True, text=True)
+        
+        # Calculer la réduction de taille
+        original_size = os.path.getsize(input_path)
+        new_size = os.path.getsize(output_path)
+        reduction = ((original_size - new_size) / original_size) * 100
+        
+        current_app.logger.info(f"PDF converti en N&B: {output_path} (réduction: {reduction:.1f}%)")
+        return True
+    except subprocess.CalledProcessError as e:
+        current_app.logger.error(f"Erreur conversion Ghostscript: {e}")
+        current_app.logger.error(f"STDOUT: {e.stdout}")
+        current_app.logger.error(f"STDERR: {e.stderr}")
+        return False
+    except FileNotFoundError:
+        current_app.logger.error("Ghostscript (gs) non installé sur le système")
+        return False
 
 def get_presidents_names(config):
     """Extrait les présidents depuis conference.yml."""
@@ -1489,7 +1580,7 @@ def generate_toc_html(communications_by_theme, page_mapping):
                 </div>
                 """
         
-        theme_num += 1
+            theme_num += 1
 
     return f"""
 <!DOCTYPE html>
@@ -1873,7 +1964,480 @@ def get_book_title_type(title):
 #         return "RECUEIL DES RÉSUMÉS", "du"
 
 
+def compile_biot_fourier_book(title, communications_by_theme):
+    """Compile le livre LaTeX des candidats Biot-Fourier."""
+    from app.models import Review
+    import subprocess
+    
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        # Copier les fichiers de base
+        config = get_conference_config()
+        copy_latex_templates(temp_dir, title, 'biot-fourier')
+        
+        # Générer le fichier principal LaTeX
+        latex_content = generate_biot_fourier_latex(title, communications_by_theme)
+        
+        with open(os.path.join(temp_dir, 'livre.tex'), 'w', encoding='utf-8') as f:
+            f.write(latex_content)
+        
+        # Pour chaque communication, copier le PDF et générer les reviews
+        for theme, communications in communications_by_theme.items():
+            for comm in communications:
+                # Copier le PDF de l'article
+                pdf_source = get_article_pdf_path(comm)
+                if pdf_source and os.path.exists(pdf_source):
+                    pdf_dest = os.path.join(temp_dir, f"comm_{comm.id}.pdf")
+                    shutil.copy2(pdf_source, pdf_dest)
+                
+                # Générer le fichier .tex avec les commentaires des reviewers
+                generate_biot_fourier_comm_tex(comm, temp_dir)
+        
+        # Compiler LaTeX (3 passes)
+        print("1. Première compilation LaTeX...")
+        subprocess.run(
+            ["lualatex", "-interaction=nonstopmode", "livre.tex"],
+            cwd=temp_dir,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        
+        print("2. Génération de l'index...")
+        idx_file = os.path.join(temp_dir, "livre.idx")
+        if os.path.exists(idx_file):
+            subprocess.run(
+                ["makeindex", "-s", "index_style.ist", "livre.idx"],
+                cwd=temp_dir,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        
+        print("3. Deuxième compilation LaTeX...")
+        subprocess.run(
+            ["lualatex", "-interaction=nonstopmode", "livre.tex"],
+            cwd=temp_dir,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        
+        # Vérifier que le PDF existe
+        pdf_source = os.path.join(temp_dir, "livre.pdf")
+        if not os.path.exists(pdf_source):
+            raise FileNotFoundError(f"PDF non généré : {pdf_source}")
+        
+        # Copier vers uploads
+        uploads_dir = os.path.join(current_app.root_path, "static", "uploads")
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        final_pdf_path = os.path.join(uploads_dir, 'Biot_Fourier.pdf')
+        shutil.copy2(pdf_source, final_pdf_path)
+        
+        return final_pdf_path
+    
+    except subprocess.CalledProcessError as e:
+        log_file = os.path.join(temp_dir, "livre.log")
+        if os.path.exists(log_file):
+            # Copier le log vers uploads pour debug
+            debug_dir = os.path.join(current_app.root_path, "static", "uploads", "debug_latex")
+            os.makedirs(debug_dir, exist_ok=True)
+            debug_log = os.path.join(debug_dir, "biot_fourier_error.log")
+            shutil.copy2(log_file, debug_log)
+            
+            with open(log_file, "r", encoding='utf-8') as f:
+                log_content = f.read()
+                current_app.logger.error(f"Erreur LaTeX: {log_content[:2000]}")
+                print(f"LOG COMPLET SAUVEGARDÉ DANS: {debug_log}")
+        raise Exception("Erreur compilation LaTeX")
+
+    
+#    except subprocess.CalledProcessError as e:
+#        log_file = os.path.join(temp_dir, "livre.log")
+#        if os.path.exists(log_file):
+#            with open(log_file, "r", encoding='utf-8') as f:
+#                current_app.logger.error(f"Erreur LaTeX: {f.read()[:2000]}")
+#        raise Exception("Erreur compilation LaTeX")
+        
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+def compile_articles_to_discuss_book(title, communications_by_theme):
+    """Compile le livre LaTeX des articles à discuter."""
+    from app.models import Review, SubmissionFile
+    import subprocess
+    
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        # Copier les fichiers de base
+        config = get_conference_config()
+        copy_latex_templates(temp_dir, title, 'articles-a-discuter')
+        
+        # Générer le fichier principal LaTeX
+        latex_content = generate_articles_to_discuss_latex(title, communications_by_theme)
+        
+        with open(os.path.join(temp_dir, 'livre.tex'), 'w', encoding='utf-8') as f:
+            f.write(latex_content)
+        
+        # Pour chaque communication
+        for theme, communications in communications_by_theme.items():
+            for comm in communications:
+                # Copier le PDF de l'article
+                pdf_source = get_article_pdf_path(comm)
+                if pdf_source and os.path.exists(pdf_source):
+                    pdf_dest = os.path.join(temp_dir, f"comm_{comm.id}.pdf")
+                    shutil.copy2(pdf_source, pdf_dest)
+                
+                # Générer le fichier .tex avec les commentaires
+                generate_article_to_discuss_tex(comm, temp_dir)
+                
+                # Copier les PDFs des reviewers s'ils existent
+                reviews = Review.query.filter_by(communication_id=comm.id, completed=True).all()
+                for idx, review in enumerate(reviews, 1):
+                    if review.review_file_path and os.path.exists(review.review_file_path):
+                        reviewer_pdf_dest = os.path.join(temp_dir, f"comm_{comm.id}_reviewer_{idx}.pdf")
+                        shutil.copy2(review.review_file_path, reviewer_pdf_dest)
+        
+        # Compiler LaTeX (3 passes)
+        print("1. Première compilation LaTeX...")
+        subprocess.run(
+            ["lualatex", "-interaction=nonstopmode", "livre.tex"],
+            cwd=temp_dir,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        
+        print("2. Génération de l'index...")
+        idx_file = os.path.join(temp_dir, "livre.idx")
+        if os.path.exists(idx_file):
+            subprocess.run(
+                ["makeindex", "-s", "index_style.ist", "livre.idx"],
+                cwd=temp_dir,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        
+        print("3. Deuxième compilation LaTeX...")
+        subprocess.run(
+            ["lualatex", "-interaction=nonstopmode", "livre.tex"],
+            cwd=temp_dir,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        
+        # Vérifier que le PDF existe
+        pdf_source = os.path.join(temp_dir, "livre.pdf")
+        if not os.path.exists(pdf_source):
+            raise FileNotFoundError(f"PDF non généré : {pdf_source}")
+        
+        # Copier vers uploads
+        uploads_dir = os.path.join(current_app.root_path, "static", "uploads")
+        os.makedirs(uploads_dir, exist_ok=True)
+        
+        final_pdf_path = os.path.join(uploads_dir, 'Articles_A_Discuter.pdf')
+        shutil.copy2(pdf_source, final_pdf_path)
+        
+        return final_pdf_path
+        
+    except subprocess.CalledProcessError as e:
+        log_file = os.path.join(temp_dir, "livre.log")
+        if os.path.exists(log_file):
+            with open(log_file, "r", encoding='utf-8') as f:
+                current_app.logger.error(f"Erreur LaTeX: {f.read()[:2000]}")
+        raise Exception("Erreur compilation LaTeX")
+        
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+def generate_biot_fourier_latex(title, communications_by_theme):
+    """Génère le contenu LaTeX pour le livre Biot-Fourier."""
+    config = get_conference_config()
+    
+    latex_content = f"""\\documentclass[12pt,a4paper, openright]{{book}}
+%=====================================
+%   Prix Biot-Fourier - Candidats
+%   Conference Flow
+%=====================================
+
+\\input{{config.tex}}
+\\hypersetup{{
+  pdfinfo={{
+    Title={{{config.get('conference', {}).get('short_name', 'Conference')} - {title}}},
+    Author={{Conseil Scientifique}},
+    Subjects={{{config.get('conference', {}).get('full_name', 'Conference')}}},
+    Producer={{Conference Flow}},
+    Creator={{{config.get('conference', {}).get('organizing_lab', {}).get('short_name', 'LAB')}}}
+  }}
+}}
+
+\\begin{{document}}
+\\SetBgContents{{}}
+\\pagestyle{{fancy}}
+
+\\chapter*{{{title}}}
+\\addcontentsline{{toc}}{{chapter}}{{{title}}}
+
+\\section*{{Introduction}}
+Ce document présente les articles candidats au Prix Biot-Fourier, nominés par les reviewers.
+
+\\tableofcontents
+
+"""
+
+    # Ajouter les communications par thématique
+    for theme_name, communications in communications_by_theme.items():
+        if communications:
+            latex_content += f"""
+\\chapter{{{escape_latex(theme_name)}}}
+
+"""
+            for comm in communications:
+                latex_content += f"\\input{{comm_{comm.id}.tex}}\n"
+                latex_content += f"\\includepdf[pages=-,pagecommand={{\\thispagestyle{{fancy}}}}]{{comm_{comm.id}.pdf}}\n"
+                latex_content += "\\clearpage\n"
+    
+    latex_content += """
+\\end{document}
+"""
+    return latex_content
+
+
+def generate_articles_to_discuss_latex(title, communications_by_theme):
+    """Génère le contenu LaTeX pour le livre des articles à discuter."""
+    config = get_conference_config()
+    
+    latex_content = f"""\\documentclass[12pt,a4paper, openright]{{book}}
+%=====================================
+%   Articles à discuter (1 ou 2 rejets)
+%   Conference Flow
+%=====================================
+
+\\input{{config.tex}}
+\\hypersetup{{
+  pdfinfo={{
+    Title={{{config.get('conference', {}).get('short_name', 'Conference')} - {title}}},
+    Author={{Conseil Scientifique}},
+    Subjects={{{config.get('conference', {}).get('full_name', 'Conference')}}},
+    Producer={{Conference Flow}},
+    Creator={{{config.get('conference', {}).get('organizing_lab', {}).get('short_name', 'LAB')}}}
+  }}
+}}
+
+\\begin{{document}}
+\\SetBgContents{{}}
+\\pagestyle{{fancy}}
+
+\\chapter*{{{title}}}
+\\addcontentsline{{toc}}{{chapter}}{{{title}}}
+
+\\section*{{Introduction}}
+Ce document présente les articles ayant reçu 1 ou 2 rejets, pour discussion par le conseil scientifique.
+
+\\tableofcontents
+
+"""
+
+    # Ajouter les communications par thématique
+    for theme_name, communications in communications_by_theme.items():
+        if communications:
+            latex_content += f"""
+\\chapter{{{escape_latex(theme_name)}}}
+
+"""
+            for comm in communications:
+                latex_content += f"\\input{{comm_{comm.id}.tex}}\n"
+                latex_content += f"\\includepdf[pages=-,pagecommand={{\\thispagestyle{{fancy}}}}]{{comm_{comm.id}.pdf}}\n"
+                
+                # Ajouter les PDFs des reviewers
+                from app.models import Review
+                reviews = Review.query.filter_by(communication_id=comm.id, completed=True).all()
+                for idx, review in enumerate(reviews, 1):
+                    if review.review_file_path and os.path.exists(review.review_file_path):
+                        latex_content += f"\\includepdf[pages=-,pagecommand={{\\thispagestyle{{fancy}}}}]{{comm_{comm.id}_reviewer_{idx}.pdf}}\n"
+                
+                latex_content += "\\clearpage\n"
+    
+    latex_content += """
+\\end{document}
+"""
+    return latex_content
+
+
+def generate_biot_fourier_comm_tex(comm, temp_dir):
+    """Génère le fichier .tex pour une communication Biot-Fourier avec les commentaires des reviewers."""
+    from app.models import Review
+    
+    filename = f"comm_{comm.id}.tex"
+    filepath = os.path.join(temp_dir, filename)
+    
+    title_escaped = escape_latex(comm.title)
+    
+    # Récupérer les reviews
+    reviews = Review.query.filter_by(communication_id=comm.id, completed=True).all()
+    
+    content = f"""% Communication {comm.id} - Candidat Biot-Fourier
+\\section*{{{title_escaped}}}
+
+"""
+    
+    # Ajouter TOUTES les reviews (pas seulement celles qui ont nominé)
+    if reviews:
+        content += "\\subsection*{Reviews}\n\n"
+    
+        for idx, review in enumerate(reviews, 1):
+            reviewer_name = escape_latex(review.reviewer.full_name)
+            reviewer_email = escape_latex(review.reviewer.email)
+            
+            content += f"\\textbf{{Reviewer {idx}:}} {reviewer_name} ({reviewer_email})\n\n"
+            
+            if review.score:
+                content += f"\\textbf{{Score:}} {review.score}/10\n\n"
+            
+            if review.comments_for_authors:
+                comments_escaped = escape_latex(review.comments_for_authors)
+                content += f"\\textbf{{Commentaires pour les auteurs:}}\n\n{comments_escaped}\n\n"
+            
+            if review.comments_for_committee:
+                comments_escaped = escape_latex(review.comments_for_committee)
+                content += f"\\textbf{{Commentaires pour le comité:}}\n\n{comments_escaped}\n\n"
+            
+            content += "\\vspace{5mm}\n\n"
+    
+    content += "\\clearpage\n"
+    
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+
+def generate_article_to_discuss_tex(comm, temp_dir):
+    """Génère le fichier .tex pour un article à discuter avec tous les commentaires."""
+    from app.models import Review
+    
+    filename = f"comm_{comm.id}.tex"
+    filepath = os.path.join(temp_dir, filename)
+    
+    title_escaped = escape_latex(comm.title)
+    
+    # Récupérer toutes les reviews
+    reviews = Review.query.filter_by(communication_id=comm.id, completed=True).all()
+    
+    # Compter les rejets
+    reject_count = len([r for r in reviews if r.recommendation and r.recommendation.value == 'rejeter'])
+    
+    content = f"""% Communication {comm.id} - Article à discuter
+\\section*{{{title_escaped}}}
+
+\\textbf{{Nombre de rejets:}} {reject_count}/{len(reviews)}
+
+"""
+    
+    # Ajouter tous les reviewers
+    content += "\\subsection*{Reviews}\n\n"
+    
+    for idx, review in enumerate(reviews, 1):
+        reviewer_name = escape_latex(review.reviewer.full_name)
+        reviewer_email = escape_latex(review.reviewer.email)
+        
+        content += f"\\textbf{{Reviewer {idx}:}} {reviewer_name} ({reviewer_email})\n\n"
+        
+        if review.recommendation:
+            recommendation = escape_latex(review.recommendation.value.title())
+            content += f"\\textbf{{Recommandation:}} {recommendation}\n\n"
+        
+        if review.score:
+            content += f"\\textbf{{Score:}} {review.score}/10\n\n"
+        
+        if review.comments_for_authors:
+            comments_escaped = escape_latex(review.comments_for_authors)
+            content += f"\\textbf{{Commentaires pour les auteurs:}}\n\n{comments_escaped}\n\n"
+        
+        if review.comments_for_committee:
+            comments_escaped = escape_latex(review.comments_for_committee)
+            content += f"\\textbf{{Commentaires pour le comité:}}\n\n{comments_escaped}\n\n"
+        
+        if review.review_file_path and os.path.exists(review.review_file_path):
+            content += f"\\textbf{{PDF annoté:}} Voir document reviewer {idx} ci-après\n\n"
+        
+        content += "\\vspace{5mm}\n\n"
+    
+    content += "\\clearpage\n"
+    
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+def get_article_pdf_path(communication):
+    """Récupère le chemin du fichier PDF de l'article d'une communication."""
+    from app.models import SubmissionFile
+    
+    # Chercher le fichier de type 'article'
+    article_file = SubmissionFile.query.filter_by(
+        communication_id=communication.id,
+        file_type='article'
+    ).order_by(SubmissionFile.upload_date.desc()).first()
+    
+    if article_file and article_file.file_path:
+        return article_file.file_path
+    
+    return None
+
+
 # === ROUTES PRINCIPALES ===
+
+
+@books.route('/latex/<book_type>/source.tex')
+@login_required
+def download_latex_source(book_type):
+    """Télécharge le fichier .tex source sans compilation."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    if book_type not in ['tome1', 'tome2', 'resumes-wip', 'actes-numeriques']:
+        abort(404)
+    
+    try:
+        communications = get_communications_by_type_and_status()
+        config = get_conference_config()
+        
+        if book_type == 'tome1':
+            tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
+            title = "Articles - Tome 1"
+            communications_data = tomes_split['tome1']
+        elif book_type == 'tome2':
+            tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
+            title = "Articles - Tome 2"
+            communications_data = tomes_split['tome2']
+        elif book_type == 'actes-numeriques':
+            title = "Actes du congrès"
+            communications_data = group_communications_by_thematique(communications['articles_acceptes'])
+        else:  # resumes-wip
+            all_communications = communications['resumes'] + communications['wips']
+            title = "Résumés et Work in Progress"
+            communications_data = group_communications_by_thematique(all_communications)
+        
+        # Générer le contenu LaTeX
+        latex_content = generate_latex_content(title, communications_data, book_type)
+        
+        # Créer le fichier .tex
+        filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_{book_type}.tex"
+        
+        return send_file(
+            BytesIO(latex_content.encode('utf-8')),
+            as_attachment=True,
+            download_name=filename,
+            mimetype='text/plain'
+        )
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur téléchargement source {book_type}: {e}")
+        return f"Erreur lors de la génération du source: {str(e)}", 500
+
+
 
 @books.route('/tome1.pdf')
 @login_required
@@ -1983,6 +2547,58 @@ def generate_tome2():
                 os.unlink(tmp_file_path)
         except:
             pass
+
+@books.route('/provisional/tome1.pdf')
+@login_required
+def generate_provisional_tome1():
+    """Génère le Tome 1 provisoire (tous les articles) avec LaTeX."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    try:
+        all_articles = get_all_articles_for_provisional_books()
+        tomes_split = split_articles_for_tomes(all_articles)
+        
+        title = "Articles - Tome 1 (PROVISOIRE)"
+        communications_data = tomes_split['tome1']
+        
+        pdf_path = compile_latex_book(title, communications_data, 'tome1')
+        
+        config = get_conference_config()
+        filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_Tome1_PROVISOIRE.pdf"
+        
+        return send_file(pdf_path, as_attachment=True, download_name=filename, mimetype='application/pdf')
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération Tome 1 provisoire: {e}")
+        return f"Erreur lors de la génération du PDF: {str(e)}", 500
+
+
+@books.route('/provisional/tome2.pdf')
+@login_required
+def generate_provisional_tome2():
+    """Génère le Tome 2 provisoire (tous les articles) avec LaTeX."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    try:
+        all_articles = get_all_articles_for_provisional_books()
+        tomes_split = split_articles_for_tomes(all_articles)
+        
+        title = "Articles - Tome 2 (PROVISOIRE)"
+        communications_data = tomes_split['tome2']
+        
+        pdf_path = compile_latex_book(title, communications_data, 'tome2')
+        
+        config = get_conference_config()
+        filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_Tome2_PROVISOIRE.pdf"
+        
+        return send_file(pdf_path, as_attachment=True, download_name=filename, mimetype='application/pdf')
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération Tome 2 provisoire: {e}")
+        return f"Erreur lors de la génération du PDF: {str(e)}", 500
+
 
 @books.route('/resumes-wip.pdf')
 @login_required
@@ -2120,7 +2736,94 @@ def preview_book(book_type):
         current_app.logger.error(f"Erreur prévisualisation {book_type}: {e}")
         return f"Erreur lors de la prévisualisation: {str(e)}", 500
 
-# Ajoutez ceci AU DÉBUT de la fonction generate_book_latex
+
+@books.route('/conseil-scientifique/biot-fourier.pdf')
+@login_required
+def generate_biot_fourier_book():
+    """Génère le livre des candidats Biot-Fourier pour le conseil scientifique."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    from app.models import Communication, Review
+    
+    try:
+        # Récupérer les communications avec au moins une nomination Biot-Fourier
+        communications_with_nominations = db.session.query(Communication).join(
+            Review
+        ).filter(
+            Review.completed == True,
+            Review.recommend_for_biot_fourier == True
+        ).distinct().order_by(Communication.title).all()
+        
+        if not communications_with_nominations:
+            flash('Aucun article nominé pour le prix Biot-Fourier.', 'warning')
+            return redirect(url_for('admin.completed_reviews'))
+        
+        # Organiser par thématique
+        communications_data = group_communications_by_thematique(communications_with_nominations)
+        
+        title = "Prix Biot-Fourier - Candidats"
+        pdf_path = compile_biot_fourier_book(title, communications_data)
+        
+        config = get_conference_config()
+        filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_Biot_Fourier.pdf"
+        
+        return send_file(pdf_path, as_attachment=True, download_name=filename, mimetype='application/pdf')
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération livre Biot-Fourier: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"Erreur lors de la génération du PDF: {str(e)}", 500
+
+
+@books.route('/conseil-scientifique/articles-a-discuter.pdf')
+@login_required
+def generate_articles_to_discuss_book():
+    """Génère le livre des articles à discuter (1 ou 2 rejets) pour le conseil scientifique."""
+    if not current_user.is_admin:
+        abort(403)
+    
+    from app.models import Communication, Review
+    
+    try:
+        # Récupérer toutes les communications avec reviews terminées
+        all_communications = db.session.query(Communication).join(Review).filter(
+            Review.completed == True
+        ).distinct().all()
+        
+        # Filtrer celles avec 1 ou 2 rejets
+        articles_to_discuss = []
+        for comm in all_communications:
+            reviews = Review.query.filter_by(communication_id=comm.id, completed=True).all()
+            reject_count = len([r for r in reviews if r.recommendation and r.recommendation.value == 'rejeter'])
+            
+            if reject_count in [1, 2]:
+                articles_to_discuss.append(comm)
+        
+        if not articles_to_discuss:
+            flash('Aucun article avec 1 ou 2 rejets trouvé.', 'warning')
+            return redirect(url_for('admin.completed_reviews'))
+        
+        # Organiser par thématique
+        communications_data = group_communications_by_thematique(articles_to_discuss)
+        
+        title = "Articles à discuter (1 ou 2 rejets)"
+        pdf_path = compile_articles_to_discuss_book(title, communications_data)
+        
+        config = get_conference_config()
+        filename = f"{config.get('conference', {}).get('short_name', 'Conference')}_Articles_A_Discuter.pdf"
+        
+        return send_file(pdf_path, as_attachment=True, download_name=filename, mimetype='application/pdf')
+        
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération livre articles à discuter: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"Erreur lors de la génération du PDF: {str(e)}", 500
+
+
+
 @books.route('/latex/<book_type>.pdf')
 @login_required
 def generate_book_latex(book_type):
@@ -2134,7 +2837,7 @@ def generate_book_latex(book_type):
     if not current_user.is_admin:
         abort(403)
     
-    if book_type not in ['tome1', 'tome2', 'resumes-wip']:
+    if book_type not in ['tome1', 'tome2', 'resumes-wip',  'actes-numeriques']:
         abort(404)
     
     try:
@@ -2144,12 +2847,16 @@ def generate_book_latex(book_type):
         
         if book_type == 'tome1':
             tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
-            title = "Articles - Tome 1"
+            title = "Actes de Congrès - Tome 1"
             communications_data = tomes_split['tome1']
         elif book_type == 'tome2':
             tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
-            title = "Articles - Tome 2" 
+            title = "Actes du Congrès - Tome 2" 
             communications_data = tomes_split['tome2']
+        elif book_type == 'actes-numeriques':
+            tomes_split = split_articles_for_tomes(communications['articles_acceptes'])
+            title = "Actes du Congrès"
+            communications_data = {**tomes_split['tome1'], **tomes_split['tome2']}
         else:  # resumes-wip
             all_communications = communications['resumes'] + communications['wips']
             print(f"Nombre de résumés: {len(communications['resumes'])}")
@@ -2293,7 +3000,7 @@ def compile_latex_book(title, communications_by_theme, book_type):
         os.makedirs(debug_dir, exist_ok=True)
 
         debug_files = ['livre.tex', 'livre_latest.log', 'config.tex', 'page-garde.tex', "introduction.tex",
-                       'Tableau_Reviewer.tex', "prix-biot-fourier.tex", "comm_1.tex", 
+                       'Tableau_Reviewer.tex', "prix-biot-fourier.tex",
                        'remerciements.tex', 'comite-organisation.tex', 'index_style.ist']
         for file in debug_files:
             src = os.path.join(temp_dir, file)
@@ -2360,7 +3067,7 @@ def compile_latex_book(title, communications_by_theme, book_type):
         
         
         # Copier les PDFs des communications
-        if book_type in ['tome1', 'tome2']:
+        if book_type in ['tome1', 'tome2', 'actes-numeriques']:
             copy_communication_pdfs(communications_by_theme, temp_dir, book_type)
         else:
             print("Pas de copy_communication_pdfs pour resumes-wip (fichiers .tex déjà générés)")
@@ -2376,14 +3083,14 @@ def compile_latex_book(title, communications_by_theme, book_type):
                 print(f"  {f} ({size} bytes)")
 
             # Vérifier spécifiquement comm_1.tex
-            comm_1_path = os.path.join(temp_dir, "comm_1.tex")
-            if os.path.exists(comm_1_path):
-                with open(comm_1_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    print(f"Contenu de comm_1.tex ({len(content)} chars):")
-                    print(content[:200] + "..." if len(content) > 200 else content)
-            else:
-                print("ERREUR: comm_1.tex n'existe pas!")
+            #comm_1_path = os.path.join(temp_dir, "comm_1.tex")
+            #if os.path.exists(comm_1_path):
+            #    with open(comm_1_path, 'r', encoding='utf-8') as f:
+            #        content = f.read()
+            #        print(f"Contenu de comm_1.tex ({len(content)} chars):")
+            #        print(content[:200] + "..." if len(content) > 200 else content)
+            #else:
+            #    print("ERREUR: comm_1.tex n'existe pas!")
 
 
 
@@ -2507,7 +3214,7 @@ def compile_latex_book(title, communications_by_theme, book_type):
 
             raise Exception("Erreur compilation LaTeX — voir logs.")
     
-def generate_config_tex(temp_dir, config):
+def generate_config_tex(temp_dir, config, book_type='tome1'):
     """Génère config.tex avec la configuration LuaLaTeX pour UTF-8."""
     
     # Extraire les infos depuis conference.yml
@@ -2515,7 +3222,11 @@ def generate_config_tex(temp_dir, config):
     short_name = config.get('conference', {}).get('short_name', 'CONF')
     city = config.get('location', {}).get('city', 'Ville')
     dates = config.get('dates', {}).get('dates', 'Dates à définir')
-    
+    book_header = config.get('conference', {}).get('book_header', 'Congrès')
+
+    link_color = "blue" if book_type == "actes-numeriques" else "black"
+    url_color = "blue" if book_type == "actes-numeriques" else "black"
+
     # Configuration LuaLaTeX avec gestion native UTF-8
     config_content = f"""% Configuration LuaLaTeX pour Conference Flow
 % Gestion native des caractères UTF-8
@@ -2612,21 +3323,31 @@ def generate_config_tex(temp_dir, config):
 \\usepackage{{fancyhdr}}
 \\pagestyle{{fancy}}
 \\fancyhf{{}} % Nettoie les en-têtes et pieds de page
-\\fancyhead[C]{{{congress_name}, {city} -- {dates}}}
-\\fancyfoot[C]{{\\thepage}}
+\\fancyhead[C]{{{book_header}}}
+\\fancyfoot[C]{{\\small\\thepage}}
 \\renewcommand{{\\headrulewidth}}{{0.5pt}}
-\\renewcommand{{\\footrulewidth}}{{0pt}}
+\\renewcommand{{\\footrulewidth}}{{0.5pt}}
 
-% Style pour la première page (sans en-tête)
 \\fancypagestyle{{plain}}{{
-    \\fancyhf{{}}
-    \\fancyfoot[C]{{\\thepage}}
-    \\renewcommand{{\\headrulewidth}}{{0pt}}
+  \\fancyhf{{}}
+  \\fancyhead[C]{{{book_header}}}
+  \\fancyfoot[C]{{\\small\\thepage}}
+  \\renewcommand{{\\headrulewidth}}{{0.5pt}}
+  \\renewcommand{{\\footrulewidth}}{{0.5pt}}
 }}
 
-% Hyperlinks avec couleurs
-\\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{{hyperref}}
+\\makeatletter
+\\def\\cleardoublepage{{\\clearpage\\if@twoside \\ifodd\\c@page\\else
+  \\hbox{{}}
+  \\thispagestyle{{empty}}
+  \\newpage
+  \\if@twocolumn\\hbox{{}}\\newpage\\fi\\fi\\fi}}
+\\makeatother
 
+
+% Hyperlinks avec couleurs
+% \\usepackage[final,colorlinks,linkcolor={{black}},citecolor={{black}},urlcolor={{black}}]{{hyperref}}
+\\usepackage[final,colorlinks,linkcolor={{{link_color}}},citecolor={{{link_color}}},urlcolor={{{url_color}}}]{{hyperref}}
 % Configuration spécifique pour le livre
 \\newcommand{{\\CongressName}}{{{congress_name}}}
 \\newcommand{{\\ShortName}}{{{short_name}}}
@@ -2684,7 +3405,7 @@ def generate_latex_content(title, communications_by_theme, book_type):
 %
 \\input{{./page-garde.tex}}
 %
-\\part{{Introduction}}
+\\part{{Préface}}
 
  \\input{{./remerciements.tex}}
  \\cleardoublepage
@@ -2715,7 +3436,11 @@ def generate_latex_content(title, communications_by_theme, book_type):
     theme_num = 1
     for theme_name, communications in communications_by_theme.items():
         if communications:
-            current_app.logger.info(f"DEBUG: theme_name='{theme_name}' -> escaped='{escape_latex(theme_name)}'")
+            # Extraire uniquement la partie après "Thème X :"
+            theme_title = theme_name
+            if ':' in theme_name:
+                theme_title = theme_name.split(':', 1)[1].strip()
+
             latex_content += f"""
 %%%%%%% THEME {theme_num} %%%%%
 \\cleardoublepage
@@ -2723,9 +3448,13 @@ def generate_latex_content(title, communications_by_theme, book_type):
 \\addcontentsline{{toc}}{{part}}{{Thème {theme_num}}}
 
             
-\\chapter{{{escape_latex(theme_name)}}}
+\\chapter{{{escape_latex(theme_title)}}}
+\\minitoc
 
 """
+
+
+
      # Générer chaque communication
         for comm in communications:
             comm_filename = f"comm_{comm.id}.tex"
@@ -2738,7 +3467,8 @@ def generate_latex_content(title, communications_by_theme, book_type):
                 # Pour les articles, inclure le .tex ET le PDF
                 latex_content += f"\\input{{{comm_filename}}}\n"
                 latex_content += f"\\includepdf[pages=-,pagecommand={{\\thispagestyle{{fancy}}}},width=1.05\\paperwidth]{{comm_{comm.id}.pdf}}\n"       
-            theme_num += 1
+                
+        theme_num += 1
     
     # Fin du document
     latex_content += """
@@ -2753,16 +3483,14 @@ def generate_latex_content(title, communications_by_theme, book_type):
     return latex_content
 
 def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
-    """Copie les PDFs des communications vers le répertoire temporaire."""
+    """Copie les PDFs des communications vers le répertoire temporaire (en N&B pour tome1/tome2)."""
     print("=" * 60)
     print("DEBUG: TYPES DE FICHIERS DISPONIBLES")
     print("=" * 60)
-    
     for theme_name, communications in communications_by_theme.items():
         print(f"\n--- THÈME: {theme_name} ---")
         for comm in communications:
             print(f"Communication {comm.id}: {comm.title[:50]}...")
-            
             # Lister tous les fichiers disponibles
             if hasattr(comm, 'submission_files') and comm.submission_files:
                 print(f"  Types de fichiers disponibles:")
@@ -2770,12 +3498,8 @@ def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
                     print(f"    - {file.file_type}: {file.original_filename}")
             else:
                 print("  ⚠️ AUCUN FICHIER TROUVÉ")
-    
     print("=" * 60)
-
-
-
-
+    
     current_app.logger.info(f"=== DEBUT copy_communication_pdfs ===")
     current_app.logger.info(f"temp_dir: {temp_dir}")
     current_app.logger.info(f"book_type: {book_type}")
@@ -2786,6 +3510,10 @@ def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
     
     total_communications = 0
     files_created = 0
+    
+    # Créer le dossier pour les PDF en niveaux de gris
+    gray_dir = os.path.join(current_app.static_folder, "uploads", "communications_gray")
+    os.makedirs(gray_dir, exist_ok=True)
     
     for theme_name, communications in communications_by_theme.items():
         current_app.logger.info(f"--- Thématique: {theme_name} ---")
@@ -2801,15 +3529,58 @@ def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
             
             if pdf_path and os.path.exists(pdf_path):
                 current_app.logger.info(f"✅ PDF existe: {pdf_path}")
-                # Copier avec un nom standardisé
+                
+                # Nom du fichier en cache (basé sur le nom du fichier original)
+#                pdf_basename = os.path.basename(pdf_path)
+#                gray_cache_path = os.path.join(gray_dir, pdf_basename)
+                
+                # Vérifier si la version en N&B existe déjà
+#                if not os.path.exists(gray_cache_path):
+#                    current_app.logger.info(f"Conversion en N&B de {pdf_basename}...")
+#                    if not convert_pdf_to_grayscale(pdf_path, gray_cache_path, quality='/printer'):
+                        # Si la conversion échoue, utiliser le PDF original
+#                        current_app.logger.warning(f"Conversion échouée, utilisation du PDF original")
+#                        gray_cache_path = pdf_path
+#                else:
+#                    current_app.logger.info(f"Version N&B en cache trouvée: {pdf_basename}")
+                
+                # Copier le PDF (converti ou original) avec un nom standardisé
+#                dest_filename = f"comm_{comm.id}.pdf"
+#                dest_path = os.path.join(temp_dir, dest_filename)
+#                shutil.copy2(gray_cache_path, dest_path)
+#                current_app.logger.info(f"✅ PDF copié vers: {dest_path}")
+
+                # Nom du fichier en cache (basé sur le nom du fichier original)
+                pdf_basename = os.path.basename(pdf_path)
+                
+                if book_type == 'actes-numeriques':
+                    # Pas de conversion N&B pour la version numérique
+                    source_path = pdf_path
+                else:
+                    gray_cache_path = os.path.join(gray_dir, pdf_basename)
+                    # Vérifier si la version en N&B existe déjà
+                    if not os.path.exists(gray_cache_path):
+                        current_app.logger.info(f"Conversion en N&B de {pdf_basename}...")
+                        if not convert_pdf_to_grayscale(pdf_path, gray_cache_path, quality='/printer'):
+                            # Si la conversion échoue, utiliser le PDF original
+                            current_app.logger.warning(f"Conversion échouée, utilisation du PDF original")
+                            gray_cache_path = pdf_path
+                    else:
+                        current_app.logger.info(f"Version N&B en cache trouvée: {pdf_basename}")
+                    source_path = gray_cache_path
+                
+                # Copier le PDF (converti ou original) avec un nom standardisé
                 dest_filename = f"comm_{comm.id}.pdf"
                 dest_path = os.path.join(temp_dir, dest_filename)
-                shutil.copy2(pdf_path, dest_path)
+                shutil.copy2(source_path, dest_path)
                 current_app.logger.info(f"✅ PDF copié vers: {dest_path}")
+
+
+
                 
                 # Générer aussi un fichier .tex minimal pour cette communication
                 current_app.logger.info(f"Génération du fichier .tex pour comm {comm.id}...")
-                generate_communication_tex(comm, temp_dir)
+                generate_metadata_tex(comm, temp_dir)
                 
                 # Vérifier que le fichier .tex a été créé
                 tex_path = os.path.join(temp_dir, f"comm_{comm.id}.tex")
@@ -2818,7 +3589,6 @@ def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
                     files_created += 1
                 else:
                     current_app.logger.error(f"❌ Fichier .tex NON créé: {tex_path}")
-                
             else:
                 current_app.logger.warning(f"⚠️ PDF manquant pour communication {comm.id}: {comm.title}")
                 # Créer un placeholder
@@ -2840,9 +3610,148 @@ def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
     # Lister tous les fichiers comm_*.tex créés
     tex_files = [f for f in os.listdir(temp_dir) if f.startswith('comm_') and f.endswith('.tex')]
     current_app.logger.info(f"Fichiers comm_*.tex trouvés: {tex_files}")
-    
     current_app.logger.info(f"=== FIN copy_communication_pdfs ===")
 
+
+#def copy_communication_pdfs(communications_by_theme, temp_dir, book_type):
+#    """Copie les PDFs des communications vers le répertoire temporaire."""
+#    print("=" * 60)
+#    print("DEBUG: TYPES DE FICHIERS DISPONIBLES")
+#    print("=" * 60)
+    
+#    for theme_name, communications in communications_by_theme.items():
+#        print(f"\n--- THÈME: {theme_name} ---")
+#        for comm in communications:
+#            print(f"Communication {comm.id}: {comm.title[:50]}...")
+            
+            # Lister tous les fichiers disponibles
+#            if hasattr(comm, 'submission_files') and comm.submission_files:
+#                print(f"  Types de fichiers disponibles:")
+#                for file in comm.submission_files:
+#                    print(f"    - {file.file_type}: {file.original_filename}")
+#            else:
+#                print("  ⚠️ AUCUN FICHIER TROUVÉ")
+    
+#    print("=" * 60)
+
+#    current_app.logger.info(f"=== DEBUT copy_communication_pdfs ===")
+#    current_app.logger.info(f"temp_dir: {temp_dir}")
+#    current_app.logger.info(f"book_type: {book_type}")
+#    current_app.logger.info(f"Nombre de thématiques: {len(communications_by_theme)}")
+    
+#    import os
+#    import shutil
+    
+#    total_communications = 0
+#    files_created = 0
+    
+#    for theme_name, communications in communications_by_theme.items():
+#        current_app.logger.info(f"--- Thématique: {theme_name} ---")
+#        current_app.logger.info(f"Nombre de communications dans cette thématique: {len(communications)}")
+        
+#        for i, comm in enumerate(communications):
+#            current_app.logger.info(f"Communication {i+1}/{len(communications)}: ID={comm.id}, Titre='{comm.title[:50]}...'")
+#            total_communications += 1
+            
+            # Récupérer le PDF de la communication
+#            pdf_path = get_communication_pdf(comm, book_type)
+#            current_app.logger.info(f"Chemin PDF pour comm {comm.id}: {pdf_path}")
+            
+#            if pdf_path and os.path.exists(pdf_path):
+#                current_app.logger.info(f"✅ PDF existe: {pdf_path}")
+                # Copier avec un nom standardisé
+#                dest_filename = f"comm_{comm.id}.pdf"
+#                dest_path = os.path.join(temp_dir, dest_filename)
+#                shutil.copy2(pdf_path, dest_path)
+#                current_app.logger.info(f"✅ PDF copié vers: {dest_path}")
+                
+                # Générer aussi un fichier .tex minimal pour cette communication
+#                current_app.logger.info(f"Génération du fichier .tex pour comm {comm.id}...")
+#                generate_metadata_tex(comm, temp_dir)       #generate_communication_tex(comm, temp_dir)
+                
+                # Vérifier que le fichier .tex a été créé
+#                tex_path = os.path.join(temp_dir, f"comm_{comm.id}.tex")
+#                if os.path.exists(tex_path):
+#                    current_app.logger.info(f"✅ Fichier .tex créé: {tex_path}")
+#                    files_created += 1
+#                else:
+#                    current_app.logger.error(f"❌ Fichier .tex NON créé: {tex_path}")
+                
+#            else:
+#                current_app.logger.warning(f"⚠️ PDF manquant pour communication {comm.id}: {comm.title}")
+                # Créer un placeholder
+#                current_app.logger.info(f"Création d'un placeholder pour comm {comm.id}...")
+#                create_placeholder_tex(comm, temp_dir)
+                
+                # Vérifier que le placeholder a été créé
+#                tex_path = os.path.join(temp_dir, f"comm_{comm.id}.tex")
+#                if os.path.exists(tex_path):
+#                    current_app.logger.info(f"✅ Placeholder .tex créé: {tex_path}")
+#                    files_created += 1
+#                else:
+#                    current_app.logger.error(f"❌ Placeholder .tex NON créé: {tex_path}")
+    
+#    current_app.logger.info(f"=== RÉSUMÉ copy_communication_pdfs ===")
+#    current_app.logger.info(f"Total communications traitées: {total_communications}")
+#    current_app.logger.info(f"Fichiers .tex créés: {files_created}")
+    
+    # Lister tous les fichiers comm_*.tex créés
+#    tex_files = [f for f in os.listdir(temp_dir) if f.startswith('comm_') and f.endswith('.tex')]
+#    current_app.logger.info(f"Fichiers comm_*.tex trouvés: {tex_files}")
+    #
+#    current_app.logger.info(f"=== FIN copy_communication_pdfs ===")
+
+
+#def generate_metadata_tex(communication, temp_dir):
+#    """Génère un fichier LaTeX minimal (métadonnées uniquement) pour les tomes d'actes."""
+    
+#    filename = f"comm_{communication.id}.tex"
+#    filepath = os.path.join(temp_dir, filename)
+    
+#    title_escaped = escape_latex(communication.title)
+    
+#    authors = []
+#    for author in communication.authors:
+#        first = escape_latex(author.first_name)
+#        last = escape_latex(author.last_name)
+#        authors.append(f"{first} {last}")
+    
+#    content = f"""% Communication {communication.id} - Métadonnées
+#\\phantomsection
+#\\addcontentsline{{toc}}{{section}}{{{title_escaped}}}
+
+#"""
+    
+#    with open(filepath, 'w', encoding='utf-8') as f:
+#        f.write(content)
+
+def generate_metadata_tex(communication, temp_dir):
+    """Génère un fichier LaTeX minimal (métadonnées uniquement) pour les tomes d'actes."""
+    filename = f"comm_{communication.id}.tex"
+    filepath = os.path.join(temp_dir, filename)
+    title_escaped = escape_latex(communication.title)
+    
+    # Index des auteurs
+    index_entries = ""
+    for author in communication.authors:
+        first = author.first_name or ""
+        last = author.last_name or ""
+        if first and last:
+            clean_last = last.replace(' ', '').replace('-', '')
+            clean_first = first.replace(' ', '').replace('-', '')
+            index_key = f"{clean_last}{clean_first}"
+            index_display = f"{escape_latex(last)}, {escape_latex(first)}"
+            index_entries += f"\\index{{{index_key}@{index_display}}}\n"
+
+    content = f"""% Communication {communication.id} - Métadonnées
+{index_entries}
+\\clearpage
+\\phantomsection
+\\addcontentsline{{toc}}{{section}}{{{title_escaped}}}
+
+"""
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)
 
 def generate_communication_tex(communication, temp_dir):
     """Génère un fichier LaTeX pour une communication à partir de ses champs textuels.
@@ -2953,9 +3862,9 @@ Test content pour debug
         # Affiliations de l'auteur
         if author['affiliations']:
             aff_nums = ','.join(map(str, author['affiliations']))
-            ch_authors += f"{surname} {name}$^{{{aff_nums}{mark}}}$, "
+            ch_authors += f"{name} {surname}$^{{{aff_nums}{mark}}}$, "
         else:
-            ch_authors += f"{surname} {name}{mark}, "
+            ch_authors += f"{name} {surname}{mark}, "
     
     ch_authors = ch_authors[:-2]  # Supprimer la dernière virgule
     ch_authors += "\\\\[2mm]\n"
@@ -3490,7 +4399,7 @@ def copy_latex_templates(temp_dir, title, book_type):
         current_app.logger.info("✅ Config récupérée")
         
         current_app.logger.info("Génération de config.tex...")
-        generate_config_tex(temp_dir, config)
+        generate_config_tex(temp_dir, config, book_type)
         current_app.logger.info("✅ config.tex généré")
         
         current_app.logger.info("Génération de page-garde.tex...")
@@ -3603,36 +4512,91 @@ def generate_remerciements_tex(temp_dir, config):
         # Construire le contenu LaTeX final
         latex_content = ""
         
-        # 1. Section des parrainages (si sponsors.yml existe)
+       # 1. Section des parrainages (si sponsors.yml existe)
         if sponsors_data:
             sponsors_title = sponsors_data.get('title', 'Parrainages')
             sponsors_intro = sponsors_data.get('introduction', '')
-            sponsors_list = sponsors_data.get('sponsors', [])
             
             latex_content += f"\\chapter*{{{sponsors_title}}}\n\n"
             
             if sponsors_intro:
-                latex_content += f"{sponsors_intro}\n\n"
+                latex_content += f"{escape_latex(sponsors_intro)}\n\n"
             
-            if sponsors_list:
-                latex_content += "\\begin{itemize}\n"
-                for sponsor in sponsors_list:
-                    sponsor_name = sponsor.get('name', '')
-                    sponsor_address = sponsor.get('address', '')
-                    
-                    if sponsor_name:
-                        latex_content += f"\\item {escape_latex(sponsor_name)}"
-                        if sponsor_address:
-                            # Remplacer les retours à la ligne par \\
-                            address_lines = sponsor_address.strip().split('\n')
-                            if len(address_lines) > 1:
-                                # Créer le séparateur en dehors de la f-string
-                                separator = ' \\\\ '
-                                address_formatted = escape_latex(separator.join(address_lines))
-                                latex_content += f" \\\\\n{address_formatted}"
-                        latex_content += "\n"
+            # Fonction pour générer un bloc sponsor avec logo
+            def generate_sponsor_block(sponsor, show_contact=False):
+                block = ""
+                sponsor_name = sponsor.get('name', '')
+                sponsor_address = sponsor.get('address', '')
+                sponsor_url = sponsor.get('url', '')
+                sponsor_logo = sponsor.get('logo', '')
+                sponsor_contact = sponsor.get('contact', {})
                 
-                latex_content += "\\end{itemize}\n\n"
+                if not sponsor_name:
+                    return ""
+                
+                block += "\\noindent\\rule{\\textwidth}{0.4pt}\n\n"
+                block += "\\begin{minipage}[c]{0.65\\textwidth}\n"
+                block += f"\\textbf{{{escape_latex(sponsor_name)}}}\\\\\n"
+                
+                if sponsor_address and sponsor_address.strip():
+                    address_lines = [l.strip() for l in sponsor_address.strip().split('\n') if l.strip()]
+                    for line in address_lines:
+                        block += f"{escape_latex(line)}\\\\\n"
+                
+                if sponsor_url:
+                    block += f"\\url{{{sponsor_url}}}\\\\\n"
+                
+                if show_contact and sponsor_contact:
+                    contact_name = sponsor_contact.get('name', '')
+                    contact_phone = sponsor_contact.get('phone', '')
+                    contact_email = sponsor_contact.get('email', '')
+                    if contact_name:
+                        block += f"\\underline{{Contact}}: {escape_latex(contact_name)}\\\\\n"
+                    if contact_phone:
+                        block += f"\\Telefon~{escape_latex(contact_phone)}\\\\\n"
+                    if contact_email:
+                        block += f"\\Letter~{escape_latex(contact_email)}\\\\\n"
+                
+                block += "\\end{minipage}\n"
+                block += "\\hfill\n"
+                block += "\\begin{minipage}[c]{0.30\\textwidth}\n"
+                block += "\\raggedleft\n"
+                
+                if sponsor_logo:
+                    logo_path = content_dir / sponsor_logo
+                    if logo_path.exists():
+                        block += f"\\includegraphics[width=0.8\\textwidth,height=2.5cm,keepaspectratio]{{{logo_path}}}\n"
+                
+                block += "\\end{minipage}\n\n"
+                block += "\\vspace{3mm}\n\n"
+                
+                return block
+            
+            # Sponsors institutionnels
+            institutional = sponsors_data.get('institutional_sponsors', [])
+            for sponsor in institutional:
+                latex_content += generate_sponsor_block(sponsor)
+            
+            # Sponsors de financement
+            funding = sponsors_data.get('funding_sponsors', [])
+            for sponsor in funding:
+                latex_content += generate_sponsor_block(sponsor)
+            
+            # Section industriels
+            industrial_intro = sponsors_data.get('industrial_intro', '')
+            industrial = sponsors_data.get('industrial_sponsors', [])
+            
+            if industrial:
+                latex_content += "\\noindent\\rule{\\textwidth}{0.4pt}\n\n"
+                latex_content += "\\clearpage\n\n"
+                if industrial_intro:
+                    latex_content += f"\n{escape_latex(industrial_intro)}\n\n"
+                
+                for sponsor in industrial:
+                    latex_content += generate_sponsor_block(sponsor, show_contact=True)
+            
+            # Ligne finale
+            latex_content += "\\noindent\\rule{\\textwidth}{0.4pt}\n\n"
             
             # Saut de page avant les remerciements
             latex_content += "\\cleardoublepage\n\n"
@@ -3679,41 +4643,82 @@ def generate_remerciements_tex(temp_dir, config):
         with open(os.path.join(temp_dir, "remerciements.tex"), 'w', encoding='utf-8') as f:
             f.write("\\chapter*{Remerciements}\nRemerciements en cours de rédaction.\n")
 
-
 def escape_latex(text):
-    """Échappe les caractères spéciaux pour LaTeX."""
+    """Échappe les caractères spéciaux pour LaTeX, en préservant le mode math $...$."""
     if not text:
         return ""
     
-    # S'assurer que le texte est bien une chaîne
     if isinstance(text, bytes):
         text = text.decode('utf-8', errors='ignore')
     
     text = str(text)
     
-    # Normaliser Unicode
     import unicodedata
     text = unicodedata.normalize('NFC', text)
     
+    # Séparer le texte en segments : mode math ($...$) et texte normal
+    parts = text.split('$')
+    result = []
+    
+    for i, part in enumerate(parts):
+        if i % 2 == 0:
+            # Texte normal : échapper les caractères spéciaux
+            latex_chars = {
+                '\\': r'\textbackslash{}', 
+                '&': r'\&',
+                '%': r'\%', 
+                '#': r'\#',
+                '_': r'\_',
+                '{': r'\{',
+                '}': r'\}',
+                '~': r'\textasciitilde{}',
+                '^': r'\textasciicircum{}',
+            }
+            for char, replacement in latex_chars.items():
+                part = part.replace(char, replacement)
+            result.append(part)
+        else:
+            # Mode math : on laisse tel quel, encadré par $
+            result.append('$' + part + '$')
+    
+    return ''.join(result)
+
+
+
+#def escape_latex(text):
+#    """Échappe les caractères spéciaux pour LaTeX."""
+#    if not text:
+#        return ""
+    
+    # S'assurer que le texte est bien une chaîne
+#    if isinstance(text, bytes):
+#        text = text.decode('utf-8', errors='ignore')
+    
+#    text = str(text)
+    
+    # Normaliser Unicode
+#    import unicodedata
+#    text = unicodedata.normalize('NFC', text)
+    
     # Dictionnaire des caractères à échapper
     # On n'échappe PAS ^ car LuaLaTeX gère l'UTF-8 nativement
-    latex_chars = {
-        '\\': r'\textbackslash{}', 
-        '&': r'\&',
-        '%': r'\%', 
-        '$': r'\$',
-        '#': r'\#',
-        '_': r'\_',
-        '{': r'\{',
-        '}': r'\}',
-        '~': r'\textasciitilde{}',
-    }
+#    latex_chars = {
+#        '\\': r'\textbackslash{}', 
+#        '&': r'\&',
+#        '%': r'\%', 
+#        '$': r'\$',
+#        '#': r'\#',
+#        '_': r'\_',
+#        '{': r'\{',
+#        '}': r'\}',
+#        '~': r'\textasciitilde{}',
+#    }
     
-    escaped_text = text
-    for char, replacement in latex_chars.items():
-        escaped_text = escaped_text.replace(char, replacement)
-    
-    return escaped_text           
+#    escaped_text = text
+#    for char, replacement in latex_chars.items():
+#        escaped_text = escaped_text.replace(char, replacement)
+#    
+#    return escaped_text           
 
 # def escape_latex(text):
 #     """Échappe les caractères spéciaux pour LaTeX."""
@@ -3875,30 +4880,34 @@ Le congrès {congress_name} s'est organisé par l'équipe locale du {lab_name}.
 
 \\vspace{{1cm}}
 \\noindent
-\\begin{{tabular}}{{lll}}
+\\begin{{tabular}}{{@{{}}lp{{12cm}}@{{}}}}
 """
         
         if presidents:
-            comite_content += "\t\\textbf{Président :} &"
             for i, president in enumerate(presidents):
-                if i > 0:
-                    comite_content += " \\\\\n\t &"
-                comite_content += f" {president['name']}"
+                if i == 0:
+                    comite_content += "\t\\textbf{Président :} & "
+                else:
+                    comite_content += "\t & "
+                comite_content += f"{president['name']}"
                 if president['institution']:
                     comite_content += f" - {president['institution']}"
-                comite_content += "\\\\\n"
+                comite_content += " \\\\\n"
+        
+        comite_content += "\t & \\\\\n"  # Ligne vide de séparation
         
         if members:
-            comite_content += "\t\\textbf{Membres :} &"
             for i, member in enumerate(members):
-                if i > 0:
-                    comite_content += " \\\\\n\t &"
-                comite_content += f" {member['name']}"
+                if i == 0:
+                    comite_content += "\t\\textbf{Membres :} & "
+                else:
+                    comite_content += "\t & "
+                comite_content += f"{member['name']}"
                 if member['role']:
                     comite_content += f" - {member['role']}"
                 if member['institution']:
                     comite_content += f" ({member['institution']})"
-                comite_content += "\\\\\n"
+                comite_content += " \\\\\n"         
         
         comite_content += "\\end{tabular}\n"
         
@@ -3963,7 +4972,6 @@ Le congrès {congress_name} s'est organisé par l'équipe locale du {lab_name}.
 
 
 
-
 def generate_introduction_tex(temp_dir, config):
     """Génère introduction.tex depuis static/content/introduction.yml."""
     try:
@@ -3985,12 +4993,26 @@ def generate_introduction_tex(temp_dir, config):
                 'signature': 'Le Comité d\'organisation'
             }
         
-        # Compter les communications pour les statistiques
-        total_communications = Communication.query.filter_by(status=CommunicationStatus.ACCEPTED).count()
+        # Compter les communications par type
+        total_articles = Communication.query.filter(
+            Communication.type == 'article',
+            Communication.status == CommunicationStatus.ACCEPTE
+        ).count()
+        
+        total_wips = Communication.query.filter(
+            Communication.type == 'wip',
+            Communication.status == CommunicationStatus.WIP_SOUMIS
+        ).count()
+        
+        total_resumes = Communication.query.filter(
+            Communication.type == 'article'
+        ).count()
+        
+        total_communications = total_articles + total_wips
         
         # Variables de remplacement
-        content = intro_data['content']
-        signature = intro_data['signature']
+        content = intro_data.get('content', '')
+        signature = intro_data.get('signature', '')
         
         variables = {
             'CONFERENCE_NAME': config.get('conference', {}).get('name', ''),
@@ -4000,7 +5022,10 @@ def generate_introduction_tex(temp_dir, config):
             'CONFERENCE_LOCATION': config.get('location', {}).get('city', ''),
             'CONFERENCE_DATES': config.get('dates', {}).get('dates', ''),
             'ORGANIZATION_NAME': config.get('conference', {}).get('organizer', {}).get('name', ''),
-            'TOTAL_COMMUNICATIONS': str(total_communications)
+            'TOTAL_COMMUNICATIONS': str(total_communications),
+            'TOTAL_ARTICLES': str(total_articles),
+            'TOTAL_WIPS': str(total_wips),
+            'TOTAL_RESUMES': str(total_resumes)
         }
         
         for var, value in variables.items():
@@ -4023,6 +5048,73 @@ def generate_introduction_tex(temp_dir, config):
         current_app.logger.error(f"Erreur génération introduction.tex: {e}")
         with open(os.path.join(temp_dir, "introduction.tex"), 'w', encoding='utf-8') as f:
             f.write("\\chapter*{Introduction}\nIntroduction en cours de rédaction.\n")
+
+
+
+#def generate_introduction_tex(temp_dir, config):
+#    """Génère introduction.tex depuis static/content/introduction.yml."""
+#    try:
+#        from pathlib import Path
+#        import yaml
+#        from .models import Communication, CommunicationStatus
+        
+        # Charger depuis introduction.yml
+#        content_dir = Path(current_app.root_path) / "static" / "content"
+#        introduction_file = content_dir / "introduction.yml"
+        
+#        if introduction_file.exists():
+#            with open(introduction_file, 'r', encoding='utf-8') as f:
+#                intro_data = yaml.safe_load(f)
+#        else:
+#            intro_data = {
+#                'title': 'Introduction',
+#                'content': 'Bienvenue au congrès.',
+#                'signature': 'Le Comité d\'organisation'
+#            }
+        
+        # Compter les communications pour les statistiques
+#        total_communications = Communication.query.filter_by(status=CommunicationStatus.ACCEPTED).count()
+        
+        # Variables de remplacement
+#        content = intro_data['content']
+#        signature = intro_data['signature']
+        
+#        variables = {
+#            'CONFERENCE_NAME': config.get('conference', {}).get('name', ''),
+#            'CONFERENCE_SHORT_NAME': config.get('conference', {}).get('short_name', ''),
+#            'CONFERENCE_EDITION': config.get('conference', {}).get('edition', ''),
+#            'CONFERENCE_THEME': config.get('conference', {}).get('theme', ''),
+#            'CONFERENCE_LOCATION': config.get('location', {}).get('city', ''),
+#            'CONFERENCE_DATES': config.get('dates', {}).get('dates', ''),
+#            'ORGANIZATION_NAME': config.get('conference', {}).get('organizer', {}).get('name', ''),
+#            'TOTAL_COMMUNICATIONS': str(total_communications)
+#        }
+        
+#        for var, value in variables.items():
+#            content = content.replace('{' + var + '}', value)
+#            signature = signature.replace('{' + var + '}', value)
+        
+#        introduction_content = f"""\\chapter*{{{intro_data['title']}}}
+
+#{content}
+
+#\\begin{{flushright}}
+#{signature}
+#\\end{{flushright}}
+#"""
+        
+#        with open(os.path.join(temp_dir, "introduction.tex"), 'w', encoding='utf-8') as f:
+#            f.write(introduction_content)
+            
+#    except Exception as e:
+#        current_app.logger.error(f"Erreur génération introduction.tex: {e}")
+#        with open(os.path.join(temp_dir, "introduction.tex"), 'w', encoding='utf-8') as f:
+#            f.write("\\chapter*{Introduction}\nIntroduction en cours de rédaction.\n")
+
+
+
+
+
 
 def generate_prix_biot_fourier_tex(temp_dir):
     """Génère prix-biot-fourier.tex depuis la base de données (version robuste)."""
@@ -4091,8 +5183,7 @@ def generate_prix_biot_fourier_tex(temp_dir):
                     # Ajout de la communication
                     prix_content += f"\\section*{{{title_escaped}}}\n"
                     prix_content += f"{authors_str}\n\n"
-                    prix_content += f"(Cf. page \\pageref{{ref:{candidate.id}}})\n\n"
-                    prix_content += "\\hrule\n\n"
+                    prix_content += "\\vspace{3mm}\n\\hrule\n\\vspace{3mm}\n\n"
                     
                 except Exception as e:
                     current_app.logger.error(f"Erreur traitement communication {candidate.id}: {e}")
@@ -4214,7 +5305,7 @@ def generate_page_garde_tex(temp_dir, config, title, book_type):
     lab_university = organizing_lab.get('university', 'Université')
     
     if lab_umr and lab_university:
-        organizer_text = lab_name + " (UMR " + lab_umr + " - " + lab_university + ")"
+        organizer_text = lab_name + " (UMR " + lab_umr + " - CNRS - " + lab_university + ")"
     else:
         organizer_text = lab_name
     
@@ -4245,6 +5336,12 @@ def generate_page_garde_tex(temp_dir, config, title, book_type):
     page_garde_content += "{\\Huge\n"
     page_garde_content += congress_name + "\\\\\n"
     page_garde_content += "}\n"
+    if book_type == 'tome1':
+        page_garde_content += "\\vspace{0.5em}\n"
+        page_garde_content += "{\\huge Tome 1}\\\\\n"
+    elif book_type == 'tome2':
+        page_garde_content += "\\vspace{0.5em}\n"
+        page_garde_content += "{\\huge Tome 2}\\\\\n"
     page_garde_content += "%\n"
     page_garde_content += "\\vspace{\\stretch{1}}\n"
     page_garde_content += "%\n"
@@ -4299,30 +5396,30 @@ def get_presidents_names_for_latex(config):
 
 
 
-def escape_latex(text):
-    """Échappe les caractères spéciaux pour LaTeX."""
-    if not text:
-        return ""
+#def escape_latex(text):
+#    """Échappe les caractères spéciaux pour LaTeX."""
+#    if not text:
+#        return ""
     
     # Dictionnaire des caractères à échapper
-    latex_chars = {
-        '\\': r'\textbackslash{}', 
-        '&': r'\&',
-        '%': r'\%', 
+#    latex_chars = {
+#        '\\': r'\textbackslash{}', 
+#        '&': r'\&',
+#        '%': r'\%', 
         #'$': r'\$',
-        '#': r'\#',
+#        '#': r'\#',
         #'^': r'\textasciicircum{}',
-        '_': r'\_',
-        '{': r'\{',
-        '}': r'\}',
-        '~': r'\textasciitilde{}',
-    }
+#        '_': r'\_',
+#        '{': r'\{',
+#        '}': r'\}',
+#        '~': r'\textasciitilde{}',
+#    }
     
-    escaped_text = str(text)
-    for char, replacement in latex_chars.items():
-        escaped_text = escaped_text.replace(char, replacement)
+#    escaped_text = str(text)
+#    for char, replacement in latex_chars.items():
+#        escaped_text = escaped_text.replace(char, replacement)
     
-    return escaped_text
+#    return escaped_text
 
 
                                                            #

@@ -109,6 +109,26 @@
                             {% endif %}
                         </div>
 
+<!-- Résumé français -->
+                        <div class="mb-4">
+                            <label for="abstract_fr" class="form-label fw-bold">
+                                <i class="fas fa-align-left me-2"></i>Résumé français
+                            </label>
+                            <textarea class="form-control" id="abstract_fr" name="abstract_fr" rows="8">{{ comm.abstract_fr or '' }}</textarea>
+                            <small class="text-muted">Laissez vide pour ne pas modifier.</small>
+                        </div>
+
+                        <!-- Résumé anglais -->
+                        <div class="mb-4">
+                            <label for="abstract_en" class="form-label fw-bold">
+                                <i class="fas fa-align-left me-2"></i>Résumé anglais
+                            </label>
+                            <textarea class="form-control" id="abstract_en" name="abstract_en" rows="8">{{ comm.abstract_en or '' }}</textarea>
+                            <small class="text-muted">Laissez vide pour ne pas modifier.</small>
+                        </div>
+
+
+
 			
                         <!-- Co-auteurs actuels -->
 <!-- Section réorganisation des auteurs -->

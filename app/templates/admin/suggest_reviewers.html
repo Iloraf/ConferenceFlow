@@ -192,6 +192,115 @@
     </div>
 </div>
 
+
+<!-- Liste complète des reviewers disponibles -->
+<div class="card mt-4">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-2"></i>
+            Tous les reviewers disponibles ({{ all_reviewers|length }})
+        </h5>
+        <small>Sélection manuelle si les suggestions automatiques ne conviennent pas</small>
+    </div>
+    <div class="card-body">
+        {% if all_reviewers %}
+            <form method="POST" action="{{ url_for('admin.assign_reviewers', comm_id=communication.id) }}">
+                
+                <!-- Filtre par thématique -->
+                <div class="mb-3">
+                    <label class="form-label">Filtrer par thématique :</label>
+                    <select class="form-select" id="filter-theme" onchange="filterReviewers()">
+                        <option value="">Tous les reviewers</option>
+                        {% if communication.thematiques_codes %}
+                            {% for code in communication.thematiques_codes.split(',') %}
+                                <option value="{{ code.strip() }}">{{ code.strip() }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                
+                <div class="row" id="reviewers-list">
+                    {% for reviewer_data in all_reviewers %}
+                    <div class="col-md-6 mb-3 reviewer-item" 
+                         data-themes="{{ reviewer_data.common_themes|join(',') }}"
+                         data-conflict="{{ reviewer_data.conflict_detected|string }}">
+                        <div class="card {% if reviewer_data.conflict_detected %}border-danger{% else %}border-secondary{% endif %}">
+                            <div class="card-header {% if reviewer_data.conflict_detected %}bg-danger text-white{% else %}bg-light{% endif %}">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           name="reviewer_ids" 
+                                           value="{{ reviewer_data.reviewer.id }}" 
+                                           id="manual_reviewer_{{ reviewer_data.reviewer.id }}">
+                                    <label class="form-check-label fw-bold" for="manual_reviewer_{{ reviewer_data.reviewer.id }}">
+                                        {{ reviewer_data.reviewer.full_name or reviewer_data.reviewer.email }}
+                                        {% if reviewer_data.conflict_detected %}
+                                            <span class="badge bg-danger ms-2">CONFLIT</span>
+                                        {% endif %}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="card-body small">
+                                <p class="mb-1"><strong>Email :</strong> {{ reviewer_data.reviewer.email }}</p>
+                                
+                                <p class="mb-1"><strong>Thématiques communes :</strong></p>
+                                <div class="mb-2">
+                                    {% for theme in reviewer_data.common_themes %}
+                                        <span class="badge bg-success">{{ theme }}</span>
+                                    {% endfor %}
+                                </div>
+                                
+                                {% if reviewer_data.reviewer.affiliations %}
+                                <p class="mb-1"><strong>Affiliations :</strong> 
+                                    {% for aff in reviewer_data.reviewer.affiliations %}
+                                        {{ aff.sigle }}{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </p>
+                                {% endif %}
+                                
+                                <p class="mb-1"><strong>Charge actuelle :</strong> {{ reviewer_data.current_workload }} review(s)</p>
+                                <p class="mb-1"><strong>Score de pertinence :</strong> {{ reviewer_data.relevance_score }}</p>
+                                
+                                {% if reviewer_data.conflict_detected %}
+                                <div class="alert alert-danger alert-sm mt-2 mb-0">
+                                    <small><i class="fas fa-exclamation-triangle me-1"></i>{{ reviewer_data.conflict_reason }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="d-grid gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-user-plus me-2"></i>Assigner les reviewers sélectionnés
+                    </button>
+                </div>
+            </form>
+        {% else %}
+            <p class="text-muted">Aucun reviewer disponible.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function filterReviewers() {
+    const filter = document.getElementById('filter-theme').value;
+    const reviewers = document.querySelectorAll('.reviewer-item');
+    
+    reviewers.forEach(reviewer => {
+        if (!filter) {
+            reviewer.style.display = '';
+        } else {
+            const themes = reviewer.dataset.themes.split(',');
+            reviewer.style.display = themes.includes(filter) ? '' : 'none';
+        }
+    });
+}
+</script>
+
+
+
 <!-- Légende -->
 <div class="card mt-4">
     <div class="card-body">

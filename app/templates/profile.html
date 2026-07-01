@@ -81,14 +81,14 @@
                             <input type="text" id="affiliation-search" class="form-control me-2" 
                                    placeholder="Rechercher une affiliation (acronyme ou nom)..."
 				   autocomplete="new-password">
-                            <a href="{{ url_for('main.create_affiliation') }}" class="btn btn-outline-success btn-sm flex-shrink-0" title="Créer une nouvelle affiliation">
-                                <i class="fas fa-plus me-1"></i>Nouvelle
+<a href="{{ url_for('main.create_affiliation') }}" class="btn btn-outline-info btn-sm flex-shrink-0" title="Demander l'ajout d'une affiliation">
+                                <i class="fas fa-envelope me-1"></i>Demander
                             </a>
                         </div>
                         
                         <small class="text-muted">
                             <span id="affiliation-count">{{ affiliations|length }}</span> affiliation(s) affichée(s)
-                            • <strong>Votre affiliation manque ?</strong> Cliquez sur "Nouvelle" pour l'ajouter
+                            • <strong>Votre affiliation manque ?</strong> Cliquez sur "Demander" pour contacter l'organisation
                         </small>
                     </div>
 		    

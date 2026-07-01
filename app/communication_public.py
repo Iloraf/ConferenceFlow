@@ -102,15 +102,58 @@ def download_communication_file(comm_id, file_type):
                     as_attachment=True, 
                     download_name=file_obj.original_filename)
 
+
+
+
+#@public_comm.route('/communication/<int:comm_id>/qr.png')
+#def generate_qr_code(comm_id):
+#    """Génère et retourne le QR code PNG pour une communication."""
+#    communication = Communication.query.get_or_404(comm_id)
+    
+    # URL de la communication
+    # URL de la communication avec domaine correct	
+#    from flask import current_app
+#    base_url = current_app.config.get('BASE_URL', 'https://2026.congres-sft.fr')
+#    comm_url = f"{base_url}/public/communication/{comm_id}"    
+
+
+
+    #comm_url = url_for('public_comm.view_communication', comm_id=comm_id, _external=True)
+    
+    # Générer le QR code
+#    qr = qrcode.QRCode(
+#        version=1,
+#        error_correction=qrcode.constants.ERROR_CORRECT_L,
+#        box_size=10,
+#        border=4,
+#    )
+#    qr.add_data(comm_url)
+#    qr.make(fit=True)
+    
+    # Créer l'image
+#    qr_image = qr.make_image(fill_color="black", back_color="white")
+    
+    # Convertir en bytes pour l'envoi
+#    img_buffer = BytesIO()
+#    qr_image.save(img_buffer, format='PNG')
+#    img_buffer.seek(0)
+    
+#    return send_file(img_buffer, 
+#                    mimetype='image/png',
+#                    as_attachment=True,
+#                    download_name=f'QR_comm_{comm_id}.png')
+
+
+
 @public_comm.route('/communication/<int:comm_id>/qr.png')
 def generate_qr_code(comm_id):
     """Génère et retourne le QR code PNG pour une communication."""
     communication = Communication.query.get_or_404(comm_id)
     
-    # URL de la communication
-    comm_url = url_for('public_comm.view_communication', comm_id=comm_id, _external=True)
+    from flask import current_app
+    base_url = current_app.config.get('BASE_URL', 'https://2026.congres-sft.fr')
+    comm_url = f"{base_url}/public/communication/{comm_id}"
     
-    # Générer le QR code
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -120,15 +163,20 @@ def generate_qr_code(comm_id):
     qr.add_data(comm_url)
     qr.make(fit=True)
     
-    # Créer l'image
     qr_image = qr.make_image(fill_color="black", back_color="white")
     
-    # Convertir en bytes pour l'envoi
     img_buffer = BytesIO()
     qr_image.save(img_buffer, format='PNG')
     img_buffer.seek(0)
     
-    return send_file(img_buffer, 
-                    mimetype='image/png',
-                    as_attachment=True,
-                    download_name=f'QR_comm_{comm_id}.png')
+    response = send_file(img_buffer, 
+                        mimetype='image/png',
+                        as_attachment=True,
+                        download_name=f'QR_comm_{comm_id}.png')
+    
+    # Empêcher la mise en cache
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    return response

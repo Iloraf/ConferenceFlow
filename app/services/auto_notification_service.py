@@ -43,7 +43,10 @@ class AutoNotificationService:
         if self.is_running:
             self.logger.info("⚠️ Service auto-notifications déjà en cours")
             return
-        
+
+        from flask import current_app
+        self._flask_app = current_app._get_current_object() 
+
         self.is_running = True
         
         # Programmer les tâches
@@ -73,7 +76,8 @@ class AutoNotificationService:
         """Boucle principale du planificateur."""
         while self.is_running:
             try:
-                schedule.run_pending()
+                with self._flask_app.app_context():
+                    schedule.run_pending()
                 time.sleep(30)  # Vérifier toutes les 30 secondes
             except Exception as e:
                 self.logger.error(f"Erreur dans le planificateur: {e}")

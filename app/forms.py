@@ -128,8 +128,8 @@ class SubmitWipForm(FlaskForm):
     abstract_fr = TextAreaField(
         'Résumé du Work in Progress', 
         validators=[DataRequired(message="Le résumé en français est obligatoire")],
-        description="Décrivez votre travail en cours (maximum 2000 caractères)",
-        render_kw={"rows": 6, "maxlength": 2000, "placeholder": "Contexte, objectifs, premiers résultats ou hypothèses..."}
+        description="Décrivez votre travail en cours (maximum 3000 caractères)",
+        render_kw={"rows": 6, "maxlength": 3000, "placeholder": "Contexte, objectifs, premiers résultats ou hypothèses..."}
     )
     
     keywords = StringField('Mots-clés', validators=[Optional(), Length(max=500)])
