@@ -232,6 +232,7 @@ def create_app():
             accommodation_info = app.conference_config.get('accommodation', {})
             sponsors_info = app.sponsors_config
             legal_info = app.conference_config.get('legal', {})
+            theme_info = app.conference_config.get('theme', {})
             
             return {
                 'conference': conference_info,  # ← CHANGEMENT : on passe directement conference_info au lieu d'une structure modifiée
@@ -242,11 +243,26 @@ def create_app():
                 'conference_transport': transport_info,
                 'conference_accommodation': accommodation_info,
                 'legal': legal_info,
-                'sponsors': sponsors_info, 
+                 'conference_theme': theme_info,
+                'sponsors': sponsors_info,
                 'themes_available': len(app.themes_config)
             }
 
-
+        @app.context_processor
+        def inject_zones_status():
+            """Injecte l'état des zones (ouvert/fermé) dans tous les templates."""
+            import yaml
+            from pathlib import Path
+            zones_status = {}
+            try:
+                zones_file = Path(app.root_path) / 'static' / 'content' / 'zones.yml'
+                if zones_file.exists():
+                    with open(zones_file, 'r', encoding='utf-8') as f:
+                        zones = yaml.safe_load(f).get('zones', {})
+                        zones_status = {name: data.get('is_open', False) for name, data in zones.items()}
+            except Exception as e:
+                app.logger.error(f"Erreur lecture zones.yml dans inject_zones_status: {e}")
+            return {'zones_status': zones_status}
         
     
     from .models import User

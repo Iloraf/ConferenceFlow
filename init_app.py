@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import sys
 import subprocess
+import shutil
 from pathlib import Path
 
 def print_step(step, message):
@@ -64,6 +65,24 @@ def create_directories():
     
     print("✓ Dossiers créés")
 
+def sync_content_templates():
+    """Copie les fichiers modèles .example vers leur nom final si absents."""
+    project_root = Path(__file__).resolve().parent
+    content_dir = project_root / 'app' / 'static' / 'content'
+
+    if not content_dir.exists():
+        print("ℹ️  Dossier app/static/content introuvable, étape ignorée")
+        return
+
+    for example_file in content_dir.glob('*.example'):
+        target_file = content_dir / example_file.stem
+
+        if target_file.exists():
+            print(f"ℹ️  {target_file.name} existe déjà, pas de copie")
+        else:
+            shutil.copy(example_file, target_file)
+            print(f"✓ {target_file.name} créé depuis {example_file.name}")
+    
 def validate_environment():
     """Valide la présence des variables d'environnement essentielles."""
     required_vars = [
@@ -192,6 +211,10 @@ def main():
     # Étape 3: Création des dossiers
     print_step(3, "Création des dossiers")
     create_directories()
+
+    # Étape 3bis: Copie des fichiers de configuration par défaut
+    print_step("3bis", "Copie des fichiers de configuration par défaut")
+    sync_content_templates()
     
     # Étape 4: Initialisation base de données
     print_step(4, "Initialisation de la base de données")
