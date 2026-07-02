@@ -551,7 +551,37 @@ def toggle_communication_prix(comm_id):
     
     return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
 
-# À ajouter dans app/admin.py (à la fin du fichier, avant les autres routes)
+
+@admin.route('/communications/<int:comm_id>/template-non-conforme', methods=['POST'])
+@login_required
+def set_template_non_conforme(comm_id):
+    """Marque ou demarque une communication comme ayant un template non conforme."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+
+    communication = Communication.query.get_or_404(comm_id)
+
+    try:
+        flag = request.form.get('template_non_conforme') == '1'
+        comment = request.form.get('template_non_conforme_comment', '').strip()
+
+        communication.template_non_conforme = flag
+        communication.template_non_conforme_comment = comment if flag and comment else None
+
+        db.session.commit()
+
+        action = "marquée" if flag else "démarquée"
+        flash(f'Communication {action} comme template non conforme.', 'success')
+        current_app.logger.info(f"Communication {comm_id} template {action} par {current_user.email}")
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur set_template_non_conforme: {e}")
+        flash(f'Erreur lors de la modification: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+
 
 @admin.route("/zones/status")
 @login_required
@@ -3486,7 +3516,8 @@ def review_communication_details(comm_id):
         'recommendations': {
             'accepter': len([r for r in reviews if r.recommendation and r.recommendation.value == 'accepter']),
             'rejeter': len([r for r in reviews if r.recommendation and r.recommendation.value == 'rejeter']),
-            'réviser': len([r for r in reviews if r.recommendation and r.recommendation.value == 'réviser'])
+            'réviser_mineure': len([r for r in reviews if r.recommendation and r.recommendation.value == 'réviser_mineure']),
+            'réviser_majeure': len([r for r in reviews if r.recommendation and r.recommendation.value == 'réviser_majeure'])
         },
         'biot_fourier_count': len([r for r in reviews if r.recommend_for_biot_fourier])
     }
@@ -3553,14 +3584,19 @@ def make_communication_decision(comm_id):
     if not communication.can_make_decision():
         flash('Impossible de prendre une décision sur cette communication.', 'warning')
         return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
-    
+
     # Récupérer les données du formulaire
     decision = request.form.get('decision')
     comments = request.form.get('comments', '').strip()
+    revision_type = request.form.get('revision_type')
     
     # Validation
     if decision not in ['accepter', 'rejeter', 'reviser']:
         flash('Décision invalide.', 'danger')
+        return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+    
+    if decision == 'reviser' and revision_type not in ['mineure', 'majeure']:
+        flash('Merci de préciser si la révision est mineure ou majeure.', 'danger')
         return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
     
     try:
@@ -3568,7 +3604,8 @@ def make_communication_decision(comm_id):
         communication.make_final_decision(
             decision=decision,
             admin_user=current_user,
-            comments=comments if comments else None
+            comments=comments if comments else None,
+            revision_type=revision_type if decision == 'reviser' else None
         )
         
         db.session.commit()

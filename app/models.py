@@ -424,7 +424,12 @@ class Communication(db.Model):
     decision_notification_sent_at = db.Column(db.DateTime, nullable=True)
     decision_notification_error = db.Column(db.Text, nullable=True)
     decision_by = db.relationship('User', foreign_keys=[decision_by_id])
+    revision_type = db.Column(db.String(20), nullable=True)  # 'mineure' ou 'majeure'
 
+    # Conformite du template
+    template_non_conforme = db.Column(db.Boolean, default=False, nullable=False)
+    template_non_conforme_comment = db.Column(db.Text, nullable=True)
+    
     prix = db.Column(db.Boolean, default=False, nullable=False)
 
     # Prix Biot-Fourier - Audition
@@ -893,30 +898,35 @@ class Communication(db.Model):
             communication_id=self.id
         ).filter(ReviewAssignment.status != 'declined').count()
 
-    def make_final_decision(self, decision, admin_user, comments=None):
+    def make_final_decision(self, decision, admin_user, comments=None, revision_type=None):
         """
-        Prend une décision finale sur la communication.
-        
+        Prend une decision finale sur la communication.
+
         Args:
         decision (str): 'accepter', 'rejeter', ou 'reviser'
-        admin_user (User): L'administrateur qui prend la décision
-        comments (str, optional): Commentaires sur la décision
+        admin_user (User): L'administrateur qui prend la decision
+        comments (str, optional): Commentaires sur la decision
+        revision_type (str, optional): 'mineure' ou 'majeure', requis si decision='reviser'
         """
         if decision not in ['accepter', 'rejeter', 'reviser']:
-            raise ValueError("Décision invalide. Doit être 'accepter', 'rejeter', ou 'reviser'")
-    
-        # Enregistrer la décision
+            raise ValueError("Decision invalide. Doit etre 'accepter', 'rejeter', ou 'reviser'")
+
+        if decision == 'reviser' and revision_type not in ['mineure', 'majeure']:
+            raise ValueError("revision_type doit etre 'mineure' ou 'majeure' quand decision='reviser'")
+
+        # Enregistrer la decision
         self.final_decision = decision
         self.decision_date = datetime.utcnow()
         self.decision_by_id = admin_user.id
         self.decision_comments = comments
-        
-        # Réinitialiser les champs de notification
+        self.revision_type = revision_type if decision == 'reviser' else None
+
+        # Reinitialiser les champs de notification
         self.decision_notification_sent = False
         self.decision_notification_sent_at = None
         self.decision_notification_error = None
-        
-        # Mettre à jour le statut selon la décision
+
+        # Mettre a jour le statut selon la decision
         if decision == 'accepter':
             self.status = CommunicationStatus.ACCEPTE
         elif decision == 'rejeter':
@@ -924,17 +934,7 @@ class Communication(db.Model):
         elif decision == 'reviser':
             self.status = CommunicationStatus.REVISION_DEMANDEE
 
-        #biot_fourier_audition_selected = db.Column(db.Boolean, default=False, nullable=True)
-        #biot_fourier_audition_selected_at = db.Column(db.DateTime, nullable=True)
-        #biot_fourier_audition_selected_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-        #biot_fourier_audition_notification_sent = db.Column(db.Boolean, default=False, nullable=True)
-        #biot_fourier_audition_notification_sent_at = db.Column(db.DateTime, nullable=True)
-
-        #biot_fourier_selected_by = db.relationship('User', foreign_keys=[biot_fourier_audition_selected_by_id])
-
-            
-
-        return True
+    
     
     @property
     def decision_made(self):
@@ -1098,7 +1098,8 @@ class Communication(db.Model):
 
 class ReviewRecommendation(Enum):
     ACCEPT = 'accepter'
-    REVISE = 'réviser' 
+    REVISE_MINOR = 'réviser_mineure'
+    REVISE_MAJOR = 'réviser_majeure'
     REJECT = 'rejeter'
 
 class Review(db.Model):

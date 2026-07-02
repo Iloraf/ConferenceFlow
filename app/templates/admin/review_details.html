@@ -65,7 +65,8 @@
                     <h6>Recommendations:</h6>
                     <div class="mb-2">
                         <span class="badge bg-success">{{ stats.recommendations.accepter }} Accepter</span>
-                        <span class="badge bg-warning">{{ stats.recommendations.réviser }} Réviser</span>
+                        <span class="badge bg-warning">{{ stats.recommendations.réviser_mineure }} Réviser (mineure)</span>
+                        <span class="badge bg-warning">{{ stats.recommendations.réviser_majeure }} Réviser (majeure)</span>
                         <span class="badge bg-danger">{{ stats.recommendations.rejeter }} Rejeter</span>
                     </div>
                     
@@ -172,7 +173,48 @@
                         </div>
                     </div>
                     {% endif %}
-                    
+
+<!-- Template non conforme -->
+                    <div class="col-md-6">
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning">
+                                <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Conformité du template</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="small text-muted mb-3">
+                                    {% if communication.template_non_conforme %}
+                                        <span class="badge bg-warning text-dark">Template non conforme</span>
+                                        {% if communication.template_non_conforme_comment %}
+                                            <br>{{ communication.template_non_conforme_comment|nl2br }}
+                                        {% endif %}
+                                    {% else %}
+                                        Signaler à l'auteur que le fichier déposé ne respecte pas le template attendu.
+                                    {% endif %}
+                                </p>
+
+                                <form method="POST" action="{{ url_for('admin.set_template_non_conforme', comm_id=communication.id) }}">
+                                    <div class="mb-2">
+                                        <textarea class="form-control form-control-sm" name="template_non_conforme_comment" rows="2"
+                                                  placeholder="Commentaire pour l'auteur (optionnel)">{{ communication.template_non_conforme_comment or '' }}</textarea>
+                                    </div>
+                                    {% if communication.template_non_conforme %}
+                                        <input type="hidden" name="template_non_conforme" value="0">
+                                        <button type="submit" class="btn btn-sm btn-outline-warning w-100">
+                                            <i class="fas fa-check"></i> Marquer comme conforme
+                                        </button>
+                                    {% else %}
+                                        <input type="hidden" name="template_non_conforme" value="1">
+                                        <button type="submit" class="btn btn-sm btn-warning w-100">
+                                            <i class="fas fa-exclamation-triangle"></i> Marquer non conforme
+                                        </button>
+                                    {% endif %}
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+
+		    
                 </div>
                 
                 <!-- Actions générales -->
@@ -432,30 +474,35 @@
                         </div>
                         
                         <!-- Boutons de décision -->
-                        <div class="row">
-                            <div class="col-md-4">
+			<div class="row">
+                            <div class="col-md-3">
                                 <button type="button" class="btn btn-success w-100" onclick="submitDecision('accepter')">
                                     <i class="fas fa-check"></i> Accepter la communication
                                 </button>
                             </div>
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-warning w-100" onclick="submitDecision('reviser')">
-                                    <i class="fas fa-edit"></i> Demander des révisions
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-warning w-100" onclick="submitDecision('reviser', 'mineure')">
+                                    <i class="fas fa-edit"></i> Révision mineure
                                 </button>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-warning w-100" onclick="submitDecision('reviser', 'majeure')">
+                                    <i class="fas fa-edit"></i> Révision majeure
+                                </button>
+                            </div>
+                            <div class="col-md-3">
                                 <button type="button" class="btn btn-danger w-100" onclick="submitDecision('rejeter')">
                                     <i class="fas fa-times"></i> Rejeter la communication
                                 </button>
                             </div>
-                        </div>                        
-
+                        </div>
 
 
 
 
                         <!-- Champ caché pour la décision -->
-                        <input type="hidden" id="decision" name="decision" value="">
+			<input type="hidden" id="decision" name="decision" value="">
+                        <input type="hidden" id="revision_type" name="revision_type" value="">
                     </form>
                     
 
@@ -593,21 +640,25 @@
 <script>
 let pendingDecision = null;
 
-function submitDecision(decision) {
+function submitDecision(decision, revisionType) {
     const decisionTexts = {
         'accepter': 'Accepter cette communication',
         'rejeter': 'Rejeter cette communication', 
-        'reviser': 'Demander des révisions pour cette communication'
+        'reviser_mineure': 'Demander une révision mineure pour cette communication',
+        'reviser_majeure': 'Demander une révision majeure pour cette communication'
     };
+    
+    const textKey = decision === 'reviser' ? `reviser_${revisionType}` : decision;
     
     pendingDecision = decision;
     document.getElementById('decision').value = decision;
+    document.getElementById('revision_type').value = revisionType || '';
     
     const alertElement = document.getElementById('confirmationAlert');
     const textElement = document.getElementById('confirmationText');
     
     textElement.innerHTML = `
-        <strong>Confirmation :</strong> Êtes-vous sûr de vouloir <strong>${decisionTexts[decision]}</strong> ?
+        <strong>Confirmation :</strong> Êtes-vous sûr de vouloir <strong>${decisionTexts[textKey]}</strong> ?
         <br><small class="text-muted">Cette action modifiera le statut de la communication.</small>
     `;
     

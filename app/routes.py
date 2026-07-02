@@ -1021,10 +1021,13 @@ def update_submission(comm_id):
             
             if status_changed:
                 comm.status = new_status
-            
-            # Si la communication etait en revision demandee et qu'un article est re-depose,
-            # reinitialiser la decision pour qu'elle repasse en attente de decision
+
+
+            # Si la communication etait en revision demandee et qu'un article est re-depose :
+            # - revision majeure : retour en review complete (EN_REVIEW)
+            # - revision mineure : acceptation directe, pas de nouvelle lecture
             if comm.final_decision == 'reviser' and file_type == 'article':
+                revision_type = comm.revision_type
                 comm.final_decision = None
                 comm.decision_date = None
                 comm.decision_by_id = None
@@ -1032,7 +1035,13 @@ def update_submission(comm_id):
                 comm.decision_notification_sent = False
                 comm.decision_notification_sent_at = None
                 comm.decision_notification_error = None
-                comm.status = CommunicationStatus.EN_REVIEW
+                comm.revision_type = None
+                if revision_type == 'mineure':
+                    comm.status = CommunicationStatus.ACCEPTE
+                else:
+                    comm.status = CommunicationStatus.EN_REVIEW
+
+                
  # Faire avancer le statut selon le nouveau système
  #           new_status = comm.get_next_status_after_upload(file_type)
  #           status_changed = new_status != comm.status

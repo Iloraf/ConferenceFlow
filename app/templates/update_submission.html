@@ -41,7 +41,15 @@
                         <p><strong>Modifié le :</strong> {{ comm.updated_at.strftime('%d/%m/%Y %H:%M') }}</p>
                     </div>
                 </div>
-                
+                {% if comm.template_non_conforme %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Template non conforme :</strong> le fichier déposé ne respecte pas le template attendu.
+                        {% if comm.template_non_conforme_comment %}
+                            <br>{{ comm.template_non_conforme_comment|nl2br }}
+                        {% endif %}
+                    </div>
+                {% endif %}
 
 <!-- Workflow et prochaines étapes -->
 <div class="card mb-4">
