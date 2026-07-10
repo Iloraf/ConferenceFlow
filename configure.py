@@ -23,6 +23,7 @@ import sys
 import subprocess
 import secrets
 from pathlib import Path
+from urllib.parse import quote_plus
 
 def print_header():
     print("🔧 Configuration ConferenceFlow")
@@ -230,7 +231,7 @@ def create_env_file(config):
         database_url = f"sqlite:///{project_root}/instance/conferenceflow.db"
         db_section = "# Base de données SQLite (développement)\n# Pas de configuration PostgreSQL nécessaire"
     else:
-        database_url = f"postgresql://{config['db_user']}:{config['db_password']}@{config['db_host']}:{config['db_port']}/{config['db_name']}"
+        database_url = f"postgresql://{config['db_user']}:{quote_plus(config['db_password'])}@{config['db_host']}:{config['db_port']}/{config['db_name']}"
         db_section = f"""# Configuration PostgreSQL (production)
 DB_USER={config['db_user']}
 DB_PASSWORD={config['db_password']}
