@@ -1,0 +1,647 @@
+# ===== MÉTADONNÉES =====
+metadata:
+  name: "Configuration emails congrès"
+  version: "1.0"
+  last_updated: "2025-08-24"
+  note: "Utilise les variables de conference.yml automatiquement"
+
+# ===== SUJETS DES EMAILS =====
+templates:
+  subjects:
+    # Utilisateurs
+    welcome: "Bienvenue au {CONFERENCE_SHORT_NAME}"
+    activation: "Activez votre compte {CONFERENCE_SHORT_NAME}"
+    password_reset: "Réinitialisation de votre mot de passe - {CONFERENCE_SHORT_NAME}"
+    
+    # Soumissions
+    submission_received: "Communication reçue - {CONFERENCE_SHORT_NAME}"
+    submission_confirmed: "Confirmation de soumission - {CONFERENCE_SHORT_NAME}"
+    submission_updated: "Mise à jour de votre communication - {CONFERENCE_SHORT_NAME}"
+    resume_submission_confirmed: "Résumé reçu - {CONFERENCE_SHORT_NAME}" 
+    article_submission_confirmed: "Article reçu - {CONFERENCE_SHORT_NAME}"
+    poster_submission_confirmed: "Poster reçu - {CONFERENCE_SHORT_NAME}"
+    wip_submission_confirmed: "WIP/Poster reçu - {CONFERENCE_SHORT_NAME}"
+    revision_confirmed: "Révision reçue - {CONFERENCE_SHORT_NAME}"
+
+    # Reviews
+    review_assigned: "Nouvelle review assignée - {CONFERENCE_SHORT_NAME}"
+    review_reminder: "Rappel : Reviews en attente - {CONFERENCE_SHORT_NAME}"
+    reviewer_welcome: "Bienvenue comme reviewer - {CONFERENCE_SHORT_NAME}"
+    reviewer_activation: "Invitation à devenir reviewer - {CONFERENCE_SHORT_NAME}"
+    reviewer_promotion: "Nouveau rôle : Reviewer - {CONFERENCE_SHORT_NAME}"
+
+    # Décisions
+    decision_notification: "Décision sur votre communication - {CONFERENCE_SHORT_NAME}"
+    decision_accept: "Félicitations ! Communication acceptée - {CONFERENCE_SHORT_NAME}"
+    decision_reject: "Décision sur votre communication - {CONFERENCE_SHORT_NAME}"
+    decision_revise: "Révisions demandées - {CONFERENCE_SHORT_NAME}"
+    decision_transform_wip: "Proposition de transformation en WIP - {CONFERENCE_SHORT_NAME}"
+
+    # Co-auteurs
+    coauthor_invitation: "Invitation comme co-auteur - {CONFERENCE_SHORT_NAME}"
+    coauthor_notification: "Nouvelle communication ajoutée - {CONFERENCE_SHORT_NAME}"
+    
+    # Prix et distinctions
+    biot_fourier_nomination: "Nomination au Prix Biot-Fourier - {CONFERENCE_SHORT_NAME}"
+    biot_fourier_winner: "Lauréat du Prix Biot-Fourier - {CONFERENCE_SHORT_NAME}"
+    
+    # Admin
+    admin_weekly_summary: "Résumé hebdomadaire - Reviews {CONFERENCE_SHORT_NAME}"
+    admin_alert: "Alerte système - {CONFERENCE_SHORT_NAME}"
+    
+    # QR Codes et posters
+    qr_code_ready: "QR Code de votre poster - {CONFERENCE_SHORT_NAME}"
+    poster_reminder: "Rappel : Soumission de votre poster - {CONFERENCE_SHORT_NAME}"
+    
+    # Inscription
+    registration_confirmed: "Inscription confirmée - {CONFERENCE_SHORT_NAME}"
+    payment_reminder: "Rappel de paiement - {CONFERENCE_SHORT_NAME}"
+    
+    # HAL
+    hal_collection_request: "Demande de création de collection HAL - {CONFERENCE_SHORT_NAME}"
+
+# ===== CORPS DES EMAILS =====
+content:
+  # Email de bienvenue
+  welcome:
+    greeting: "Bonjour {USER_FIRST_NAME},"
+    intro: "Bienvenue au {CONFERENCE_NAME} !"
+    body: |
+      Votre compte a été créé avec succès pour le {CONFERENCE_NAME}.
+      
+      Vous pouvez dès maintenant vous connecter et commencer à soumettre vos communications.
+      
+      Dates : {CONFERENCE_DATES}
+      Lieu : {CONFERENCE_LOCATION}
+    
+  # Email d'activation
+  activation:
+    greeting: "Bonjour {USER_FIRST_NAME},"
+    intro: "Votre compte pour le {CONFERENCE_NAME} est presque prêt !"
+    body: |
+      Pour terminer la création de votre compte, cliquez sur le lien d'activation ci-dessous.
+      Ce lien est valable 7 jours.
+      
+      Email : {USER_EMAIL}
+      Rôle : {USER_ROLE}
+    call_to_action: "Activer mon compte"
+
+  # Template pour la réinitialisation de mot de passe - NOUVEAU
+  password_reset:
+    greeting: "Bonjour {USER_FIRST_NAME},"
+    intro: "Vous avez demandé la réinitialisation de votre mot de passe pour {CONFERENCE_SHORT_NAME}."
+    body: |
+      Pour créer un nouveau mot de passe, cliquez sur le lien ci-dessous :
+      
+      Ce lien expire dans {TOKEN_EXPIRES_HOURS} heure(s).
+      
+      Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email en toute sécurité.
+    call_to_action: "Réinitialiser mon mot de passe"
+    footer: |
+      Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :
+      {call_to_action_url}
+    
+  # Email de co-auteur
+  coauthor_notification:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Vous avez été ajouté(e) comme co-auteur d'une communication"
+    body: |
+      Une nouvelle communication a été soumise pour le {CONFERENCE_NAME} avec vous comme co-auteur(rice).
+      
+      Titre : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      Auteur principal : {MAIN_AUTHOR_NAME}
+      ID : {COMMUNICATION_ID}
+      
+      Vous pouvez consulter les détails en vous connectant à votre compte.
+    call_to_action: "Consulter la communication"
+
+  # Email invitation co-auteur
+  coauthor_invitation:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Invitation comme co-auteur"
+    body: |
+      Vous avez été invité(e) à être co-auteur d'une communication pour le {CONFERENCE_NAME}.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      Auteur principal : {MAIN_AUTHOR_NAME}
+      ID : {COMMUNICATION_ID}
+      
+       **Votre participation :**
+      L'auteur principal souhaite vous associer à cette communication en tant que co-auteur.
+      
+      **Pour accepter cette invitation :**
+      1. Créez votre compte ou connectez-vous
+      2. Confirmez votre participation
+      3. Complétez vos informations d'affiliation
+      
+       **Date limite de réponse :** {INVITATION_DEADLINE}
+      
+      Pour toute question, contactez directement l'auteur principal : {MAIN_AUTHOR_EMAIL}
+    call_to_action: "Accepter l'invitation"
+
+  reviewer_activation:
+    greeting: "Bonjour {USER_FIRST_NAME},"
+    intro: "Invitation à participer comme reviewer"
+    body: |
+      Vous êtes sollicité(e) pour participer au processus de relecture du {CONFERENCE_NAME}.
+    
+      En tant que reviewer, vous contribuerez à l'évaluation scientifique des communications soumises selon vos domaines d'expertise.
+    
+      **Étape 1 : Créez votre mot de passe**
+      Cliquez sur le lien ci-dessous pour créer votre mot de passe et activer votre compte reviewer.
+      
+      **Étape 2 : Complétez votre profil reviewer**
+      Après activation, veuillez impérativement compléter :
+      
+      1. **Vos domaines d'expertise** : Sélectionnez les thématiques dans lesquelles vous êtes compétent(e) pour évaluer les communications
+      2. **Vos affiliations** : Renseignez vos institutions pour la gestion des conflits d'intérêt
+      
+      **Vos informations actuelles :**
+      • Email : {USER_EMAIL}
+      • Spécialités : {USER_SPECIALTIES}
+      • Affiliations : {USER_AFFILIATIONS}
+      
+      **Si vous ne souhaitez pas participer :**
+      Merci de nous le faire savoir en répondant à cet email ou en contactant {SCIENTIFIC_EMAIL}.
+    
+      Votre contribution est précieuse pour maintenir la qualité scientifique du congrès.
+    call_to_action: "Créer mon mot de passe et compléter mon profil"
+
+  reviewer_promotion:
+    greeting: "Bonjour {USER_FIRST_NAME},"
+    intro: "Vous êtes maintenant reviewer pour le {CONFERENCE_NAME}"
+    body: |
+      Vous avez été ajouté(e) comme reviewer pour le {CONFERENCE_NAME}.
+      
+      En tant que reviewer, vous contribuerez à l'évaluation scientifique des communications soumises.
+      
+      **Action requise - Complétez votre profil reviewer :**
+      Pour participer efficacement aux évaluations, veuillez impérativement compléter dans votre profil :
+      
+      1. **Vos domaines d'expertise** : Sélectionnez les thématiques dans lesquelles vous êtes compétent(e) pour évaluer les communications
+      2. **Vos affiliations** : Vérifiez et complétez vos institutions pour la gestion des conflits d'intérêt
+      
+      **Vos informations actuelles :**
+      • Email : {USER_EMAIL}
+      • Spécialités : {USER_SPECIALTIES}
+      • Affiliations : {USER_AFFILIATIONS}
+      
+      Vous pouvez vous connecter avec votre identifiant et mot de passe habituels.
+      
+      Vous recevrez prochainement les assignations de communications à évaluer selon vos domaines d'expertise.
+    call_to_action: "Accéder à mon tableau de bord reviewer"
+
+  # Email de review assignée
+  review_assigned:
+    greeting: "Bonjour {REVIEWER_NAME},"
+    intro: "Nouvelle review assignée pour le {CONFERENCE_NAME}"
+    body: |
+      Vous avez été assigné(e) à {REVIEWS_COUNT} nouvelle(s) review(s).
+      
+      Vos spécialités : {REVIEWER_SPECIALTIES}
+      Échéance : {REVIEW_DEADLINE}
+      
+      Consultez votre tableau de bord pour commencer vos évaluations.
+    call_to_action: "Accéder au tableau de bord"
+    
+  # Email de rappel review
+  review_reminder:
+    greeting: "Bonjour {REVIEWER_NAME},"
+    intro: "Rappel : {PENDING_REVIEWS_COUNT} review(s) en attente"
+    body: |
+      Vous avez {PENDING_REVIEWS_COUNT} review(s) en attente pour le {CONFERENCE_NAME}.
+      {OVERDUE_MESSAGE}
+      
+      Merci de compléter vos évaluations dans les meilleurs délais.
+    call_to_action: "Voir mes reviews"
+
+  # Email de bienvenue reviewer
+  reviewer_welcome:
+    greeting: "Bonjour {REVIEWER_NAME},"
+    intro: "Bienvenue comme reviewer pour le {CONFERENCE_NAME}"
+    body: |
+      Nous vous remercions d'avoir accepté d'être reviewer pour {CONFERENCE_NAME}.
+      
+      Vos informations :
+      Email : {USER_EMAIL}
+      Spécialités : {REVIEWER_SPECIALTIES}
+      Affiliations : {REVIEWER_AFFILIATIONS}
+      
+      Vous recevrez prochainement les assignations de communications à évaluer selon vos spécialités.
+      
+      **Dates importantes :**
+      - Assignations des reviews : {ASSIGNMENT_DATE}
+      - Échéance pour les évaluations : {REVIEW_DEADLINE}
+      
+      Merci pour votre contribution au succès du congrès !
+    call_to_action: "Accéder à mon espace reviewer"
+    
+  # Email de décision générique
+  decision_notification:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Décision concernant votre communication"
+    body: |
+      La décision concernant votre communication pour le {CONFERENCE_NAME} est disponible.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Décision : {DECISION_STATUS}
+      Date de décision : {DECISION_DATE}
+      
+      {DECISION_DETAILS}
+    call_to_action: "Consulter les détails"
+
+  # Email décision acceptée
+  decision_accept:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Félicitations ! Communication acceptée"
+    body: |
+      Nous avons le plaisir de vous informer que votre communication a été acceptée pour {CONFERENCE_NAME} !
+      
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Décision : **ACCEPTÉE**
+      Date de décision : {DECISION_DATE}
+      
+      **Félicitations !** Votre travail a été retenu par le comité scientifique.
+      
+      **Prochaines étapes :**
+      - Préparer votre présentation/poster pour le congrès
+      - Vous inscrire au congrès si ce n'est pas encore fait
+      - Finaliser votre article complet (si applicable)
+      
+      {COMMENTS_SECTION}
+    call_to_action: "Voir ma communication"
+
+  # Email décision refusée
+  decision_reject:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Décision concernant votre communication"
+    body: |
+      Nous vous remercions pour votre soumission au {CONFERENCE_NAME}.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Décision : **NON RETENUE**
+      Date de décision : {DECISION_DATE}
+      
+      Cette décision ne remet pas en cause la qualité de vos recherches, mais reflète la forte concurrence et les contraintes du programme.
+      
+      **Commentaires du comité :**
+      {COMMENTS_SECTION}
+      
+      Merci pour votre contribution et votre intérêt pour le congrès.
+    call_to_action: "Voir les commentaires"
+
+  # Email révisions demandées
+  decision_revise:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Révisions demandées pour votre communication"
+    body: |
+      Suite à l'évaluation de votre communication pour {CONFERENCE_NAME}, des révisions sont demandées.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Décision : **RÉVISIONS DEMANDÉES**
+      Date de décision : {DECISION_DATE}
+      Date limite révisions : {REVISION_DEADLINE}
+      
+      **Votre communication peut être acceptée sous réserve de révisions.**
+      
+      **Commentaires et demandes des reviewers :**
+      {COMMENTS_SECTION}
+      
+      **Important :** Le respect de la date limite est impératif pour maintenir l'acceptation.
+    call_to_action: "Déposer ma révision"
+
+ # Email transformation en WIP
+  decision_transform_wip:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Proposition alternative pour votre communication"
+    body: |
+      Suite à l'évaluation de votre communication pour {CONFERENCE_NAME}, le comité scientifique vous propose une alternative.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Décision : **TRANSFORMATION EN WIP PROPOSÉE**
+      Date de décision : {DECISION_DATE}
+      
+      Bien que votre communication ne puisse être retenue comme article complet, le comité estime que votre travail mérite d'être présenté lors du congrès sous forme de **Work In Progress (WIP)**.
+      
+      **Qu'est-ce qu'un WIP ?**
+      Un WIP permet de présenter vos travaux en cours sous forme de poster. C'est une excellente opportunité pour :
+      - Partager vos recherches avec la communauté
+      - Recevoir des retours et suggestions
+      - Établir des contacts et collaborations
+      
+      **Prochaines étapes :**
+      Si vous acceptez cette proposition, votre communication sera automatiquement reclassée en WIP et vous pourrez préparer votre poster pour la présentation.
+      
+      Nous espérons que vous accepterez cette alternative et nous vous remercions pour votre participation au congrès.
+    call_to_action: "Consulter ma communication"
+
+  # Emails de soumission
+  submission_confirmed:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Confirmation de réception"
+    body: |
+      Nous accusons réception de votre soumission pour {CONFERENCE_NAME}.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Type : {COMMUNICATION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Date de dépôt : {SUBMISSION_DATE}
+      Fichier : {FILE_NAME} (version {FILE_VERSION})
+      
+      Votre soumission est maintenant enregistrée dans notre système et sera traitée selon le calendrier de la conférence.
+    call_to_action: "Consulter ma soumission"
+
+  submission_received:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Soumission bien reçue !"
+    body: |
+      Nous accusons réception de votre {SUBMISSION_TYPE} pour {CONFERENCE_NAME}.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Thématique(s) : {COMMUNICATION_THEMES}
+      ID : {COMMUNICATION_ID}
+      Date de dépôt : {SUBMISSION_DATE}
+      
+      Votre {SUBMISSION_TYPE} est maintenant soumis{STATUS_MESSAGE}
+      
+      **Prochaines étapes :**
+      {NEXT_STEPS}
+    call_to_action: "Voir ma communication"
+
+  submission_updated:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Mise à jour enregistrée"
+    body: |
+      Nous accusons réception de la mise à jour de votre communication pour {CONFERENCE_NAME}.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Type de fichier mis à jour : {UPDATE_TYPE}
+      ID : {COMMUNICATION_ID}
+      Date de mise à jour : {SUBMISSION_DATE}
+      Nouvelle version : {FILE_VERSION}
+      
+      Votre mise à jour a été prise en compte et remplace la version précédente.
+    call_to_action: "Voir ma communication"
+
+  resume_submission_confirmed:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Résumé bien reçu !"
+    body: |
+      Nous accusons réception de votre résumé pour {CONFERENCE_NAME}.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Thématique(s) : {COMMUNICATION_THEMES}
+      ID : {COMMUNICATION_ID}
+      Date de dépôt : {SUBMISSION_DATE}
+      
+      Votre résumé est maintenant soumis et sera évalué par le comité scientifique.
+    call_to_action: "Voir ma communication"
+
+  article_submission_confirmed:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Article complet bien reçu !"
+    body: |
+      Nous accusons réception de votre article complet pour {CONFERENCE_NAME}.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Thématique(s) : {COMMUNICATION_THEMES}
+      ID : {COMMUNICATION_ID}
+      Date de dépôt : {SUBMISSION_DATE}
+      Version : {FILE_VERSION}
+      
+      Votre article est maintenant soumis et sera envoyé aux reviewers pour évaluation.
+    call_to_action: "Voir ma communication"
+
+  wip_submission_confirmed:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Work in Progress bien reçu !"
+    body: |
+      Nous accusons réception de votre Work in Progress pour {CONFERENCE_NAME}.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Thématique(s) : {COMMUNICATION_THEMES}
+      ID : {COMMUNICATION_ID}
+      Date de dépôt : {SUBMISSION_DATE}
+      
+      Votre WIP est maintenant enregistré et sera présenté lors de la session poster.
+    call_to_action: "Voir ma communication"
+
+  poster_submission_confirmed:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Nous confirmons la réception de votre poster."
+    body: |
+      Votre poster intitulé "{COMMUNICATION_TITLE}" a été déposé avec succès dans notre système.
+      
+      Détails de votre soumission :
+      - ID de communication : {COMMUNICATION_ID}
+      - Thématiques : {COMMUNICATION_THEMES}
+      - Date de dépôt : {DEPOSIT_DATE}
+      
+      L'équipe d'organisation va examiner votre poster et vous contactera si des modifications sont nécessaires.
+    closing: "Nous vous remercions pour votre participation à {CONFERENCE_SHORT_NAME}."
+    call_to_action: "Voir ma communication"
+    call_to_action_url: "{BASE_URL}/mes-communications"
+
+  revision_confirmed:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Révision bien reçue !"
+    body: |
+      Nous accusons réception de votre révision pour {CONFERENCE_NAME}.
+      
+      Communication : {COMMUNICATION_TITLE}
+      Type de fichier révisé : {REVISION_TYPE}
+      ID : {COMMUNICATION_ID}
+      Date de révision : {SUBMISSION_DATE}
+      Version : {FILE_VERSION}
+      
+      Votre révision a été prise en compte et remplace la version précédente.
+    call_to_action: "Voir ma communication"
+
+  # Prix Biot-Fourier
+  biot_fourier_nomination:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Félicitations ! Sélection Prix Biot-Fourier"
+    body: |
+      Votre communication a été sélectionnée pour l'audition du Prix Biot-Fourier !
+      
+      Communication : {COMMUNICATION_TITLE}
+      ID : {COMMUNICATION_ID}
+      Type : {COMMUNICATION_TYPE}
+      
+      **À propos du Prix Biot-Fourier :**
+      Le Prix Biot-Fourier récompense la meilleure communication présentée par un jeune chercheur (moins de 35 ans) lors du congrès.
+      
+      **Prochaines étapes :**
+      - Audition devant le jury (15 min + 10 min questions)
+      - Date et lieu : pendant le congrès (détails à venir)
+      
+      Encore toutes nos félicitations pour cette sélection !
+    call_to_action: "Voir ma communication"
+
+  # QR Code et posters
+  qr_code_ready:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "QR Code de votre poster disponible"
+    body: |
+      Le QR Code pour votre communication est maintenant disponible.
+      
+      Communication : {COMMUNICATION_TITLE}
+      ID : {COMMUNICATION_ID}
+      QR Code : disponible sur votre espace personnel
+      
+      **Instructions pour votre poster :**
+      - Intégrez le QR Code fourni sur votre poster
+      - Format recommandé : A0 portrait
+      - Le QR Code permet l'accès direct à votre communication
+    call_to_action: "Télécharger mon QR Code"
+
+  poster_reminder:
+    greeting: "Bonjour {AUTHOR_NAME},"
+    intro: "Rappel : Soumission de votre poster"
+    body: |
+      Nous vous rappelons que la date limite pour déposer votre poster approche.
+      
+      Communication : {COMMUNICATION_TITLE}
+      ID : {COMMUNICATION_ID}
+      Date limite : {POSTER_DEADLINE}
+      
+      **Actions requises :**
+      - Finaliser votre poster (format A0 portrait recommandé)
+      - Intégrer le QR Code fourni
+      - Déposer le fichier via votre espace personnel
+    call_to_action: "Déposer mon poster"
+
+  # HAL
+  hal_collection_request:
+    greeting: "Bonjour,"
+    intro: "Demande de création de collection HAL"
+    body: |
+      Je suis {CONTACT_NAME}, {CONTACT_TITLE}, membre de l'équipe d'organisation du {CONFERENCE_NAME} qui se déroulera à {CONFERENCE_LOCATION} le {CONFERENCE_DATES}.
+      
+      Dans le cadre de ce congrès, nous souhaitons déposer l'ensemble des communications acceptées dans une collection dédiée sur HAL.
+      
+      **Détails de la demande :**
+      - Collection demandée : {COLLECTION_ID}
+      - Congrès : {CONFERENCE_NAME}
+      - Organisateur : {ORGANIZING_LAB_NAME}
+      - Nombre estimé de documents : {ESTIMATED_DOCS}
+      
+      **Contact responsable :**
+      - Nom : {CONTACT_NAME}
+      - Email : {CONTACT_EMAIL}
+      - Login HAL : {HAL_LOGIN}
+      
+      Pourriez-vous créer cette collection et me donner les droits administrateur dessus ?
+      
+      {CUSTOM_MESSAGE}
+    call_to_action: "Répondre à cette demande"
+
+  information_generale:
+    greeting: "Bonjour {USER_FIRST_NAME} {USER_LAST_NAME},"
+    intro: ""
+    body: |
+      {ADMIN_MESSAGE}
+      
+      Communication concernée : {COMMUNICATION_TITLE} (ID: {COMMUNICATION_ID})
+      
+      Pour toute question, n'hésitez pas à nous contacter.
+    call_to_action: "Voir la communication"
+
+# ===== SIGNATURES =====
+signatures:
+  default: |
+    Cordialement,
+    L'équipe d'organisation {CONFERENCE_SHORT_NAME}
+    {CONTACT_EMAIL}
+    
+  scientific: |
+    Cordialement,
+    Le Comité Scientifique {CONFERENCE_SHORT_NAME}
+    {SCIENTIFIC_EMAIL}
+    
+  technical: |
+    Cordialement,
+    L'équipe technique {CONFERENCE_SHORT_NAME}
+    {TECHNICAL_EMAIL}
+    
+  registration: |
+    Cordialement,
+    Service inscription {CONFERENCE_SHORT_NAME}
+    {REGISTRATION_EMAIL}
+    
+  system: |
+    Cet email a été envoyé automatiquement.
+    {CONFERENCE_NAME} - {CONFERENCE_LOCATION}
+
+# ===== TEMPLATES PRÉDÉFINIS =====
+predefined_templates:
+  # Pour l'interface admin
+  information_generale:
+    subject: "Information importante - {CONFERENCE_SHORT_NAME}"
+    content: |
+      Bonjour [PRENOM] [NOM],
+      
+      Nous vous informons que...
+      
+      [Votre message ici]
+      
+      Communication concernée : {COMMUNICATION_TITLE} (ID: {COMMUNICATION_ID})
+      
+      Pour toute question, n'hésitez pas à nous contacter.
+      
+      Cordialement,
+      L'équipe d'organisation {CONFERENCE_SHORT_NAME}
+      
+  rappel_review:
+    subject: "Rappel urgent - Review en attente - {CONFERENCE_SHORT_NAME}"
+    content: |
+      Bonjour [PRENOM] [NOM],
+      
+      Nous vous rappelons que vous avez une review en attente pour la communication suivante :
+      
+      Titre : {COMMUNICATION_TITLE}
+      ID : {COMMUNICATION_ID}
+      Échéance : {REVIEW_DEADLINE}
+      
+      Merci de compléter votre évaluation dans les meilleurs délais.
+      
+      Cordialement,
+      Le Comité Scientifique {CONFERENCE_SHORT_NAME}
+
+# ===== CONFIGURATION =====
+settings:
+  # Variables automatiquement extraites de conference.yml
+  auto_variables:
+    CONFERENCE_NAME: "conference.name"
+    CONFERENCE_SHORT_NAME: "conference.short_name"
+    CONFERENCE_YEAR: "conference.year"
+    CONFERENCE_THEME: "conference.theme"
+    CONFERENCE_DATES: "dates.submission.final"
+    CONFERENCE_LOCATION: "location.city"
+    CONTACT_EMAIL: "contacts.general.email"
+    SCIENTIFIC_EMAIL: "contacts.submissions.email"
+    ORGANIZATION_NAME: "conference.organizer.name"
+    
+  # Format des emails
+  format:
+    line_length: 80
+    use_html: true
+    include_unsubscribe: false
+    track_opens: false
+    
+  # Gestion des erreurs
+  error_handling:
+    missing_variable_action: "use_placeholder"
+    placeholder_format: "[{variable_name}]"
+    log_missing_variables: true
+

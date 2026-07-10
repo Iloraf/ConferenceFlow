@@ -1,0 +1,353 @@
+
+# Configuration complète de Conference Flow
+# Copiez ce fichier en conference.yml et adaptez les valeurs à votre congrès.
+
+# ===== INFORMATIONS GÉNÉRALES =====
+conference:
+  name: "Nom complet de votre congrès"
+  short_name: "ACRONYME AAAA"
+  edition: "1ère"
+  series: "Nom de la série de congrès"
+  theme: "Thème du congrès"
+  year: 2027
+  book_header: "Nom du congrès, Ville, date de début – date de fin"
+
+  # Organisateur principal
+  organizer:
+    name: "Nom de la société/organisation organisatrice"
+    short_name: "SIGLE"
+    website: "https://exemple.org"
+    logo: "static/images/logo.png"
+
+  # Laboratoire organisateur
+  organizing_lab:
+    name: "Nom du laboratoire organisateur"
+    short_name: "SIGLE_LABO"
+    description: "description courte du laboratoire (tutelles, statut, etc.)"
+    umr: "0000"
+    university: "Nom de l'université de rattachement"
+
+  objectif: "Décrivez ici l'objectif scientifique du congrès : contexte, communauté visée, thématiques attendues, formats de présentation proposés."
+
+  # Présidents du congrès
+  presidents:
+    - name: "Prénom Nom"
+      role: "Président"
+      email: "prenom.nom@exemple.org"
+    - name: "Prénom Nom"
+      role: "Président"
+      email: "prenom.nom@exemple.org"
+
+# ===== THEME VISUEL =====
+theme:
+  primary_color: "#022949"
+
+# ===== DATES IMPORTANTES =====
+dates:
+  # Dates de la conférence
+  start: "2027-06-01"
+  end: "2027-06-04"
+  dates: "1-4 juin 2027"
+
+  # Dates limites de soumission
+  deadlines:
+    abstract_submission: "2026-11-01"
+    abstract_notification: "2026-12-01"
+    article_submission: "2027-02-01"
+    article_notification: "2027-03-01"
+    final_version: "2027-04-01"
+    wip_submission: "2027-04-15"
+
+  # Dates d'inscription
+  registration:
+    early_bird_end: "2027-04-15"
+    regular_end: "2027-05-15"
+    late_end: "2027-05-30"
+
+  # Dates importantes pour affichage
+  important_dates:
+    - date: "2026-11-01"
+      event: "Soumission des résumés"
+    - date: "2026-12-01"
+      event: "Avis d'acceptation"
+    - date: "2027-02-01"
+      event: "Envoi des textes complets"
+    - date: "2027-03-01"
+      event: "Résultats des expertises"
+    - date: "2027-04-01"
+      event: "Envoi des versions définitives"
+    - date: "2027-04-15"
+      event: "Soumission des works in progress"
+
+# ===== LIEU ET LOGISTIQUE =====
+location:
+  venue: "Nom du lieu d'accueil"
+  address: "Adresse complète du lieu"
+  city: "Ville"
+  region: "Région"
+  country: "France"
+  description: "Description courte du lieu d'accueil."
+  image: "images/lieu.jpg"
+
+  coordinates:
+    latitude: 0.0
+    longitude: 0.0
+
+  # Capacité
+  capacity:
+    main_auditorium: 400
+    parallel_rooms: 3
+    poster_area: 100
+    exhibition_stands: 20
+
+  # Informations ville
+  city_description: "Description touristique/historique de la ville d'accueil."
+  place_description: "Description du site d'accueil (architecture, cadre, etc.)."
+
+# ===== TRANSPORTS =====
+transport:
+  train:
+    title: "Train"
+    description: "Description des liaisons ferroviaires vers la ville d'accueil"
+    distance: "0 km"
+    duration: "0 min"
+
+  car:
+    title: "Voiture"
+    description: "Description de l'accès routier et du stationnement"
+    parking: "À préciser"
+
+  plane:
+    title: "Avion"
+    description: "Description de l'accès aéroportuaire"
+    airport: "Nom de l'aéroport"
+    distance: "0 km"
+    duration: "0 min"
+
+  local:
+    title: "Transports locaux"
+    description: "Lignes de bus/tram desservant le site"
+    bus_lines: []
+    tram_line: ""
+
+# ===== HÉBERGEMENT =====
+accommodation:
+  platform:
+    name: "Nom de la plateforme de réservation"
+    url: "https://exemple.org/reservation"
+    description: "Plateforme officielle de réservation d'hébergement"
+
+# ===== INFORMATIONS VILLE =====
+city_info:
+  attractions:
+    - name: "Nom du site touristique"
+      type: "Type (patrimoine, musée, etc.)"
+      description: "Description courte"
+
+  services:
+    restaurants: "Description de l'offre de restauration à proximité"
+    cafes: "Description de l'offre de cafés/brasseries"
+    shopping: "Description de l'offre commerciale"
+    medical: "Pharmacies et services médicaux"
+
+  weather:
+    month: "mois du congrès"
+    temperature_min: 15
+    temperature_max: 23
+    description: "Températures moyennes attendues et conseils vestimentaires"
+
+# ===== CONTACTS =====
+contacts:
+  general:
+    title: "Contact général"
+    email: "contact@exemple.org"
+    phone: ""
+
+  program:
+    title: "Programme scientifique"
+    description: "Questions sur le contenu scientifique, le programme et l'organisation générale"
+
+  submissions:
+    title: "Soumissions et communications"
+    email: "submissions@exemple.org"
+    person: "Prénom Nom"
+    description: "Questions techniques sur les soumissions, reviews et communications"
+
+  communication:
+    title: "Communication et médias"
+    email: "communication@exemple.org"
+    person: "Prénom Nom"
+    description: "Relations presse, communication externe et partenariats"
+
+  registration_provider:
+    company: "Nom du prestataire d'inscription"
+    address: "Adresse du prestataire"
+    postal_code: "00000"
+    city: "Ville"
+    phone: "+33 000 000 000"
+    phone_cost: "0,00€/min*"
+    email: "inscription@exemple.org"
+
+# ===== MENTIONS LÉGALES =====
+legal:
+  phone_disclaimer: "Numéro à 0,00€/min depuis un poste fixe"
+  data_protection: "Vos données personnelles sont traitées conformément au RGPD"
+  opt_out: "Pour vous désinscrire, contactez-nous à contact@exemple.org"
+
+# ===== FRAIS D'INSCRIPTION =====
+fees:
+  currency: "EUR"
+
+  early_bird:
+    deadline: "2027-04-15"
+    student: 0
+    member_individual: 0
+    member_collective: 0
+    non_member: 0
+
+  regular:
+    deadline: "2027-06-01"
+    student: 0
+    member_individual: 0
+    member_collective: 0
+    non_member: 0
+
+  # Descriptions des catégories
+  categories:
+    student: "Étudiant"
+    member_individual: "Membre à titre individuel"
+    member_collective: "Membre d'une collectivité adhérente"
+    non_member: "Non-membre"
+
+  # Services inclus
+  included:
+    included1: "Accès aux différentes séances"
+    included2: "Les pauses et déjeuners"
+    included3: "Le dîner de gala"
+    included4: "Les actes sous format numérique"
+
+  # Options supplémentaires
+  optional:
+    item: "Accompagnant"
+    price: 0
+
+  early_savings: 0  # Économie en tarif préférentiel
+  payment_methods:
+    - name: "Virement bancaire"
+      icon: "fas fa-money-check"
+      color: "text-success"
+      description: "RIB fourni après inscription"
+    - name: "Bon de commande"
+      icon: "fas fa-file-invoice"
+      color: "text-warning"
+      description: "Pour les institutions"
+
+  conditions:
+    - "L'inscription est nominative et non transférable"
+    - "Annulation possible jusqu'à une date à définir, avec frais"
+    - "Aucun remboursement après une date à définir"
+    - "Facture délivrée après paiement complet"
+    - "Tarif doctorant sur justificatif valide uniquement"
+
+# ===== SOUMISSIONS =====
+submissions:
+  types:
+    - name: "Article complet"
+      code: "article"
+      description: "Communication aboutie avec résultats finalisés."
+      max_pages: 8
+      review_type: "peer_review"
+
+    - name: "Work in Progress"
+      code: "wip"
+      description: "Soumission directe de max 3000 caractères dans un formulaire dédié. Travaux en cours avec résultats préliminaires."
+      format: "Résumé textuel (3000 caractères max)"
+      max_pages: 1
+      review_type: "editorial"
+
+    - name: "Poster"
+      code: "poster"
+      description: "Présentation sous forme de poster."
+      format: "A0 portrait"
+      review_type: "editorial"
+
+  guidelines:
+    language: "français"
+    template_required: true
+    blind_review: true
+    max_authors: 8
+    corresponding_author_required: true
+
+  requirements:
+    hal_deposit: "À préciser"
+    payment_condition: "À préciser"
+
+  # Formats de fichiers acceptés
+  file_formats:
+    accepted: ["pdf", "doc", "docx"]
+    max_size_mb: 10
+
+# ===== RÉSEAUX SOCIAUX =====
+social_media:
+  twitter: "@VotreCompte"
+  linkedin: "votre-organisation"
+  youtube: "VotreChaine"
+
+# ===== DONNÉES STATISTIQUES =====
+statistics:
+  expected_participants: 0
+  expected_papers: 0
+  expected_countries: 0
+  previous_editions: []
+
+# ===== CONFIGURATION TECHNIQUE =====
+technical:
+  # Uploads
+  uploads:
+    max_file_size_mb: 50
+    allowed_extensions: ["pdf", "doc", "docx", "png", "jpg", "jpeg"]
+    virus_scan: true
+
+  # Sécurité
+  security:
+    session_timeout_minutes: 120
+    password_min_length: 8
+    max_login_attempts: 5
+
+# ===== URLS PLATEFORMES =====
+registration_urls:
+  participant: "https://exemple.org/inscription"
+  accompagnant: "https://exemple.org/inscription-accompagnant"
+
+# ===== INTÉGRATIONS =====
+integrations:
+  # HAL (Hyper Articles en Ligne)
+  hal:
+    enabled: false
+    collection_id: ""
+    test_mode: true
+
+    # Configuration par type de document
+    document_types:
+      article:
+        hal_typology: "COMM"
+        hal_audience: "1"
+
+      wip:
+        hal_typology: "OTHERREPORT"
+        hal_audience: "1"
+
+      poster:
+        hal_typology: "POSTER"
+        hal_audience: "1"
+
+    # Métadonnées du congrès
+    conference_metadata:
+      title_fr: "Actes du congrès"
+      title_en: "Conference proceedings"
+      publisher: "Nom de l'organisme éditeur"
+      location: "Ville"
+      country: "FR"
+      dates:
+        start: "2027-06-01"
+        end: "2027-06-04"

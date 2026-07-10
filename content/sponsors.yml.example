@@ -1,0 +1,73 @@
+title: "Parrainages"
+
+introduction: |
+  Le congrès, organisé par [nom du laboratoire organisateur], a bénéficié du parrainage et du soutien financier des institutions et des organismes suivants :
+
+# Parrainages institutionnels principaux
+institutional_sponsors:
+  - name: "Nom du laboratoire organisateur (UMR 0000)"
+    type: "institutional"
+    level: "principal"
+    description: "Laboratoire organisateur principal"
+    logo: "logo_labo.png"
+    url: "https://exemple.org"
+    address: |
+      Adresse du laboratoire
+      Code postal Ville
+
+  - name: "CNRS"
+    type: "institutional"
+    level: "principal"
+    description: "Centre National de la Recherche Scientifique"
+    logo: "cnrs.png"
+    url: "https://www.cnrs.fr"
+    address: ""
+
+  - name: "Nom de l'université"
+    type: "institutional"
+    level: "principal"
+    description: "Université organisatrice"
+    logo: "universite.png"
+    url: "https://exemple.org"
+    address: ""
+
+# Organismes de financement
+funding_sponsors:
+  - name: "Nom de la région"
+    type: "funding"
+    level: "principal"
+    description: ""
+    logo: "region.png"
+    url: "https://exemple.org"
+    address: |
+      Adresse de la région
+      Code postal Ville
+
+  - name: "Nom de la métropole"
+    type: "funding"
+    level: "principal"
+    description: ""
+    logo: "metropole.png"
+    url: "https://exemple.org"
+    address: |
+      Adresse de la métropole
+      Code postal Ville
+
+# Section sponsors industriels
+industrial_intro: |
+  Il a également reçu le soutien d'exposants-sponsors industriels :
+
+# Sponsors industriels avec contacts détaillés
+industrial_sponsors:
+  - name: "Nom de l'entreprise"
+    type: "industrial"
+    level: "exposant"
+    logo: "logo_entreprise.png"
+    url: "https://exemple.org"
+    address: |
+      Adresse de l'entreprise
+      Code postal Ville, Pays
+    contact:
+      name: "Prénom NOM"
+      phone: "00 00 00 00 00"
+      email: "contact@exemple.org"
