@@ -69,13 +69,14 @@
                         <span class="badge bg-warning">{{ stats.recommendations.réviser_majeure }} Réviser (majeure)</span>
                         <span class="badge bg-danger">{{ stats.recommendations.rejeter }} Rejeter</span>
                     </div>
-                    
-                    {% if stats.biot_fourier_count > 0 %}
+
+		    {% if conference_award.enabled and stats.biot_fourier_count > 0 %}
                     <div class="alert alert-warning mt-3">
                         <i class="fas fa-trophy"></i>
-                        <strong>{{ stats.biot_fourier_count }}</strong> nomination(s) pour le prix Biot-Fourier
+                        <strong>{{ stats.biot_fourier_count }}</strong> nomination(s) pour {{ conference_award.name }}
                     </div>
                     {% endif %}
+		    
                 </div>
             </div>
         </div>
@@ -416,13 +417,14 @@
                                 <div class="col-md-6 text-end">
                                     <span class="badge bg-primary">Score: {{ review.score or 'N/A' }}/10</span>
                                     {% if review.recommendation %}
-                                        <span class="badge bg-{% if review.recommendation.value == 'accepter' %}success{% elif review.recommendation.value == 'rejeter' %}danger{% else %}warning{% endif %}">
-                                            {{ review.recommendation.value|title }}
+                                    <span class="badge bg-{% if review.recommendation.value == 'accepter' %}success{% elif review.recommendation.value == 'rejeter' %}danger{% else %}warning{% endif %}">
+                                          {{ review.recommendation.value|title }}
                                         </span>
-                                    {% endif %}
-                                    {% if review.recommend_for_biot_fourier %}
-                                        <span class="badge bg-warning"><i class="fas fa-trophy"></i> Biot-Fourier</span>
-                                    {% endif %}
+					{% endif %}
+					{% if conference_award.enabled and review.recommend_for_biot_fourier %}
+                                        <span class="badge bg-warning"><i class="fas fa-trophy"></i> {{ conference_award.name }}</span>
+					{% endif %}
+					
                                 </div>
                             </div>
                         </div>

@@ -177,7 +177,7 @@
                         <th>Communication</th>
                         <th>Score</th>
                         <th>Recommandation</th>
-                        <th>Biot-Fourier</th>
+			{% if conference_award.enabled %}<th>{{ conference_award.name }}</th>{% endif %}
                         <th>Terminée le</th>
                         <th>Actions</th>
                     </tr>
@@ -208,6 +208,7 @@
                                 {{ review.recommendation.value.title() }}
                             </span>
                         </td>
+			{% if conference_award.enabled %}
                         <td>
                             {% if review.recommend_for_biot_fourier %}
                                 <span class="badge bg-warning"><i class="fas fa-award"></i> Proposé</span>
@@ -215,6 +216,7 @@
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
+                        {% endif %}
                         <td>
                             <small>{{ review.submitted_at.strftime('%d/%m/%Y %H:%M') if review.submitted_at else 'N/A' }}</small>
                         </td>

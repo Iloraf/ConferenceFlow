@@ -11,10 +11,10 @@
             </div>
             <div class="col-md-4 text-end">
                 <span class="badge bg-primary fs-6">Score: {{ data.avg_score }}/10</span>
-                {% if data.biot_fourier_nominations > 0 %}
-                    <span class="badge bg-warning fs-6"><i class="fas fa-trophy"></i> {{ data.biot_fourier_nominations }} nomination(s) Biot-Fourier</span>
-                {% endif %}
-                
+		{% if conference_award.enabled and data.biot_fourier_nominations > 0 %}
+                    <span class="badge bg-warning fs-6"><i class="fas fa-trophy"></i> {{ data.biot_fourier_nominations }} nomination(s) {{ conference_award.name }}</span>
+                    {% endif %}
+
                 <!-- Indicateur de décision -->
                 {% if data.communication.final_decision == 'accepter' %}
                     <span class="badge bg-success"><i class="fas fa-check"></i> Accepté</span>

@@ -1,13 +1,12 @@
 {% extends "base.html" %}
-
-{% block title %}Candidats Prix Biot-Fourier - Admin {{ conference.short_name }}{% endblock %}
+{% block title %}Candidats {{ conference_award.name }} - Admin {{ conference.short_name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <!-- En-tête -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2><i class="fas fa-trophy text-warning"></i> Candidats au Prix Biot-Fourier</h2>
+      <div>
+	<h2><i class="fas fa-trophy text-warning"></i> Candidats à {{ conference_award.name }}</h2>
             <p class="text-muted">Communications nominées par les reviewers</p>
         </div>
         <div>
@@ -212,8 +211,8 @@
             </form>
         {% else %}
             <!-- Pas encore sélectionné : bouton de sélection -->
-            <form method="POST" action="{{ url_for('admin.select_for_biot_fourier_audition', comm_id=data.communication.id) }}" 
-                  style="display: inline;" onsubmit="return confirm('Sélectionner cette communication pour l\'audition Prix Biot-Fourier ?')">
+            <form method="POST" action="{{ url_for('admin.select_for_biot_fourier_audition', comm_id=data.communication.id) }}"
+		  style="display: inline;" onsubmit="return confirm('Sélectionner cette communication pour l\'audition {{ conference_award.name }} ?')">
                 <button type="submit" class="btn btn-warning btn-sm">
                     <i class="fas fa-microphone"></i> Retenir pour l'audition
                 </button>
@@ -264,7 +263,7 @@
         <!-- Aucun candidat -->
         <div class="text-center py-5">
             <i class="fas fa-trophy fa-3x text-muted"></i>
-            <h4 class="text-muted mt-3">Aucun candidat au prix Biot-Fourier</h4>
+	    <h4 class="text-muted mt-3">Aucun candidat pour {{ conference_award.name }}</h4>
             <p class="text-muted">Les communications nominées par les reviewers apparaîtront ici.</p>
         </div>
     {% endif %}
