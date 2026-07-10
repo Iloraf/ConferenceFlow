@@ -1,4 +1,4 @@
-FROM nginx:alpine-slim
+FROM nginx:alpine
 
 RUN apk update && apk add --no-cache curl socat openssl
 

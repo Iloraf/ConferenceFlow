@@ -3,14 +3,7 @@
 # Chemins acme.sh
 ACME_SH="/root/.acme.sh/acme.sh"
 
-# Arrêter nginx pour libérer le port 443
-/usr/sbin/nginx -s stop
-
-# Attendre que nginx s'arrête complètement
-sleep 2
-
-# Renouveler les certificats avec TLS-ALPN-01 (port 443)
-${ACME_SH} --renew-all --alpn --standalone --server letsencrypt
-
-# Redémarrer nginx
-/usr/sbin/nginx
+# Renouveler via TLS-ALPN-01 sur le port interne 5443
+# (le bloc stream de nginx redirige les validations ACME vers ce port,
+# nginx continue de servir l'application sur le 443 sans interruption)
+${ACME_SH} --renew-all --alpn --standalone --tlsport 5443 --server letsencrypt
