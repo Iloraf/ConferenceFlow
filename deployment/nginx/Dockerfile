@@ -1,8 +1,6 @@
-FROM nginx:1.27
+FROM nginx:alpine-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl socat openssl libnginx-mod-stream \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk update && apk add --no-cache curl socat openssl
 
 RUN curl https://get.acme.sh | sh
 

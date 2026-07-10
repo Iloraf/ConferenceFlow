@@ -18,7 +18,7 @@ mkdir -p "${CERT_DIR}"
 ${ACME_SH} --register-account -m "${EMAIL}" --server letsencrypt || true
 
 # Obtenir le certificat AVANT de démarrer nginx (port 443 libre)
-${ACME_SH} --issue -d "${DOMAIN}" --alpn --standalone --server letsencrypt || true
+${ACME_SH} --issue -d "${DOMAIN}" --alpn --standalone --tlsport 5443 --server letsencrypt || true
 
 # Installer les certificats avec hook de rechargement automatique
 ${ACME_SH} --install-cert -d "${DOMAIN}" \

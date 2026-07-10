@@ -13,11 +13,20 @@ services:
       - deployment/certbot.env
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt
     depends_on:
       - app
+
+  haproxy:
+    container_name: cflow-haproxy
+    image: haproxy:alpine
+    volumes:
+      - ./deployment/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "443:443"
+    depends_on:
+      - nginx
 
   app:
     container_name: cflow_app
