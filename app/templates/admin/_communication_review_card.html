@@ -41,7 +41,10 @@
                                 Score: {{ review.score or 'N/A' }}/10 • 
                                 {% if review.recommendation %}
                                     <span class="badge bg-{% if review.recommendation.value == 'accepter' %}success{% elif review.recommendation.value == 'rejeter' %}danger{% else %}warning{% endif %} badge-sm">
-                                        {{ review.recommendation.value|title }}
+				      {% if review.recommendation.value == 'réviser_mineure' %}Réviser (mineure)
+                                    {% elif review.recommendation.value == 'réviser_majeure' %}Réviser (majeure)
+                                    {% else %}{{ review.recommendation.value|title }}
+                                    {% endif %}
                                     </span>
                                 {% endif %}
                                 {% if review.recommend_for_biot_fourier %}

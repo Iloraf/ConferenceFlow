@@ -526,7 +526,10 @@
                                                     {% if review.recommendation.value == 'accepter' %}bg-success
                                                     {% elif review.recommendation.value == 'rejeter' %}bg-danger
                                                     {% else %}bg-warning{% endif %}">
-                                                    {{ review.recommendation.value.title() }}
+						  {% if review.recommendation.value == 'réviser_mineure' %}Réviser (mineure)
+                                                    {% elif review.recommendation.value == 'réviser_majeure' %}Réviser (majeure)
+                                                    {% else %}{{ review.recommendation.value.title() }}
+                                                    {% endif %}
                                                 </span>
                                             </p>
                                             {% if review.score %}

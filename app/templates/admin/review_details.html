@@ -418,8 +418,11 @@
                                     <span class="badge bg-primary">Score: {{ review.score or 'N/A' }}/10</span>
                                     {% if review.recommendation %}
                                     <span class="badge bg-{% if review.recommendation.value == 'accepter' %}success{% elif review.recommendation.value == 'rejeter' %}danger{% else %}warning{% endif %}">
-                                          {{ review.recommendation.value|title }}
-                                        </span>
+				      {% if review.recommendation.value == 'réviser_mineure' %}Réviser (mineure)
+                                          {% elif review.recommendation.value == 'réviser_majeure' %}Réviser (majeure)
+                                          {% else %}{{ review.recommendation.value|title }}
+                                          {% endif %}
+                                    </span>
 					{% endif %}
 					{% if conference_award.enabled and review.recommend_for_biot_fourier %}
                                         <span class="badge bg-warning"><i class="fas fa-trophy"></i> {{ conference_award.name }}</span>

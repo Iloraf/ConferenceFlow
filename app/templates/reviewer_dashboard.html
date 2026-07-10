@@ -203,9 +203,12 @@
                                 {{ review.score }}/10
                             </span>
                         </td>
-                        <td>
-                            <span class="badge bg-{{ 'success' if review.recommendation.value == 'accepter' else 'warning' if review.recommendation.value == 'réviser' else 'danger' }}">
-                                {{ review.recommendation.value.title() }}
+			<td>
+                            <span class="badge bg-{{ 'success' if review.recommendation.value == 'accepter' else 'warning' if review.recommendation.value in ['réviser_mineure', 'réviser_majeure'] else 'danger' }}">
+                                {% if review.recommendation.value == 'réviser_mineure' %}Réviser (mineure)
+                                {% elif review.recommendation.value == 'réviser_majeure' %}Réviser (majeure)
+                                {% else %}{{ review.recommendation.value.title() }}
+                                {% endif %}
                             </span>
                         </td>
 			{% if conference_award.enabled %}
