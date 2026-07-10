@@ -7,7 +7,7 @@ zones:
     display_name: Mode maintenance
     is_active: true
     is_open: false
-    message: Le site de la SFT 2026 est actuellement en maintenance
+    message: Le site est actuellement en maintenance
     message_detail: Nous effectuons des opérations de maintenance. Le site sera de
       nouveau accessible prochainement.
   mediatheque:
