@@ -47,8 +47,8 @@ COPY --chown=appuser:appuser run.py ./run.py
 COPY --chown=appuser:appuser deployment/cflow/gunicorn.conf.py .
 COPY --chown=appuser:appuser deployment/cflow/wsgi.py .
 
+USER root
 COPY --chown=root:root deployment/cflow/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-USER root
 ENTRYPOINT ["/entrypoint.sh"]
