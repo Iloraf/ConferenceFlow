@@ -1,8 +1,9 @@
-FROM nginx:alpine
+FROM nginx:1.27
 
-RUN apk update && apk add --no-cache curl socat openssl nginx-mod-stream
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl socat openssl libnginx-mod-stream \
+    && rm -rf /var/lib/apt/lists/*
 
-# Installer acme.sh SANS email (on le passera en paramètre plus tard)
 RUN curl https://get.acme.sh | sh
 
 # replace existing files by our own configs
