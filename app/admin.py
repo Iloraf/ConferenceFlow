@@ -3784,7 +3784,8 @@ def select_for_biot_fourier_audition(comm_id):
     ).count()
     
     if nominations_count == 0:
-        flash('Cette communication n\'a pas été nominée pour le prix Biot-Fourier.', 'warning')
+        award_name = current_app.conference_config.get('award', {}).get('name', 'Prix Biot-Fourier')
+        flash(f'Cette communication n\'a pas été nominée pour {award_name}.', 'warning')
         return redirect(url_for('admin.biot_fourier_candidates'))
     
     # Vérifier si déjà sélectionnée
@@ -3799,8 +3800,8 @@ def select_for_biot_fourier_audition(comm_id):
         communication.biot_fourier_audition_selected_by_id = current_user.id
         
         db.session.commit()
-        
-        flash(f'Communication sélectionnée pour l\'audition Prix Biot-Fourier.', 'success')
+
+        flash(f'Communication sélectionnée pour l\'audition {award_name}.', 'success')
         
         # Proposer d'envoyer la notification
         return redirect(url_for('admin.biot_fourier_candidates'))
@@ -5629,13 +5630,13 @@ def run_biot_fourier_test(communication, dry_run):
             send_biot_fourier_audition_notification(communication)
         
         return {
-            'test': 'Email Biot-Fourier',
+            'test': f"Email {current_app.conference_config.get('award', {}).get('name', 'Prix Biot-Fourier')}",
             'success': True,
             'message': 'Envoyé avec succès' if not dry_run else 'Test simulé'
         }
     except Exception as e:
         return {
-            'test': 'Email Biot-Fourier',
+            'test': f"Email {current_app.conference_config.get('award', {}).get('name', 'Prix Biot-Fourier')}",
             'success': False,
             'message': f'Erreur: {str(e)}'
         }   

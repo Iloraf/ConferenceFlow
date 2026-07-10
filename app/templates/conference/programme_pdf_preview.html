@@ -117,10 +117,12 @@
             <span class="legend-color" style="background-color: #6f42c1;"></span>
             Cérémonies
         </div>
+	{% if conference_award.enabled %}
         <div class="legend-item">
             <span class="legend-color" style="background-color: #8e44ad;"></span>
-            Présentations orales prix Biot-Fourier
+            Présentations orales {{ conference_award.name }}
         </div>
+        {% endif %}
     </div>
     
     <div class="footer-info">
