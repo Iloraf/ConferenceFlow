@@ -22,8 +22,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # create and use a non root user
-RUN groupadd --system appuser && \
-    useradd --system --create-home --gid appuser --shell /sbin/nologin appuser
+RUN groupadd --system --gid 999 appuser && \
+    useradd --system --uid 999 --create-home --gid appuser --shell /sbin/nologin appuser
 USER appuser
 ENV PATH="/home/appuser/.local/bin:${PATH}"
 WORKDIR /home/appuser/
@@ -34,7 +34,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     texlive-latex-base texlive-latex-recommended texlive-latex-extra \
     texlive-fonts-recommended texlive-fonts-extra lmodern tex-gyre fonts-texgyre \
     texlive-lang-french texlive-luatex latexmk ghostscript \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
+
 USER appuser
 COPY --chown=appuser:appuser app ./app
 
@@ -44,3 +46,9 @@ COPY --chown=appuser:appuser run.py ./run.py
 
 COPY --chown=appuser:appuser deployment/cflow/gunicorn.conf.py .
 COPY --chown=appuser:appuser deployment/cflow/wsgi.py .
+
+COPY --chown=root:root deployment/cflow/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+USER root
+ENTRYPOINT ["/entrypoint.sh"]
