@@ -79,6 +79,11 @@ dates:
     - date: "2027-04-15"
       event: "Soumission des works in progress"
 
+# ===== PRIX / DISTINCTION =====
+award:
+  enabled: false
+  name: "Prix Biot-Fourier"
+
 # ===== LIEU ET LOGISTIQUE =====
 location:
   venue: "Nom du lieu d'accueil"

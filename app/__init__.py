@@ -233,6 +233,7 @@ def create_app():
             sponsors_info = app.sponsors_config
             legal_info = app.conference_config.get('legal', {})
             theme_info = app.conference_config.get('theme', {})
+            ward_info = app.conference_config.get('award', {})
             
             return {
                 'conference': conference_info,  # ← CHANGEMENT : on passe directement conference_info au lieu d'une structure modifiée
@@ -243,7 +244,8 @@ def create_app():
                 'conference_transport': transport_info,
                 'conference_accommodation': accommodation_info,
                 'legal': legal_info,
-                 'conference_theme': theme_info,
+                'conference_theme': theme_info,
+                'conference_award': award_info,
                 'sponsors': sponsors_info,
                 'themes_available': len(app.themes_config)
             }
