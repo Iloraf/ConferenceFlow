@@ -1,0 +1,33 @@
+zones:
+  inscription:
+    display_name: Inscription au congrès
+    is_open: false
+    message: Les inscriptions sont closes.
+  maintenance:
+    display_name: Mode maintenance
+    is_active: true
+    is_open: false
+    message: Le site de la SFT 2026 est actuellement en maintenance
+    message_detail: Nous effectuons des opérations de maintenance. Le site sera de
+      nouveau accessible prochainement.
+  mediatheque:
+    display_name: Médiathèque
+    is_open: true
+    message: La médiathèque n'est pas encore disponible.
+  registration:
+    display_name: Création de compte et inscription
+    is_open: true
+    message: La création de compte sera bientôt possible.
+  submission_article:
+    display_name: Dépôt de communications (Articles)
+    is_open: false
+    message: Le dépôt d'articles est maintenant clos.
+  submission_wip:
+    display_name: Dépôt de communications (Work in Progress)
+    is_open: false
+    message: Le dépôt de Work in Progress est maintenant clos.
+  communication:
+    is_open: true
+    message: "Cette rubrique n'est pas disponible pour cet événement."
+    display_name: "Communication"
+    description: "Affiche ou masque l'onglet Communication dans le menu"
