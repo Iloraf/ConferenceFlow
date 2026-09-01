@@ -77,35 +77,44 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-bolt me-2"></i>Actions rapides
+                        <i class="fas fa-bolt me-2"></i>Lot DOI pour l'Inist
                     </h5>
                 </div>
                 <div class="card-body">
+                    <p class="text-muted small">
+                        Enchaînement à respecter : prévisualiser, vérifier le
+                        rapport, attribuer, puis télécharger l'archive.
+                        L'attribution écrit en base de données.
+                    </p>
                     <div class="row">
                         <div class="col-md-4 mb-3">
-                            <button class="btn btn-success w-100" onclick="bulkGenerateDOI()">
+                            <button class="btn btn-outline-primary w-100" onclick="previewDOI()">
+                                <i class="fas fa-eye me-2"></i>
+                                1. Prévisualiser
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-success w-100" onclick="assignDOI()">
                                 <i class="fas fa-fingerprint me-2"></i>
-                                Générer tous les DOI manquants
+                                2. Attribuer DOI et URL
                             </button>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <button class="btn btn-info w-100" onclick="bulkExportToHAL()">
-                                <i class="fas fa-cloud-upload-alt me-2"></i>
-                                Export en lot vers HAL
-                            </button>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <button class="btn btn-warning w-100" onclick="downloadAllDOIXML()">
-                                <i class="fas fa-download me-2"></i>
-                                Télécharger tous les XML DOI
-                            </button>
+                            <a href="{{ url_for('export.doi_package') }}"
+                               class="btn btn-warning w-100">
+                                <i class="fas fa-file-archive me-2"></i>
+                                3. Télécharger l'archive
+                            </a>
                         </div>
                     </div>
+
+                    <div id="doi-report" class="mt-2"></div>
                 </div>
             </div>
         </div>
     </div>
 
+    
     <!-- Liste des communications -->
     <div class="row">
         <div class="col-md-12">
@@ -172,27 +181,111 @@
 <!-- Scripts JavaScript -->
 <script>
 // Fonctions pour les actions rapides
-function bulkGenerateDOI() {
-    if (confirm('Générer les DOI pour toutes les communications qui n\'en ont pas ?')) {
-        // TODO: Implémenter l'action en lot
-        showToast('Génération DOI en cours...', 'info');
+// Prévisualisation : aucune écriture en base
+async function previewDOI() {
+    const container = document.getElementById('doi-report');
+    container.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Analyse en cours...</p>';
+
+    try {
+        const response = await fetch('/admin/export/doi/preview');
+        const data = await response.json();
+
+        if (!data.success) {
+            container.innerHTML = '';
+            showToast(data.message, 'danger');
+            return;
+        }
+
+        renderReport(data, true);
+    } catch (error) {
+        container.innerHTML = '';
+        showToast('Erreur de communication avec le serveur', 'danger');
     }
 }
 
-function bulkExportToHAL() {
-    if (confirm('Exporter vers HAL toutes les communications prêtes ?')) {
-        // TODO: Implémenter l'export en lot
-        showToast('Export HAL en cours...', 'info');
+// Attribution : écriture en base
+async function assignDOI() {
+    if (!confirm("Attribuer les DOI et les URL manquants ?\n\nCette action écrit en base de données et n'est pas réversible automatiquement.")) {
+        return;
+    }
+
+    const container = document.getElementById('doi-report');
+    container.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Attribution en cours...</p>';
+
+    try {
+        const response = await fetch('/admin/export/doi/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+            container.innerHTML = '';
+            showToast(data.message, 'danger');
+            return;
+        }
+
+        renderReport(data, false);
+        showToast(`${data.modifiees} communication(s) modifiée(s)`, 'success');
+    } catch (error) {
+        container.innerHTML = '';
+        showToast('Erreur de communication avec le serveur', 'danger');
     }
 }
 
-function downloadAllDOIXML() {
-    if (confirm('Télécharger tous les fichiers XML DataCite ?')) {
-        // TODO: Implémenter le téléchargement en lot
-        showToast('Préparation du téléchargement...', 'info');
+function renderReport(data, isPreview) {
+    const container = document.getElementById('doi-report');
+    const rows = data.communications || [];
+
+    const count = isPreview ? data.a_attribuer : data.modifiees;
+    const label = isPreview ? 'à attribuer' : 'modifiée(s)';
+
+    let html = '<div class="alert alert-' + (data.erreurs > 0 ? 'warning' : 'info') + '">';
+    html += '<strong>' + (isPreview ? 'Simulation' : 'Attribution effectuée') + '</strong> — ';
+    html += rows.length + ' communication(s) éligible(s), ';
+    html += count + ' ' + label;
+    if (data.erreurs > 0) {
+        html += ', <strong>' + data.erreurs + ' anomalie(s)</strong>';
     }
+    html += '.</div>';
+
+    if (rows.length === 0) {
+        container.innerHTML = html;
+        return;
+    }
+
+    html += '<div class="table-responsive" style="max-height: 500px; overflow-y: auto;">';
+    html += '<table class="table table-sm table-striped align-middle">';
+    html += '<thead class="table-light"><tr>';
+    html += '<th>Id</th><th>Titre</th><th>DOI</th><th>URL</th><th>Action</th>';
+    html += '</tr></thead><tbody>';
+
+    rows.forEach(function (row) {
+        const rowClass = row.error ? ' class="table-warning"' : '';
+        html += '<tr' + rowClass + '>';
+        html += '<td>' + row.id + '</td>';
+        html += '<td class="small">' + escapeHtml(row.title || '') + '</td>';
+        html += '<td class="small"><code>' + escapeHtml(row.doi || '-') + '</code></td>';
+        html += '<td class="small text-break">' + escapeHtml(row.url || '-') + '</td>';
+        if (row.error) {
+            html += '<td class="small text-danger">' + escapeHtml(row.error) + '</td>';
+        } else {
+            html += '<td class="small">' + escapeHtml(row.action) + '</td>';
+        }
+        html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
 }
 
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+  
 function showToast(message, type = 'info') {
     // Simple toast notification
     const toast = document.createElement('div');

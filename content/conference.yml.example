@@ -356,3 +356,14 @@ integrations:
       dates:
         start: "2027-06-01"
         end: "2027-06-04"
+
+  doi:
+    # Préfixe attribué à la SFT par l'Inist-CNRS
+    prefix: "10.25855"
+
+    # Motif du suffixe DOI. {seq} est communication.id.
+    suffix_pattern: "SFT2026-{seq:03d}"
+
+    # Page de destination sur le site de la SFT.
+    # Attention : {seq} n'y est pas zéro-paddé, contrairement au suffixe.
+    landing_page_pattern: "https://www.sft.asso.fr/DOIeditions/CFT2026/Abstracts/p{seq}.html"
