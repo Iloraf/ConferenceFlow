@@ -114,6 +114,45 @@
         </div>
     </div>
 
+    <!-- Archive des articles -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-pdf me-2"></i>Articles en version définitive
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">
+                        Dernière version de chaque article accepté, renommée
+                        p{id}.pdf pour correspondre aux pages du site de la SFT,
+                        accompagnée d'un manifeste CSV. Les WIP ne sont pas
+                        concernés.
+                    </p>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <button class="btn btn-outline-primary w-100" onclick="previewPDF()">
+                                <i class="fas fa-list me-2"></i>
+                                Inventaire
+                            </button>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <a href="{{ url_for('export.pdf_package') }}"
+                               class="btn btn-warning w-100">
+                                <i class="fas fa-file-archive me-2"></i>
+                                Télécharger l'archive
+                            </a>
+                        </div>
+                    </div>
+
+                    <div id="pdf-report" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     
     <!-- Liste des communications -->
     <div class="row">
@@ -285,7 +324,63 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-  
+// Inventaire des articles exportables
+async function previewPDF() {
+    const container = document.getElementById('pdf-report');
+    container.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Inventaire en cours...</p>';
+
+    try {
+        const response = await fetch('/admin/export/pdf/preview');
+        const data = await response.json();
+
+        if (!data.success) {
+            container.innerHTML = '';
+            showToast(data.message, 'danger');
+            return;
+        }
+
+        const rows = data.articles || [];
+
+        let html = '<div class="alert alert-' + (data.erreurs > 0 ? 'warning' : 'info') + '">';
+        html += '<strong>' + data.total + ' article(s) accepté(s)</strong>';
+        if (data.erreurs > 0) {
+            html += ', <strong>' + data.erreurs + ' sans fichier</strong>';
+        }
+        html += '.</div>';
+
+        if (rows.length > 0) {
+            html += '<div class="table-responsive" style="max-height: 500px; overflow-y: auto;">';
+            html += '<table class="table table-sm table-striped align-middle">';
+            html += '<thead class="table-light"><tr>';
+            html += '<th>Id</th><th>Titre</th><th>Fichier</th><th>Version</th><th>Origine</th>';
+            html += '</tr></thead><tbody>';
+
+            rows.forEach(function (row) {
+                const rowClass = row.error ? ' class="table-warning"' : '';
+                html += '<tr' + rowClass + '>';
+                html += '<td>' + row.id + '</td>';
+                html += '<td class="small">' + escapeHtml(row.title || '') + '</td>';
+                html += '<td class="small"><code>' + escapeHtml(row.fichier) + '</code></td>';
+                if (row.error) {
+                    html += '<td colspan="2" class="small text-danger">' + escapeHtml(row.error) + '</td>';
+                } else {
+                    html += '<td class="small">v' + row.version + '</td>';
+                    html += '<td class="small"><code>' + escapeHtml(row.origine || '') + '</code></td>';
+                }
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+        }
+
+        container.innerHTML = html;
+    } catch (error) {
+        container.innerHTML = '';
+        showToast('Erreur de communication avec le serveur', 'danger');
+    }
+}
+
+
 function showToast(message, type = 'info') {
     // Simple toast notification
     const toast = document.createElement('div');

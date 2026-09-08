@@ -9,6 +9,8 @@ from flask_login import login_required, current_user
 from ..models import Communication, db
 from .export_manager import ExportManager
 from .doi_export import DOIExporter
+from .doi_export import DOIExporter
+from .pdf_export import PDFExporter
 
 export_bp = Blueprint('export', __name__)
 
@@ -212,6 +214,92 @@ def doi_package():
     conference = current_app.conference_config.get('conference', {}) or {}
     year = conference.get('year', datetime.now().year)
     filename = f"lot_doi_datacite_{year}.zip"
+
+    return Response(
+        archive,
+        mimetype='application/zip',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
+# ======================================================================
+# Archive des articles en version définitive
+# ======================================================================
+
+@export_bp.route('/admin/export/pdf/preview')
+@login_required
+def pdf_preview():
+    """
+    Inventaire des articles exportables, sans construire l'archive.
+    """
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+
+    try:
+        exporter = PDFExporter()
+        communications = exporter.get_communications()
+
+        details = []
+        for comm in communications:
+            submission_file = comm.get_latest_file('article')
+            details.append({
+                'id': comm.id,
+                'title': comm.title,
+                'doi': comm.doi,
+                'fichier': f"p{comm.id}.pdf",
+                'version': submission_file.version if submission_file else None,
+                'origine': submission_file.filename if submission_file else None,
+                'error': None if submission_file else "aucun fichier article",
+            })
+    except Exception as e:
+        current_app.logger.error(f"Erreur inventaire PDF: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'total': len(details),
+        'erreurs': len([d for d in details if d['error']]),
+        'articles': details,
+    })
+
+
+@export_bp.route('/admin/export/pdf/package')
+@login_required
+def pdf_package():
+    """
+    Télécharge l'archive des articles en version définitive,
+    renommés p{id}.pdf, accompagnés du manifeste CSV.
+    """
+    if not current_user.is_admin:
+        flash("Accès refusé", "danger")
+        return redirect(url_for("main.index"))
+
+    try:
+        exporter = PDFExporter()
+        archive, report = exporter.build_archive()
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération archive PDF: {e}")
+        flash(f"Erreur lors de la génération de l'archive : {e}", "danger")
+        return redirect(url_for('export.dashboard'))
+
+    for err in report['errors']:
+        current_app.logger.warning(
+            f"Archive PDF - article {err['id']} écarté : {err['error']}"
+        )
+
+    if report['exportes'] == 0:
+        flash("Aucun article exportable.", "warning")
+        return redirect(url_for('export.dashboard'))
+
+    if report['errors']:
+        current_app.logger.warning(
+            f"Archive PDF : {report['exportes']} article(s) exporté(s), "
+            f"{len(report['errors'])} écarté(s)"
+        )
+
+    conference = current_app.conference_config.get('conference', {}) or {}
+    year = conference.get('year', datetime.now().year)
+    filename = f"articles_definitifs_{year}.zip"
 
     return Response(
         archive,
