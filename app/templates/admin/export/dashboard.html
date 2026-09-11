@@ -152,7 +152,49 @@
         </div>
     </div>
 
+    <!-- Archive d'intégration SFT -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-globe me-2"></i>Archive d'intégration pour le site de la SFT
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">
+                        Une page par communication, articles et WIP, la table
+                        des matières, le CSV des thématiques, les PDF tamponnés
+                        du DOI et les deux livres numériques. Les livres doivent
+                        être générés avant de construire l'archive.
+                    </p>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-outline-primary w-100" onclick="siteStatus()">
+                                <i class="fas fa-clipboard-check me-2"></i>
+                                1. État
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-success w-100" onclick="siteBooks()">
+                                <i class="fas fa-book me-2"></i>
+                                2. Générer les livres
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="{{ url_for('export.site_package') }}"
+                               class="btn btn-warning w-100">
+                                <i class="fas fa-file-archive me-2"></i>
+                                3. Télécharger l'archive
+                            </a>
+                        </div>
+                    </div>
 
+                    <div id="site-report" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <!-- Liste des communications -->
     <div class="row">
@@ -380,6 +422,122 @@ async function previewPDF() {
     }
 }
 
+// État des livres et inventaire des pages
+async function siteStatus() {
+    const container = document.getElementById('site-report');
+    container.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Vérification...</p>';
+
+    try {
+        const response = await fetch('/admin/export/site/status');
+        const data = await response.json();
+
+        if (!data.success) {
+            container.innerHTML = '';
+            showToast(data.message, 'danger');
+            return;
+        }
+
+        let html = '<div class="alert alert-info">';
+        html += '<strong>' + data.total + ' page(s)</strong> seront générées : ';
+        html += data.articles + ' article(s), ' + data.wip + ' WIP.';
+        html += '</div>';
+
+        html += '<table class="table table-sm align-middle">';
+        html += '<thead class="table-light"><tr>';
+        html += '<th>Livre</th><th>Fichier</th><th>État</th><th>Déposé le</th>';
+        html += '</tr></thead><tbody>';
+
+        const labels = {
+            'proceedings': 'Actes',
+            'abstracts_book': 'Recueil des résumés'
+        };
+
+        Object.keys(data.livres).forEach(function (key) {
+            const livre = data.livres[key];
+            html += '<tr' + (livre.present ? '' : ' class="table-warning"') + '>';
+            html += '<td>' + escapeHtml(labels[key] || key) + '</td>';
+            html += '<td class="small"><code>' + escapeHtml(livre.fichier) + '</code></td>';
+            if (livre.present) {
+                html += '<td class="small text-success">présent (' + formatSize(livre.taille_octets) + ')</td>';
+                html += '<td class="small">' + escapeHtml(livre.modifie.replace('T', ' ')) + '</td>';
+            } else {
+                html += '<td class="small text-danger" colspan="2">absent</td>';
+            }
+            html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (error) {
+        container.innerHTML = '';
+        showToast('Erreur de communication avec le serveur', 'danger');
+    }
+}
+
+// Compilation des deux livres
+async function siteBooks() {
+    if (!confirm("Générer les actes et le recueil des résumés ?\n\nDeux compilations LaTeX successives : comptez plusieurs minutes sans retour visuel.")) {
+        return;
+    }
+
+    const container = document.getElementById('site-report');
+    container.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Compilation en cours, ne quittez pas la page...</p>';
+
+    try {
+        const response = await fetch('/admin/export/site/books', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+            container.innerHTML = '';
+            showToast(data.message, 'danger');
+            return;
+        }
+
+        let html = '<div class="alert alert-' + (data.erreurs > 0 ? 'warning' : 'success') + '">';
+        html += '<strong>Compilation terminée</strong>';
+        if (data.erreurs > 0) {
+            html += ' — ' + data.erreurs + ' échec(s)';
+        }
+        html += '.</div>';
+
+        html += '<table class="table table-sm align-middle"><tbody>';
+        data.livres.forEach(function (livre) {
+            html += '<tr' + (livre.error ? ' class="table-warning"' : '') + '>';
+            html += '<td>' + escapeHtml(livre.livre) + '</td>';
+            if (livre.error) {
+                html += '<td class="small text-danger">' + escapeHtml(livre.error) + '</td>';
+            } else {
+                html += '<td class="small"><code>' + escapeHtml(livre.fichier) + '</code> — ';
+                html += formatSize(livre.taille_octets) + '</td>';
+            }
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+
+        container.innerHTML = html;
+
+        if (data.erreurs === 0) {
+            showToast('Livres générés', 'success');
+        }
+    } catch (error) {
+        container.innerHTML = '<div class="alert alert-danger">La requête a échoué ou expiré. Vérifiez les logs du conteneur : la compilation a pu aboutir malgré tout.</div>';
+    }
+}
+
+function formatSize(octets) {
+    if (!octets) { return '0 o'; }
+    const unites = ['o', 'Ko', 'Mo', 'Go'];
+    let valeur = octets;
+    let index = 0;
+    while (valeur >= 1024 && index < unites.length - 1) {
+        valeur /= 1024;
+        index += 1;
+    }
+    return valeur.toFixed(1) + ' ' + unites[index];
+}
 
 function showToast(message, type = 'info') {
     // Simple toast notification

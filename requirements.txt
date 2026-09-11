@@ -38,6 +38,10 @@ requests  # Requêtes HTTP (HAL, APIs)
 # === SERVEUR DE PRODUCTION ===
 gunicorn  # Serveur WSGI pour production
 
+pikepdf
+py7zr
+
+
 # === OPTIONNEL - DÉCOMMENTEZ SI BESOIN ===
 # PyMuPDF==1.23.5  # Alternative pour PDF (plus puissant mais plus lourd)
 # celery  # Tâches asynchrones (pour notifications programmées)

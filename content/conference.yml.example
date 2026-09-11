@@ -367,3 +367,18 @@ integrations:
     # Page de destination sur le site de la SFT.
     # Attention : {seq} n'y est pas zéro-paddé, contrairement au suffixe.
     landing_page_pattern: "https://www.sft.asso.fr/DOIeditions/CFT2026/Abstracts/p{seq}.html"
+
+  site_sft:
+    # Racine de publication sur le site de la SFT.
+    # {year} est remplacé par conference.year à la génération.
+    base_url: "https://www.sft.asso.fr/DOIeditions/CFT{year}"
+
+    # Bandeau : déjà en ligne, simplement référencé par la table des matières
+    banner_source: "content/bandeau.png"
+    banner_filename: "bandeau-sft{year}.png"
+    
+    # Livres : nom dans la médiathèque, puis nom attendu dans l'archive
+    proceedings_source: "actes_sft{year}.pdf"
+    proceedings_filename: "Actes_SFT{year}.pdf"
+    abstracts_book_source: "livre_resumes_sft{year}.pdf"
+    abstracts_book_filename: "Resumes_SFT{year}.pdf"

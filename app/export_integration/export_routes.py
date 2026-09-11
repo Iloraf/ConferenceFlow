@@ -2,8 +2,11 @@
 """
 Routes pour la gestion des exports (HAL + DOI)
 """
+import os
+import shutil
 from flask import (Blueprint, render_template, request, redirect,
-                   url_for, flash, jsonify, Response, current_app)
+                   url_for, flash, jsonify, Response, current_app,
+                   send_file, after_this_request)
 from datetime import datetime
 from flask_login import login_required, current_user
 from ..models import Communication, db
@@ -11,6 +14,9 @@ from .export_manager import ExportManager
 from .doi_export import DOIExporter
 from .doi_export import DOIExporter
 from .pdf_export import PDFExporter
+from .pdf_export import PDFExporter
+from .site_books import SiteBooksGenerator
+from .site_export import SiteExporter
 
 export_bp = Blueprint('export', __name__)
 
@@ -305,4 +311,117 @@ def pdf_package():
         archive,
         mimetype='application/zip',
         headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
+# ======================================================================
+# Archive d'intégration pour le site de la SFT
+# ======================================================================
+
+@export_bp.route('/admin/export/site/status')
+@login_required
+def site_status():
+    """
+    État des deux livres numériques et inventaire des communications
+    qui recevront une page.
+    """
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+
+    try:
+        books = SiteBooksGenerator()
+        exporter = SiteExporter()
+        communications = exporter.get_communications()
+    except Exception as e:
+        current_app.logger.error(f"Erreur statut site: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'livres': books.status(),
+        'total': len(communications),
+        'articles': len([
+            c for c in communications if (c.type or '').lower() == 'article'
+        ]),
+        'wip': len([
+            c for c in communications if (c.type or '').lower() == 'wip'
+        ]),
+    })
+
+
+@export_bp.route('/admin/export/site/books', methods=['POST'])
+@login_required
+def site_books():
+    """
+    Compile les actes en un volume et le recueil des résumés, puis les
+    dépose sous leur nom définitif. Opération longue.
+    """
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+
+    try:
+        report = SiteBooksGenerator().generate_all()
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération livres: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    erreurs = [entry for entry in report if entry['error']]
+    current_app.logger.info(
+        f"Génération des livres par {current_user.email} : "
+        f"{len(report) - len(erreurs)} sur {len(report)}"
+    )
+
+    return jsonify({
+        'success': True,
+        'livres': report,
+        'erreurs': len(erreurs),
+    })
+
+
+@export_bp.route('/admin/export/site/package')
+@login_required
+def site_package():
+    """
+    Construit et télécharge l'archive d'intégration SFT.
+    """
+    if not current_user.is_admin:
+        flash("Accès refusé", "danger")
+        return redirect(url_for("main.index"))
+
+    workdir = None
+    try:
+        archive_path, report = SiteExporter().build_archive()
+        workdir = report['workdir']
+    except Exception as e:
+        current_app.logger.error(f"Erreur génération archive site: {e}")
+        flash(f"Erreur lors de la génération de l'archive : {e}", "danger")
+        return redirect(url_for('export.dashboard'))
+
+    for warning in report['warnings']:
+        current_app.logger.warning(
+            f"Archive site - {warning.get('id') or 'général'} : "
+            f"{warning['message']}"
+        )
+
+    current_app.logger.info(
+        f"Archive site générée par {current_user.email} : "
+        f"{report['total']} page(s), {report['pdf']} PDF, "
+        f"{len(report['livres'])} livre(s), "
+        f"{report['taille_octets']} octets"
+    )
+
+    @after_this_request
+    def cleanup(response):
+        try:
+            if workdir and os.path.isdir(workdir):
+                shutil.rmtree(workdir, ignore_errors=True)
+        except Exception as e:
+            current_app.logger.warning(f"Nettoyage archive site : {e}")
+        return response
+
+    return send_file(
+        archive_path,
+        as_attachment=True,
+        download_name=os.path.basename(archive_path),
+        mimetype='application/octet-stream',
     )

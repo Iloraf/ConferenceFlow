@@ -20,6 +20,7 @@ import io
 import os
 import csv
 import zipfile
+import pikepdf
 import logging
 from datetime import datetime
 
@@ -43,6 +44,10 @@ class PDFExporter:
     MANIFEST_FILENAME = "contenu.csv"
     PDF_DIRECTORY = "pdf"
 
+    DOI_X = 85
+    DOI_Y = 30
+    DOI_FONT_SIZE = 11
+    
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
@@ -64,8 +69,7 @@ class PDFExporter:
     # ------------------------------------------------------------------
     # Construction de l'archive
     # ------------------------------------------------------------------
-
-    def build_archive(self):
+    def build_archive(self, stamp_doi=True):
         """
         Retourne (contenu_zip_en_octets, rapport).
 
@@ -121,6 +125,28 @@ class PDFExporter:
                 })
                 continue
 
+            tampon = False
+            if stamp_doi:
+                if not comm.doi:
+                    errors.append({
+                        'id': comm.id,
+                        'title': comm.title,
+                        'error': "DOI absent : impossible de tamponner le PDF",
+                    })
+                    continue
+                try:
+                    payload = self._stamp_doi(payload, comm.doi)
+                    tampon = True
+                except Exception as e:
+                    errors.append({
+                        'id': comm.id,
+                        'title': comm.title,
+                        'error': f"tamponnage impossible : {e}",
+                    })
+                    continue
+
+
+            
             archive_name = f"p{comm.id}.pdf"
             contents[archive_name] = payload
 
@@ -130,6 +156,7 @@ class PDFExporter:
                 'doi': comm.doi or '',
                 'titre': comm.title or '',
                 'version': submission_file.version,
+                'tampon_doi': 'oui' if tampon else 'non',
                 'fichier_origine': submission_file.filename,
                 'taille_octets': len(payload),
             })
@@ -174,6 +201,47 @@ class PDFExporter:
             return path
 
         return None
+    
+    def _stamp_doi(self, payload, doi):
+        """
+        Imprime l'URL du DOI en bas de la première page.
+
+        Le PDF d'origine n'est pas réécrit : un second flux de contenu
+        est ajouté à la page, comme le faisait l'outil utilisé pour les
+        éditions précédentes. Le texte n'est pas cliquable.
+        """
+        url = f"https://doi.org/{doi}"
+
+        with pikepdf.open(io.BytesIO(payload)) as pdf:
+            page = pdf.pages[0]
+
+            font = pdf.make_indirect(pikepdf.Dictionary(
+                Type=pikepdf.Name.Font,
+                Subtype=pikepdf.Name.Type1,
+                BaseFont=pikepdf.Name.Helvetica,
+                Encoding=pikepdf.Name.WinAnsiEncoding,
+            ))
+
+            resources = page.get('/Resources')
+            if '/Font' not in resources:
+                resources['/Font'] = pikepdf.Dictionary()
+            resources['/Font']['/CFDOI'] = font
+
+            escaped = (url.replace('\\', '\\\\')
+                          .replace('(', '\\(')
+                          .replace(')', '\\)'))
+
+            overlay = (
+                f"q BT 1 0 0 1 {self.DOI_X} {self.DOI_Y} Tm "
+                f"/CFDOI {self.DOI_FONT_SIZE} Tf 0 0 0 rg "
+                f"({escaped}) Tj ET Q"
+            ).encode('latin-1')
+
+            page.contents_add(pikepdf.Stream(pdf, overlay), prepend=False)
+
+            output = io.BytesIO()
+            pdf.save(output)
+            return output.getvalue()
 
     def _package(self, contents, rows):
         buffer = io.BytesIO()
@@ -192,7 +260,7 @@ class PDFExporter:
             output,
             fieldnames=[
                 'numero', 'fichier', 'doi', 'titre',
-                'version', 'fichier_origine', 'taille_octets',
+                'version', 'tampon_doi', 'fichier_origine', 'taille_octets',
             ],
             delimiter=';',
             quoting=csv.QUOTE_MINIMAL,
