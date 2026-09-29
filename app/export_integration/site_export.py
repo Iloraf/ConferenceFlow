@@ -65,6 +65,7 @@ class SiteExporter:
         ├── Abstracts/
         │   ├── markdown-pandoc.css
         │   └── p{N}.html
+        ├── Media/
         └── PDF/
             ├── {N}_doi.pdf
             ├── Actes_SFT{year}.pdf
@@ -177,13 +178,16 @@ class SiteExporter:
                 'message': "bandeau introuvable dans static/content",
             })
 
+        # Supports de la médiathèque (avant la table, qui les liste)
+        media = self._copy_media(root, warnings)
+
         # Table des matières et CSV des thématiques
         grouped = self._group_by_thematique(communications)
 
         with open(os.path.join(root, 'Table_of_contents.html'),
                   'w', encoding='utf-8') as handle:
-            handle.write(self._render_toc(grouped, cfg))
-
+            handle.write(self._render_toc(grouped, cfg, media))
+        
         with open(os.path.join(root, 'doi_thematique.csv'),
                   'wb') as handle:
             handle.write(self._render_thematique_csv(grouped))
@@ -207,6 +211,7 @@ class SiteExporter:
             ]),
             'pdf': pdf_count,
             'livres': books_included,
+            'media': len(media),
             'warnings': warnings,
             'archive': os.path.basename(archive_path),
             'taille_octets': os.path.getsize(archive_path),
@@ -303,7 +308,7 @@ class SiteExporter:
     # Table des matières
     # ------------------------------------------------------------------
 
-    def _render_toc(self, grouped, cfg):
+    def _render_toc(self, grouped, cfg, modia=None):
         from markupsafe import escape
         from ..conference_books import get_presidents_names
 
@@ -351,6 +356,17 @@ class SiteExporter:
             f'Actes-SFT{year}</a></p>'
         )
 
+        if media:
+            lines.append(
+                '<h3 id="supports">Supports des conférences plénières '
+                'et ateliers</h3>'
+            )
+            for fichier, description in media:
+                lines.append(
+                    f'<p><a href="{base}/Media/{escape(fichier)}">'
+                    f'{escape(description or fichier)}</a></p>'
+                )
+        
         for thematique, communications in grouped.items():
             lines.append(
                 f'<h3 id="{self._slug(thematique)}">'
@@ -469,6 +485,39 @@ class SiteExporter:
             included.append(os.path.basename(path))
         return included
 
+    def _copy_media(self, root, warnings):
+        """
+        Copie dans Media/ les PDF décrits dans static/content/media/media.csv,
+        avec le même filtrage que la route /mediatheque.
+        Retourne la liste [(fichier, description)] des documents copiés.
+        """
+        media_dir = os.path.join(current_app.static_folder, 'content', 'media')
+        csv_path = os.path.join(media_dir, 'media.csv')
+        if not os.path.exists(csv_path):
+            return []
+
+        copied = []
+        target_dir = os.path.join(root, 'Media')
+
+        with open(csv_path, 'r', encoding='utf-8') as handle:
+            for row in csv.DictReader(handle, delimiter=';'):
+                fichier = (row.get('fichier') or '').strip()
+                description = (row.get('description') or '').strip()
+                if not fichier:
+                    continue
+                source = os.path.join(media_dir, fichier)
+                if not os.path.exists(source):
+                    warnings.append({
+                        'id': None,
+                        'message': f"médiathèque : fichier absent {fichier}",
+                    })
+                    continue
+                os.makedirs(target_dir, exist_ok=True)
+                shutil.copy2(source, os.path.join(target_dir, fichier))
+                copied.append((fichier, description))
+
+        return copied
+    
     # ------------------------------------------------------------------
     # Empaquetage
     # ------------------------------------------------------------------
@@ -536,7 +585,8 @@ class SiteExporter:
             user_marks = []
             for affiliation in (user.affiliations or []):
                 label = (
-                    getattr(affiliation, 'nom_complet', None)
+                    getattr(affiliation, 'citation', None)
+                    or getattr(affiliation, 'nom_complet', None)
                     or getattr(affiliation, 'sigle', None)
                     or ''
                 ).strip()
