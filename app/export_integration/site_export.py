@@ -308,7 +308,7 @@ class SiteExporter:
     # Table des matières
     # ------------------------------------------------------------------
 
-    def _render_toc(self, grouped, cfg, modia=None):
+    def _render_toc(self, grouped, cfg, media=None):
         from markupsafe import escape
         from ..conference_books import get_presidents_names
 
