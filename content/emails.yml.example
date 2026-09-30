@@ -249,12 +249,12 @@ content:
       Communication : {COMMUNICATION_TITLE}
       Décision : {DECISION_STATUS}
       Date de décision : {DECISION_DATE}
-      
+
       {DECISION_DETAILS}
-    call_to_action: "Consulter les détails"
       
       **Fichiers joints par les relecteurs :**
       {REVIEW_FILES_LINKS}
+    call_to_action: "Consulter les détails"
 
   # Email décision acceptée
   decision_accept:
@@ -275,12 +275,12 @@ content:
       - Préparer votre présentation/poster pour le congrès
       - Vous inscrire au congrès si ce n'est pas encore fait
       - Finaliser votre article complet (si applicable)
-      
+
       {COMMENTS_SECTION}
-    call_to_action: "Voir ma communication"
       
       **Fichiers joints par les relecteurs :**
       {REVIEW_FILES_LINKS}
+    call_to_action: "Voir ma communication"
 
   # Email décision refusée
   decision_reject:
