@@ -406,6 +406,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <option value="article" {% if not allowed_uploads.get('article') %}disabled{% endif %}>
                                                 Article complet {% if not allowed_uploads.get('article') %}(non autorisé){% endif %}
                                             </option>
+                                            <option value="rebuttal" {% if not allowed_uploads.get('rebuttal') %}disabled{% endif %}>
+                                                Réponse aux relecteurs (rebuttal) {% if not allowed_uploads.get('rebuttal') %}(non autorisé){% endif %}
+                                            </option>
                                             <option value="poster" {% if not allowed_uploads.get('poster') %}disabled{% endif %}>
                                                 Poster {% if not allowed_uploads.get('poster') %}(non autorisé){% endif %}
                                             </option>
@@ -447,8 +450,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="col-md-4 mb-3">
                         <div class="card">
                             <div class="card-header bg-{{ 'success' if file_type == 'résumé' else 'danger' if file_type == 'article' else 'warning' if file_type == 'wip' else 'info' }} text-white">
-                                <i class="fas {{ 'fa-file-text' if file_type == 'résumé' else 'fa-file-pdf' if file_type == 'article' else 'fa-flask' if file_type == 'wip' else 'fa-image' }} me-2"></i>
-                                {{ file_type.title() }}
+			      <i class="fas {{ 'fa-file-text' if file_type == 'résumé' else 'fa-file-pdf' if file_type == 'article' else 'fa-flask' if file_type == 'wip' else 'fa-comments' if file_type == 'rebuttal' else 'fa-image' }} me-2"></i>
+				{{ file_type.title() }}
                             </div>
                             <div class="card-body p-0">
                                 <div class="list-group list-group-flush">

@@ -3521,13 +3521,15 @@ def review_communication_details(comm_id):
         },
         'biot_fourier_count': len([r for r in reviews if r.recommend_for_biot_fourier])
     }
-    
+    rebuttal = SubmissionFile.query.filter_by(
+        communication_id=comm_id, file_type='rebuttal'
+    ).order_by(SubmissionFile.version.desc()).first()
+
     return render_template('admin/review_details.html',
                          communication=communication,
                          reviews=reviews,
-                         stats=stats)
-
-
+                         stats=stats,
+                         rebuttal=rebuttal)
 
 @admin.route('/assignment/<int:assignment_id>/unassign', methods=['POST'])
 @login_required
@@ -3672,6 +3674,35 @@ def send_decision_notification(comm_id):
         flash(f'Erreur lors de l\'envoi : {str(e)}', 'danger')
     
     return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+
+@admin.route('/communications/<int:comm_id>/send-rebuttal', methods=['POST'])
+@login_required
+def send_rebuttal_to_reviewers_route(comm_id):
+    """Envoie aux relecteurs le lien vers le rebuttal des auteurs."""
+    if not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.index"))
+
+    communication = Communication.query.get_or_404(comm_id)
+
+    try:
+        from app.emails import send_rebuttal_to_reviewers
+        result = send_rebuttal_to_reviewers(communication)
+
+        if result['errors']:
+            flash(f"Rebuttal envoyé à {result['sent']}/{result['total']} relecteur(s). "
+                  f"Erreurs : {'; '.join(result['errors'])}", 'warning')
+        else:
+            flash(f"Rebuttal envoyé à {result['sent']} relecteur(s).", 'success')
+
+    except ValueError as e:
+        flash(str(e), 'warning')
+    except Exception as e:
+        current_app.logger.error(f"Erreur envoi rebuttal communication {comm_id}: {e}")
+        flash(f"Erreur lors de l'envoi : {str(e)}", 'danger')
+
+    return redirect(url_for('admin.review_communication_details', comm_id=comm_id))
+
 
 @admin.route('/communications/<int:comm_id>/decision/reset', methods=['POST'])
 @login_required

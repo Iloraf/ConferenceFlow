@@ -36,6 +36,7 @@ templates:
     decision_reject: "Décision sur votre communication - {CONFERENCE_SHORT_NAME}"
     decision_revise: "Révisions demandées - {CONFERENCE_SHORT_NAME}"
     decision_transform_wip: "Proposition de transformation en WIP - {CONFERENCE_SHORT_NAME}"
+    rebuttal_to_reviewers: "Réponse des auteurs à votre review - {CONFERENCE_SHORT_NAME}"
 
     # Co-auteurs
     coauthor_invitation: "Invitation comme co-auteur - {CONFERENCE_SHORT_NAME}"
@@ -251,6 +252,9 @@ content:
       
       {DECISION_DETAILS}
     call_to_action: "Consulter les détails"
+      
+      **Fichiers joints par les relecteurs :**
+      {REVIEW_FILES_LINKS}
 
   # Email décision acceptée
   decision_accept:
@@ -274,6 +278,9 @@ content:
       
       {COMMENTS_SECTION}
     call_to_action: "Voir ma communication"
+      
+      **Fichiers joints par les relecteurs :**
+      {REVIEW_FILES_LINKS}
 
   # Email décision refusée
   decision_reject:
@@ -293,6 +300,9 @@ content:
       **Commentaires du comité :**
       {COMMENTS_SECTION}
       
+      **Fichiers joints par les relecteurs :**
+      {REVIEW_FILES_LINKS}
+
       Merci pour votre contribution et votre intérêt pour le congrès.
     call_to_action: "Voir les commentaires"
 
@@ -311,12 +321,34 @@ content:
       Date limite révisions : {REVISION_DEADLINE}
       
       **Votre communication peut être acceptée sous réserve de révisions.**
-      
+            
+      Vous pouvez déposer une réponse aux relecteurs (rebuttal) depuis la page de votre communication, avec la version révisée de l'article.
+
       **Commentaires et demandes des reviewers :**
       {COMMENTS_SECTION}
-      
+         
+      **Fichiers joints par les relecteurs :**
+      {REVIEW_FILES_LINKS}
+
       **Important :** Le respect de la date limite est impératif pour maintenir l'acceptation.
     call_to_action: "Déposer ma révision"
+
+  # Envoi du rebuttal aux relecteurs
+  rebuttal_to_reviewers:
+    greeting: "Bonjour {REVIEWER_NAME},"
+    intro: "Les auteurs ont répondu à votre review"
+    body: |
+      Les auteurs de la communication que vous avez évaluée pour {CONFERENCE_NAME} ont déposé une réponse à votre review.
+      
+      Communication : {COMMUNICATION_TITLE}
+      ID : {COMMUNICATION_ID}
+      
+      Réponse des auteurs : {REBUTTAL_URL}
+      Dernière version de l'article : {ARTICLE_URL}
+      
+      Merci pour votre contribution au processus de relecture.
+    call_to_action: "Télécharger la réponse des auteurs"
+
 
  # Email transformation en WIP
   decision_transform_wip:

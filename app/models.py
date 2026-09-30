@@ -30,11 +30,6 @@ db = SQLAlchemy()
 
 # ==================== TABLES D'ASSOCIATION ====================
 
-# Table d'association pour les auteurs des communications
-#communication_authors = db.Table('communication_authors',
-#    db.Column('communication_id', db.Integer, db.ForeignKey('communication.id'), primary_key=True),
-#    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
-#)
 # Table d'association pour les affiliations des users
 user_affiliations = db.Table('user_affiliations',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
@@ -570,10 +565,6 @@ class Communication(db.Model):
         elif self.status == CommunicationStatus.ACCEPTE and self.has_file('poster'):
             self.poster_submitted_at = datetime.utcnow()
 
-#        elif self.status == CommunicationStatus.ACCEPTE and self.has_file('poster'):
-#            self.status = CommunicationStatus.POSTER_SOUMIS
-#            self.poster_submitted_at = datetime.utcnow()
-
     def get_next_status_after_upload(self, file_type):
         """Détermine le prochain statut après upload d'un fichier."""
         if self.type == 'article':
@@ -594,23 +585,6 @@ class Communication(db.Model):
         return self.status  # Pas de changement
 
 
-    #def can_upload_file_type(self, file_type):
-    #    """Détermine si on peut uploader un type de fichier donné selon l'état."""
-    #    if self.type == 'article':
-    #        if file_type == 'article':
-    #            # Article PDF uploadable après soumission du résumé textuel
-    #            return self.status in [CommunicationStatus.RESUME_SOUMIS, CommunicationStatus.ARTICLE_SOUMIS]
-    #        elif file_type == 'poster':
-    #            # Poster uploadable après acceptation
-    #            return self.status == CommunicationStatus.ACCEPTE
-    #    elif self.type == 'wip':
-    #        if file_type == 'poster':
-                # Poster uploadable après soumission du WIP textuel
-    #            return self.status == CommunicationStatus.WIP_SOUMIS
-    
-    #    return False
-    
-
     def can_upload_file_type(self, file_type):
         """Détermine si on peut uploader un type de fichier donné selon l'état."""
         if self.type == 'article':
@@ -630,6 +604,14 @@ class Communication(db.Model):
                     CommunicationStatus.EN_REVIEW,
                     CommunicationStatus.ACCEPTE,
                     CommunicationStatus.REVISION_DEMANDEE,
+                    CommunicationStatus.POSTER_SOUMIS
+                ]
+            elif file_type == 'rebuttal':
+                # Réponse aux relecteurs, déposable dès qu'une review est en cours
+                return self.status in [
+                    CommunicationStatus.EN_REVIEW,
+                    CommunicationStatus.REVISION_DEMANDEE,
+                    CommunicationStatus.ACCEPTE,
                     CommunicationStatus.POSTER_SOUMIS
                 ]
         elif self.type == 'wip':
@@ -1226,11 +1208,6 @@ class FileType(Enum):
     ARTICLE = 'article'  
     POSTER = 'poster'
 
-
-
-
-
-    
 class SubmissionFile(db.Model):
     """Modèle pour les fichiers de soumission."""
     id = db.Column(db.Integer, primary_key=True)

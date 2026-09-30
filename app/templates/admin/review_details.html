@@ -622,7 +622,29 @@
 </div>
 {% endif %}
 
-                
+                                <!-- Rebuttal des auteurs -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        {% if rebuttal %}
+                            <div class="d-flex justify-content-between align-items-center border rounded p-2">
+                                <div>
+                                    <i class="fas fa-comments"></i> <strong>Rebuttal déposé</strong>
+                                    (version {{ rebuttal.version }}, le {{ rebuttal.upload_date.strftime('%d/%m/%Y à %H:%M') }})
+                                    <a href="{{ url_for('main.download_file', file_id=rebuttal.id) }}" class="ms-2">Télécharger</a>
+                                </div>
+                                <form method="POST" action="{{ url_for('admin.send_rebuttal_to_reviewers_route', comm_id=communication.id) }}"
+                                      onsubmit="return confirm('Envoyer le lien du rebuttal aux relecteurs de cette communication ?')">
+                                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-paper-plane"></i> Envoyer le rebuttal aux relecteurs
+                                    </button>
+                                </form>
+                            </div>
+                        {% else %}
+                            <small class="text-muted"><i class="fas fa-comments"></i> Aucun rebuttal déposé par les auteurs.</small>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <!-- Actions secondaires -->
                 <div class="row mt-3">
                     <div class="col-md-6">

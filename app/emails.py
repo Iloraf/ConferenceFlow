@@ -249,6 +249,8 @@ def _build_html_email(template_name, context, color_scheme='blue'):
             body_html = body
             # Convertir **texte** en <strong>texte</strong>
             body_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', body_html)
+            # Rendre les URL cliquables
+            body_html = re.sub(r'(https?://[^\s<]+)', r'<a href="\1">\1</a>', body_html)
             # Convertir les retours à la ligne
             body_html = body_html.replace('\n\n', '</p><p>').replace('\n', '<br>')
             html_parts.append(f"<p>{body_html}</p>")
@@ -639,7 +641,18 @@ def send_decision_email(communication, decision_type, additional_info=''):
             comments_section = "\n\n".join(comments_parts)
         else:
             comments_section = "Aucun commentaire spécifique."
-        
+        # Liens vers les fichiers de review (téléchargement réservé aux auteurs connectés)
+        review_files = [r for r in sorted(communication.reviews, key=lambda r: r.id)
+                        if r.completed and r.review_file_path]
+        if review_files:
+            links = []
+            for idx, review in enumerate(review_files, 1):
+                url = url_for('main.download_review_file', comm_id=communication.id,
+                              review_id=review.id, _external=True)
+                links.append(f"Fichier de review {idx} : {url}")
+            review_files_links = "\n".join(links)
+        else:
+            review_files_links = "Aucun fichier de review."
         # Récupérer les dates depuis la configuration
         from flask import current_app
         decision_date = datetime.utcnow().strftime('%d/%m/%Y')
@@ -674,20 +687,9 @@ def send_decision_email(communication, decision_type, additional_info=''):
             'REVISION_DEADLINE': revision_deadline,  # ← AJOUTER
             'DECISION_INFO': additional_info,
             'COMMENTS_SECTION': comments_section,
+            'REVIEW_FILES_LINKS': review_files_links,
             'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
         }
-
-#        base_context = {
-#            'USER_FIRST_NAME': corresponding.first_name or corresponding.email.split('@')[0],
-#            'USER_LAST_NAME': corresponding.last_name or '',
-#            'AUTHOR_NAME': corresponding.full_name or corresponding.email,
-#            'COMMUNICATION_TITLE': communication.title,
-#            'COMMUNICATION_ID': communication.id,
-#            'DECISION_TYPE': decision_type.upper(),
-#            'DECISION_INFO': additional_info,
-#            'COMMENTS_SECTION': comments_section,
-#            'call_to_action_url': url_for('main.update_submission', comm_id=communication.id, _external=True)
-#        }
 
         send_any_email_with_themes(
             template_name=template_name,
@@ -1037,3 +1039,54 @@ def send_grouped_review_notifications():
             'errors': [f"Erreur globale: {str(e)}"],
             'message': 'Échec de l\'envoi des notifications'
         }
+def send_rebuttal_to_reviewers(communication):
+    """Envoie aux relecteurs ayant rendu leur review un lien vers le rebuttal
+    et vers la dernière version de l'article."""
+    from app.models import SubmissionFile
+
+    rebuttal = SubmissionFile.query.filter_by(
+        communication_id=communication.id, file_type='rebuttal'
+    ).order_by(SubmissionFile.version.desc()).first()
+
+    if not rebuttal:
+        raise ValueError("Aucun rebuttal déposé pour cette communication.")
+
+    article = SubmissionFile.query.filter_by(
+        communication_id=communication.id, file_type='article'
+    ).order_by(SubmissionFile.version.desc()).first()
+
+    rebuttal_url = url_for('main.download_file', file_id=rebuttal.id, _external=True)
+    article_url = (url_for('main.download_file', file_id=article.id, _external=True)
+                   if article else "Non disponible")
+
+    reviews = [r for r in communication.reviews if r.completed and r.reviewer]
+
+    sent = 0
+    errors = []
+    for review in reviews:
+        reviewer = review.reviewer
+        try:
+            base_context = {
+                'REVIEWER_NAME': reviewer.full_name or reviewer.email,
+                'USER_FIRST_NAME': reviewer.first_name or reviewer.email.split('@')[0],
+                'COMMUNICATION_TITLE': communication.title,
+                'COMMUNICATION_ID': communication.id,
+                'REBUTTAL_URL': rebuttal_url,
+                'ARTICLE_URL': article_url,
+                'call_to_action_url': rebuttal_url
+            }
+            send_any_email_with_themes(
+                template_name='rebuttal_to_reviewers',
+                recipient_email=reviewer.email,
+                base_context=base_context,
+                communication=communication,
+                user=reviewer,
+                reviewer=reviewer,
+                color_scheme='blue'
+            )
+            sent += 1
+        except Exception as e:
+            errors.append(f"{reviewer.email}: {e}")
+            logger.error(f"Erreur envoi rebuttal à {reviewer.email} pour communication {communication.id}: {e}")
+
+    return {'sent': sent, 'total': len(reviews), 'errors': errors}

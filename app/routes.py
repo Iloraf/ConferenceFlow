@@ -131,6 +131,8 @@ def save_file(file, file_type, communication_id):
             prefix = 'ar'  # article
         elif file_type == 'poster':
             prefix = 'po'  # poster
+        elif file_type == 'rebuttal':
+            prefix = 'rb'  # réponse aux relecteurs
         else:
             raise ValueError(f"Type de fichier invalide pour article: {file_type}")
     elif comm.type == 'wip':
@@ -993,7 +995,7 @@ def update_submission(comm_id):
         
         # Déterminer les types de fichiers autorisés selon le type de communication
         if comm.type == 'article':
-            allowed_types = ['article', 'poster']
+            allowed_types = ['article', 'poster', 'rebuttal']
         elif comm.type == 'wip':
             allowed_types = ['poster']
         else:
@@ -1083,7 +1085,7 @@ def update_submission(comm_id):
     
     # Déterminer les types de fichiers selon le type de communication
     if comm.type == 'article':
-        file_types = ['article', 'poster']
+        file_types = ['article', 'poster', 'rebuttal']
     elif comm.type == 'wip':
         file_types = ['poster']
     else:
@@ -1319,6 +1321,30 @@ def download_file(file_id):
     return send_file(file.file_path, 
                     as_attachment=True, 
                     download_name=file.filename)
+
+@main.route("/soumission/<int:comm_id>/review/<int:review_id>/fichier")
+@login_required
+def download_review_file(comm_id, review_id):
+    """Téléchargement du fichier de review par un auteur de la communication."""
+    comm = Communication.query.get_or_404(comm_id)
+    review = Review.query.get_or_404(review_id)
+
+    if review.communication_id != comm.id or not review.completed:
+        flash("Fichier non disponible.", "danger")
+        return redirect(url_for("main.mes_communications"))
+
+    if current_user not in comm.authors and not current_user.is_admin:
+        flash("Accès refusé.", "danger")
+        return redirect(url_for("main.mes_communications"))
+
+    if not review.review_file_path or not os.path.exists(review.review_file_path):
+        flash("Fichier non trouvé.", "danger")
+        return redirect(url_for("main.mes_communications"))
+
+    extension = review.review_file_path.rsplit('.', 1)[-1].lower()
+    return send_file(review.review_file_path,
+                     as_attachment=True,
+                     download_name=f"review-{comm.id}-{review.id}.{extension}")
 
 @main.route("/delete-communication/<int:comm_id>", methods=["POST"])
 @login_required

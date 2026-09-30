@@ -62,8 +62,11 @@ def login():
                 current_app.logger.info(f"login_user résultat: {login_result}")
                 current_app.logger.info(f"current_user.is_authenticated après login: {current_user.is_authenticated}")
                 current_app.logger.info(f"current_user.id après login: {current_user.id if current_user.is_authenticated else 'N/A'}")
-                
+
                 flash(f"Bienvenue {user.full_name} !", "success")
+                next_page = request.args.get('next', '')
+                if next_page.startswith('/') and not next_page.startswith('//'):
+                    return redirect(next_page)
                 return redirect(url_for('main.index'))
             else:
                 current_app.logger.warning(f"Mot de passe incorrect pour {email}")
