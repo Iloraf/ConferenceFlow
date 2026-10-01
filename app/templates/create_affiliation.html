@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 
-{% block title %}Créer une affiliation - {{ conference.short_name }}{% endblock %}
+{% block title %}Demander une affiliation - {{ conference.short_name }}{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -10,11 +10,15 @@
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
-                        <h4 class="mb-0">Créer une nouvelle affiliation</h4>
+                        <h4 class="mb-0">Demander l'ajout d'une affiliation</h4>
                     </div>
                     <div class="card-body">
+                        <p class="text-muted small">
+                            Votre demande sera transmise aux organisateurs, qui ajouteront l'affiliation.
+                            Vous pourrez ensuite la sélectionner dans votre profil.
+                        </p>
                         <form method="POST">
-                            {{ form.hidden_tag() }}
+                      {{ form.hidden_tag() }}
                             
                             <div class="mb-3">
                                 {{ form.sigle.label(class="form-label") }}
@@ -51,7 +55,21 @@
                                     </div>
                                 {% endif %}
                             </div>
-                            
+
+                            <div class="mb-3">
+                                {{ form.citation.label(class="form-label") }}
+                                {{ form.citation(class="form-control", placeholder="Ex. : LEMTA, Université de Lorraine, CNRS, Nancy, France") }}
+                                <div class="form-text">Laisser vide pour utiliser le nom complet.</div>
+                                {% if form.citation.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.citation.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+			    
                             <div class="d-flex justify-content-between">
                                 <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Annuler</a>
                                 {{ form.submit(class="btn btn-primary") }}

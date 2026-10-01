@@ -69,13 +69,14 @@ class UserSpecialitesForm(FlaskForm):
     submit = SubmitField('Enregistrer')
 
 
-class CreateAffiliationForm(FlaskForm):
-    """Formulaire pour créer une nouvelle affiliation."""
-    sigle = StringField('Sigle', validators=[DataRequired(), Length(max=20)])
+ class CreateAffiliationForm(FlaskForm):
+    """Formulaire de demande d'ajout d'une affiliation (envoyée par email aux organisateurs)."""
+    sigle = StringField('Sigle', validators=[DataRequired(), Length(max=40)])
     nom_complet = StringField('Nom complet', validators=[DataRequired(), Length(max=200)])
     adresse = TextAreaField('Adresse', validators=[Optional()])
-    submit = SubmitField('Créer l\'affiliation')
-    
+    citation = StringField('Citation souhaitée (texte affiché dans les livres)', validators=[Optional(), Length(max=500)])
+    submit = SubmitField('Envoyer la demande')
+
     def validate_sigle(self, sigle):
         """Vérifie que le sigle n'existe pas déjà."""
         existing = Affiliation.query.filter_by(sigle=sigle.data.upper()).first()

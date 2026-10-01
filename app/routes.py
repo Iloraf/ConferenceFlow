@@ -420,42 +420,38 @@ def profile():
     affiliations = Affiliation.query.filter_by(is_active=True).order_by(Affiliation.sigle).all()
     return render_template("profile.html", affiliations=affiliations)
 
-#@main.route("/create-affiliation", methods=["GET", "POST"])
-#@login_required
-#def create_affiliation():
-#    """Permet de créer une nouvelle affiliation."""
-#    form = CreateAffiliationForm()
-    
-#    if form.validate_on_submit():
-#        # Créer la nouvelle affiliation
-#        affiliation = Affiliation(
-#            sigle=form.sigle.data.upper(),
-#            nom_complet=form.nom_complet.data,
-#            adresse=form.adresse.data if form.adresse.data else None,
-#            is_active=True
-#        )
-        
-#        db.session.add(affiliation)
-#        db.session.commit()
-        
-#        flash(f'Affiliation "{affiliation.sigle}" créée avec succès !', 'success')
-#        return redirect(url_for('main.profile'))
-    
-#    return render_template('create_affiliation.html', form=form)
-
 @main.route("/create-affiliation", methods=["GET", "POST"])
 @login_required
 def create_affiliation():
-    """Redirige vers le profil avec un message indiquant de contacter l'organisation."""
+    """Formulaire de demande d'ajout d'affiliation, transmise par email aux organisateurs."""
+    from .emails import send_email
+
+    form = CreateAffiliationForm()
     contact_email = current_app.conference_config.get('contacts', {}).get('general', {}).get('email', '')
-    flash(
-        f"La création d'affiliations n'est pas disponible en libre-service. "
-        f"Si votre affiliation manque, merci d'envoyer un email à "
-        f"{contact_email} en indiquant : "
-        f"le sigle, le nom complet, l'adresse et la citation souhaitée.",
-        "info"
-    )
-    return redirect(url_for('main.profile'))
+
+    if form.validate_on_submit():
+        demandeur = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip()
+        body = (
+            "Nouvelle demande d'ajout d'affiliation\n\n"
+            f"Demandeur : {demandeur} <{current_user.email}>\n\n"
+            f"Sigle       : {form.sigle.data.strip().upper()}\n"
+            f"Nom complet : {form.nom_complet.data.strip()}\n"
+            f"Adresse     : {(form.adresse.data or '').strip() or '-'}\n"
+            f"Citation    : {(form.citation.data or '').strip() or '-'}\n"
+        )
+        try:
+            send_email(
+                subject=f"Demande d'affiliation : {form.sigle.data.strip().upper()}",
+                recipients=[contact_email],
+                body=body
+            )
+            flash("Votre demande a été transmise aux organisateurs. "
+                  "L'affiliation sera disponible dans votre profil une fois ajoutée.", "success")
+            return redirect(url_for('main.profile'))
+        except Exception:
+            flash(f"L'envoi de la demande a échoué. Merci d'écrire directement à {contact_email}.", "danger")
+
+    return render_template('create_affiliation.html', form=form)
 
 @main.route("/mes-communications")
 @login_required
