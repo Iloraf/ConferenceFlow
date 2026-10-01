@@ -59,7 +59,6 @@
                             <div class="mb-3">
                                 {{ form.citation.label(class="form-label") }}
                                 {{ form.citation(class="form-control", placeholder="Ex. : LEMTA, Université de Lorraine, CNRS, Nancy, France") }}
-                                <div class="form-text">Laisser vide pour utiliser le nom complet.</div>
                                 {% if form.citation.errors %}
                                     <div class="text-danger">
                                         {% for error in form.citation.errors %}
